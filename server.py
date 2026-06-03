@@ -11,7 +11,7 @@ app = Flask(__name__)
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok"}), 200
+    return jsonify({"status": "ok", "time": datetime.now().isoformat()}), 200
 
 @app.route("/")
 def home():
@@ -22,10 +22,6 @@ def home():
             "/health": "Health check"
         }
     })
-
-@app.route("/health")
-def health():
-    return jsonify({"ok": True, "time": datetime.now().isoformat()})
 
 @app.route("/demo/<token>")
 def view_demo(token):
