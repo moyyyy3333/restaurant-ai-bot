@@ -27,7 +27,7 @@ DEMO_BASE_URL = os.getenv("DEMO_BASE_URL", "http://localhost:8080")
 DEMO_EXPIRE_HOURS = int(os.getenv("DEMO_EXPIRE_HOURS", "72"))  # 3 days
 
 # === Scanner ===
-HOUSTON_AREAS = [
+DEFAULT_AREAS = [
     "Heights", "Montrose", "Midtown", "Downtown Houston",
     "Rice Village", "River Oaks", "Upper Kirby", "Museum District",
     "EaDo", "East Downtown", "Washington Ave", "Galleria",
@@ -35,4 +35,14 @@ HOUSTON_AREAS = [
     "Katy", "Pearland", "Missouri City", "The Woodlands",
     "Cypress", "Klein", "Tomball", "Kingwood"
 ]
+
+# Override with SCAN_CITIES env var for easy customization
+# Format: comma-separated list of neighborhood/area names
+# Example: "Silver Lake,Arts District,Chinatown,Koreatown"
+SCAN_CITIES_ENV = os.getenv("SCAN_CITIES", "")
+if SCAN_CITIES_ENV:
+    HOUSTON_AREAS = [a.strip() for a in SCAN_CITIES_ENV.split(",") if a.strip()]
+else:
+    HOUSTON_AREAS = DEFAULT_AREAS
+
 SCAN_RADIUS_METERS = 1600  # ~1 mile
