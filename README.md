@@ -12,6 +12,8 @@ A Telegram-controlled bot system that:
 telegram bot → scanner (Google Places) → generator (site builder) → email outreach → tracking
 ```
 
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/restaurant-ai-bot?referralCode=moyyyy3333)
+
 ## Setup
 
 ```bash
@@ -50,4 +52,18 @@ DATABASE_URL=sqlite:///restaurant-bot.db
 - Links generated with unique tokens
 
 ## Deployment
-Deploy on Railway with Dockerfile.
+Deploy on Railway with the button above or use the Dockerfile directly.
+
+```bash
+# Or deploy manually:
+railway up
+```
+
+### Required Environment Variables
+| Variable | Description |
+|----------|-------------|
+| `TELEGRAM_BOT_TOKEN` | Bot token from BotFather |
+| `GOOGLE_PLACES_API_KEY` | Google Places API key |
+| `RESEND_API_KEY` | Resend.com API key for email |
+| `ADMIN_USER_IDS` | Your Telegram user ID(s) |
+| `DEMO_BASE_URL` | Public URL of your demo server |
