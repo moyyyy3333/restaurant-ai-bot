@@ -6,7 +6,8 @@ from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-from config import TELEGRAM_BOT_TOKEN, ADMIN_USER_IDS, DEMO_BASE_URL, DEMO_EXPIRE_HOURS
+from config import TELEGRAM_BOT_TOKEN, ADMIN_USER_IDS, DEMO_BASE_URL, DEMO_EXPIRE_HOURS, USE_TWILIO, TWILIO_FROM_NUMBER
+import config
 import db
 from scanner.scanner import scan_all_houston, scan_area_houston
 from generator import generate_with_sample_menu
@@ -46,6 +47,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/generate \\[id\\] — Generate website for a lead",
         "/preview \\[id\\] — Get protected demo link",
         "/email \\[id\\] — Send outreach to owner",
+        "/sms [id] — Send SMS with demo link (Twilio)",
+        "/smscheck — Check SMS replies",
         "/stats — Bot statistics",
         "/help — This menu",
         "",
@@ -429,6 +432,81 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db.update_lead(lead_id, emailed=1, email_sent_at=datetime.now().isoformat(), status="emailed")
         await query.message.edit_text(f"✅ Marked lead #{lead_id} as emailed.")
 
+@require_admin
+async def sms_lead(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Send SMS with demo link to a lead via Twilio"""
+    if not context.args:
+        await update.message.reply_text("Usage: /sms [lead_id]")
+        return
+    
+    try:
+        lead_id = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("Invalid ID.")
+        return
+    
+    if not USE_TWILIO:
+        await update.message.reply_text("❌ Twilio not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_FROM_NUMBER.")
+        return
+    
+    leads = db.get_leads(limit=100)
+    lead = next((l for l in leads if l["id"] == lead_id), None)
+    
+    if not lead:
+        await update.message.reply_text(f"Lead {lead_id} not found.")
+        return
+    
+    if not lead.get("demo_token"):
+        await update.message.reply_text("No site generated yet. Use /generate first.")
+        return
+    
+    if not lead.get("phone"):
+        await update.message.reply_text("No phone number for this lead.")
+        return
+    
+    from sms import send_sms_outreach
+    demo_url = f"{DEMO_BASE_URL}/demo/{lead['demo_token']}"
+    
+    msg = await update.message.reply_text(f"📱 Sending SMS to {html_module.escape(str(lead['name']))}...")
+    
+    result = send_sms_outreach(
+        phone=str(lead["phone"]),
+        restaurant_name=str(lead["name"]),
+        demo_url=demo_url,
+        lead_id=lead_id
+    )
+    
+    if result["success"]:
+        db.update_lead(lead_id, sms_sent=1, status="sms_sent")
+        await msg.edit_text(f"✅ SMS sent to {html_module.escape(str(lead['name']))}! (SID: {result['sid']})")
+    else:
+        await msg.edit_text(f"❌ SMS failed: {result['error']}")
+
+@require_admin
+async def sms_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Check for incoming SMS replies (YES = interested)"""
+    if not USE_TWILIO:
+        await update.message.reply_text("❌ Twilio not configured.")
+        return
+    
+    from sms import check_sms_replies
+    
+    msg = await update.message.reply_text("📱 Checking for SMS replies...")
+    replies = await asyncio.to_thread(check_sms_replies)
+    
+    if not replies:
+        await msg.edit_text("📱 No new interested replies found.")
+        return
+    
+    lines = ["📱 *Interested Replies:*\n"]
+    for r in replies:
+        lines.append(f"🏪 {r['restaurant']}")
+        lines.append(f"📞 {r['phone']}")
+        lines.append(f"💬 \"{r['message']}\"")
+        lines.append("")
+    
+    await msg.edit_text("\n".join(lines), parse_mode="Markdown")
+
 # === MAIN ===
 def main():
     if not TELEGRAM_BOT_TOKEN:
@@ -439,6 +517,11 @@ def main():
     print("🏪 Restaurant AI Bot starting...")
     print(f"👤 Admin user ID: {ADMIN_USER_IDS}")
     print(f"📍 {len(HOUSTON_AREAS)} Houston scan areas configured")
+    if USE_TWILIO:
+        print(f"📱 Twilio SMS enabled — sending from {config.TWILIO_FROM_NUMBER}")
+    else:
+        print("📱 Twilio SMS not configured — set TWILIO_ env vars to enable")
+    print("📧 Email (Resend):", "configured" if os.environ.get("RESEND_API_KEY") else "not configured")
     
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     
@@ -453,6 +536,10 @@ def main():
     app.add_handler(CommandHandler("preview", preview))
     app.add_handler(CommandHandler("email", email_lead))
     app.add_handler(CommandHandler("stats", stats))
+    
+    # SMS
+    app.add_handler(CommandHandler("sms", sms_lead))
+    app.add_handler(CommandHandler("smscheck", sms_check))
     
     # Callbacks
     app.add_handler(CallbackQueryHandler(button_handler))

@@ -11,7 +11,13 @@ GOOGLE_PLACES_API_KEY = "GOOGLE_PLACES_API_KEY_REMOVED"
 
 # === Email (Resend) ===
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
-FROM_EMAIL = "neo@restaurant.ai"  # Need to verify domain in Resend
+FROM_EMAIL = "neo@unfilterllc.com"  # Need to verify domain in Resend
+
+# === SMS (Twilio) ===
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
+TWILIO_FROM_NUMBER = os.getenv("TWILIO_FROM_NUMBER", "")  # e.g. +1234567890
+USE_TWILIO = bool(TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER)
 
 # === Database ===
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///restaurant-bot.db")
