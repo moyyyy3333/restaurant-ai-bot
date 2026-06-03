@@ -1,0 +1,6 @@
+.env
+__pycache__
+*.pyc
+restaurant-bot.db
+/data
+.DS_Store
