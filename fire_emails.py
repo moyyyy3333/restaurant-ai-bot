@@ -2,7 +2,7 @@
 """Send the 5 restaurant outreach emails"""
 import requests, json
 
-RESEND_KEY = "***"
+from config import RESEND_API_KEY as RESEND_KEY
 FROM = "M O <onboarding@resend.dev>"
 REPLY_TO = "iconcre8tion@gmail.com"
 
@@ -47,7 +47,8 @@ headers = {
 results = []
 
 for r in restaurants:
-    demo_url = f"http://localhost:8080/demo/{r['token']}"
+    from config import DEMO_BASE_URL
+    demo_url = f"{DEMO_BASE_URL}/demo/{r['token']}"
     
     subject = f"New website built for {r['name']} — free preview"
     body = f"""Hi there,

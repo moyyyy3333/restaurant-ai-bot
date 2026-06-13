@@ -7,7 +7,7 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 ADMIN_USER_IDS = [int(x.strip()) for x in os.getenv("ADMIN_USER_IDS", "8057854284").split(",") if x.strip()]
 
 # === Google Places API ===
-GOOGLE_PLACES_API_KEY = "GOOGLE_PLACES_API_KEY_REMOVED"
+GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "")
 
 # === Email (Resend) ===
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")

@@ -35,12 +35,41 @@ DATABASE_URL=sqlite:///restaurant-bot.db
 |---------|-------------|
 | `/start` | Welcome + menu |
 | `/scan` | Start scanning Houston restaurants |
-| `/scan [area]` | Scan specific Houston area (e.g., "/scan Heights") |
+| `/scan [area]` | Scan specific Houston area (e.g., `/scan Heights`) |
 | `/leads` | Show recent qualified leads |
+| `/lead [id]` | Show lead details |
 | `/generate [lead_id]` | Generate website for a lead |
 | `/preview [lead_id]` | Get protected preview link |
 | `/email [lead_id]` | Send outreach email to owner |
-| `/status` | Bot stats |
+| `/sms [id]` | Send SMS with demo link (Twilio) |
+| `/smscheck` | Check SMS replies |
+| `/status` | Bot statistics |
+| `/pipeline` | **Run full automation pipeline** (scan → generate → email) |
+| `/scanall` | **Scan all remaining unscanned areas** |
+| `/genall` | **Generate sites for all leads without one** |
+| `/emailall` | **Email all leads with sites but no contact yet** |
+
+## Pipeline Automation
+
+The bot now includes a fully autonomous pipeline (`pipeline.py`) that can be triggered via:
+
+- **Telegram:** `/pipeline`
+- **Cron:** `cd /app && python pipeline.py`
+- **Railway cron:** Can be configured to run every 6 hours
+
+The pipeline runs all stages automatically:
+1. **Scan** — finds next unscanned area and discovers restaurants without websites
+2. **Generate** — builds custom restaurant sites for any new leads
+3. **Email** — sends outreach to leads with generated sites
+
+### Webhook Endpoints (server.py)
+
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /webhook/resend` | Detects YES replies from incoming emails |
+| `POST /webhook/twilio` | Detects YES replies from SMS |
+| `POST /webhook/stripe` | Processes payment confirmations ($299) |
+| `GET /buy/<lead_id>` | Customer checkout page with Stripe payment link |
 
 ## Protection System
 - Demo sites served via server (not static files)

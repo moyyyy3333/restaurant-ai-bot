@@ -50,6 +50,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/sms [id] — Send SMS with demo link (Twilio)",
         "/smscheck — Check SMS replies",
         "/stats — Bot statistics",
+        "/pipeline — Run full automation pipeline (scan → generate → email)",
+        "/scanall — Scan all remaining unscanned areas",
+        "/genall — Generate sites for all leads",
+        "/emailall — Email all leads with sites",
         "/help — This menu",
         "",
         f"*Houston areas:* {len(HOUSTON_AREAS)}"
@@ -497,15 +501,61 @@ async def sms_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not replies:
         await msg.edit_text("📱 No new interested replies found.")
         return
-    
+
     lines = ["📱 *Interested Replies:*\n"]
     for r in replies:
         lines.append(f"🏪 {r['restaurant']}")
         lines.append(f"📞 {r['phone']}")
         lines.append(f"💬 \"{r['message']}\"")
         lines.append("")
-    
+
     await msg.edit_text("\n".join(lines), parse_mode="Markdown")
+
+
+# === PIPELINE COMMANDS ===
+
+@require_admin
+async def pipeline_run(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Run one cycle of the automation pipeline"""
+    from pipeline import run_pipeline
+    msg = await update.message.reply_text("🤖 Running automation pipeline...")
+    result = await asyncio.to_thread(run_pipeline)
+    await msg.edit_text(
+        f"✅ *Pipeline Complete*\n\n"
+        f"🔍 Scanned: {result.get('leads_found', 0)} new leads\n"
+        f"🖥️ Generated: {result.get('generated', 0)} sites\n"
+        f"📧 Emailed: {result.get('emailed', 0)}\n"
+        f"📊 Total: {result['total_restaurants']} restaurants, {result['total_leads']} leads",
+        parse_mode="Markdown"
+    )
+
+
+@require_admin
+async def pipeline_scan_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Scan all remaining unscanned areas"""
+    from pipeline import auto_scan_all_remaining
+    msg = await update.message.reply_text("🔍 Scanning all remaining areas...")
+    total = await asyncio.to_thread(auto_scan_all_remaining)
+    await msg.edit_text(f"✅ Initial scan complete — {total} new leads!")
+
+
+@require_admin
+async def pipeline_generate_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Generate sites for all leads without one"""
+    from pipeline import auto_generate
+    msg = await update.message.reply_text("🖥️ Generating sites for all leads...")
+    generated = await asyncio.to_thread(auto_generate, limit=50)
+    await msg.edit_text(f"✅ Generated {generated} new sites!")
+
+
+@require_admin
+async def pipeline_email_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Email all leads with sites but no contact"""
+    from pipeline import auto_email
+    msg = await update.message.reply_text("📧 Emailing all leads...")
+    emailed = await asyncio.to_thread(auto_email, limit=50)
+    await msg.edit_text(f"✅ Emailed {emailed} leads!")
+
 
 # === MAIN ===
 def main():
@@ -540,7 +590,13 @@ def main():
     # SMS
     app.add_handler(CommandHandler("sms", sms_lead))
     app.add_handler(CommandHandler("smscheck", sms_check))
-    
+
+    # Pipeline
+    app.add_handler(CommandHandler("pipeline", pipeline_run))
+    app.add_handler(CommandHandler("scanall", pipeline_scan_all))
+    app.add_handler(CommandHandler("genall", pipeline_generate_all))
+    app.add_handler(CommandHandler("emailall", pipeline_email_all))
+
     # Callbacks
     app.add_handler(CallbackQueryHandler(button_handler))
     

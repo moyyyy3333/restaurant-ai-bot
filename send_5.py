@@ -3,7 +3,10 @@
 import requests, json
 
 # Full Resend key from Morpheus
-RESEND_KEY = "re_VVi1Ee55_8jw3giJjcEMUueKqHa5e2rvb"
+from dotenv import load_dotenv
+load_dotenv()
+import os
+RESEND_KEY = os.getenv("RESEND_API_KEY", "")
 FROM = "M O <onboarding@resend.dev>"
 REPLY_TO = "iconcre8tion@gmail.com"
 
@@ -21,7 +24,8 @@ headers = {
 }
 
 for name, email, phone, token in restaurants:
-    demo_url = f"http://localhost:8080/demo/{token}"
+    from config import DEMO_BASE_URL
+    demo_url = f"{DEMO_BASE_URL}/demo/{token}"
     
     body = f"""Hi there,
 
