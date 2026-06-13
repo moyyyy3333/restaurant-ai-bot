@@ -10,6 +10,11 @@ _db_url = os.environ.get("DATABASE_URL", "")
 if _db_url and _db_url.startswith("sqlite:///"):
     DB_PATH = _db_url[len("sqlite:///"):]
 
+# Ensure parent directory exists
+_db_dir = os.path.dirname(DB_PATH)
+if _db_dir and not os.path.exists(_db_dir):
+    os.makedirs(_db_dir, exist_ok=True)
+
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row

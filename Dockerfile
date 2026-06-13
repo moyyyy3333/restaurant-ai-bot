@@ -9,7 +9,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN mkdir -p /data
+RUN mkdir -p /data && chmod 777 /data
 ENV DATABASE_URL=sqlite:///data/restaurant-bot.db
 
 # Start both bot and server
