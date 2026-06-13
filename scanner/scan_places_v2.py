@@ -1,24 +1,62 @@
-"""Scanner using New Places API (v1)"""
-import requests, json, time, sys
+"""Scanner using New Places API (v1) with service account auth"""
+import requests, json, time, sys, os, jwt as pyjwt
+from datetime import datetime
 sys.path.insert(0, '..')
 import db
-from config import GOOGLE_PLACES_API_KEY, HOUSTON_AREAS
+from config import HOUSTON_AREAS
 
-API_KEY = GOOGLE_PLACES_API_KEY
+# Service account auth — load from deployed secrets file or env var
+SECRETS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "secrets")
+SA_FILE = os.path.join(SECRETS_DIR, "gcp_sa.b64")
+SERVICE_ACCOUNT_JSON = os.environ.get("GOOGLE_SERVICE_ACCOUNT", "")
+
+def get_access_token():
+    """Get OAuth access token from service account credentials"""
+    sa_json = SERVICE_ACCOUNT_JSON
+    if not sa_json and os.path.exists(SA_FILE):
+        import base64
+        with open(SA_FILE) as f:
+            sa_json = base64.b64decode(f.read()).decode()
+    try:
+        sa = json.loads(sa_json)
+        iat = int(time.time())
+        claims = {
+            'iss': sa['client_email'],
+            'sub': sa['client_email'],
+            'aud': 'https://oauth2.googleapis.com/token',
+            'iat': iat,
+            'exp': iat + 3600,
+            'scope': 'https://www.googleapis.com/auth/cloud-platform'
+        }
+        assertion = pyjwt.encode(claims, sa['private_key'], algorithm='RS256')
+        r = requests.post('https://oauth2.googleapis.com/token', data={
+            'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+            'assertion': assertion
+        }, timeout=10)
+        return r.json().get('access_token')
+    except Exception as e:
+        print(f"  ❌ Auth error: {e}")
+        return None
+
 URL = 'https://places.googleapis.com/v1/places:searchText'
-HEADERS = {
-    'Content-Type': 'application/json',
-    'X-Goog-Api-Key': API_KEY,
-    'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.id,places.rating,places.websiteUri,places.internationalPhoneNumber,places.priceLevel,places.userRatingCount'
-}
+FIELDS = 'places.displayName,places.formattedAddress,places.id,places.rating,places.websiteUri,places.internationalPhoneNumber,places.priceLevel,places.userRatingCount'
 
 def search_restaurants(query, max_results=20):
-    """Search for restaurants using New Places API"""
+    """Search for restaurants using New Places API with OAuth"""
+    token = get_access_token()
+    if not token:
+        return []
+    
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {token}',
+        'X-Goog-FieldMask': FIELDS
+    }
     body = {
         'textQuery': query,
         'maxResultCount': max_results
     }
-    r = requests.post(URL, headers=HEADERS, json=body, timeout=15)
+    r = requests.post(URL, headers=headers, json=body, timeout=15)
     if r.status_code == 200:
         return r.json().get('places', [])
     else:

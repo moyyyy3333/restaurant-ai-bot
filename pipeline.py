@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from datetime import datetime, timedelta
 import db
-from scanner.scanner import scan_area_houston
+from scanner.scan_places_v2 import scan_area as scan_area_v2, scan_all as scan_all_v2
 from generator import generate_with_sample_menu
 from config import (
     DEMO_BASE_URL, DEMO_EXPIRE_HOURS, HOUSTON_AREAS,
@@ -33,7 +33,7 @@ def auto_scan():
         target = remaining[0]
 
     print(f"🔍 Scanning: {target}")
-    leads = scan_area_houston(target)
+    leads = scan_area_v2(target)
     print(f"  → {leads} new leads from {target}")
     return leads, target
 
@@ -48,7 +48,7 @@ def auto_scan_all_remaining():
     for area in HOUSTON_AREAS:
         if area in scanned_areas:
             continue
-        leads = scan_area_houston(area)
+        leads = scan_area_v2(area)
         total += leads
         time.sleep(2)
 
@@ -71,6 +71,7 @@ def auto_generate(limit=5):
 
     generated = 0
     for lead in leads:
+        lead = dict(lead)
         name = lead["name"]
         print(f"🖥️ Generating site for {name}...")
 

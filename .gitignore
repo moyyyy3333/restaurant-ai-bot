@@ -4,3 +4,6 @@ __pycache__
 restaurant-bot.db
 /data
 .DS_Store
+# Service account for GCP Places API
+secrets/*.json
+!secrets/gcp_sa.b64
