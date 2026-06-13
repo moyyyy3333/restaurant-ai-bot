@@ -11,7 +11,7 @@ GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "")
 
 # === Email (Resend) ===
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
-FROM_EMAIL = "neo@unfilterllc.com"  # Need to verify domain in Resend
+FROM_EMAIL = os.getenv("FROM_EMAIL", "onboarding@resend.dev")  # Use resend.dev until domain verified
 
 # === SMS (Twilio) ===
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
