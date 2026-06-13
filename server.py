@@ -110,6 +110,7 @@ def buy_page(lead_id):
     if not lead:
         return "Lead not found", 404
 
+    lead = dict(lead)
     name = lead.get("name", "Restaurant")
     demo_token = lead.get("demo_token", "")
     demo_url = f"{config.DEMO_BASE_URL}/demo/{demo_token}" if demo_token else "#"
