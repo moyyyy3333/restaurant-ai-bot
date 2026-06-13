@@ -281,6 +281,31 @@ def static_files(path):
     return send_from_directory("static", path)
 
 
+# ── Pipeline trigger endpoint ──
+
+@app.route("/pipeline/run", methods=["POST"])
+def trigger_pipeline():
+    """Trigger the automation pipeline (protected by PIPELINE_TOKEN)"""
+    token = os.environ.get("PIPELINE_TOKEN", "")
+    if token and request.headers.get("X-Pipeline-Token", "") != token:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    # Run pipeline in background thread
+    import threading
+    def _run():
+        from pipeline import run_pipeline
+        try:
+            result = run_pipeline()
+            print(f"🤖 Pipeline completed: {result}")
+        except Exception as e:
+            print(f"❌ Pipeline error: {e}")
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+
+    return jsonify({"status": "pipeline_started"}), 202
+
+
 # ── Seed endpoint ──
 
 @app.route("/admin/seed", methods=["POST"])
