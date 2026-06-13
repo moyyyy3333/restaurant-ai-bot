@@ -5,6 +5,11 @@ from datetime import datetime, timedelta
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "restaurant-bot.db")
 
+# Allow DATABASE_URL env var override (e.g. sqlite:///data/restaurant-bot.db)
+_db_url = os.environ.get("DATABASE_URL", "")
+if _db_url and _db_url.startswith("sqlite:///"):
+    DB_PATH = _db_url[len("sqlite:///"):]
+
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row

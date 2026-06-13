@@ -11,6 +11,9 @@ import config
 
 app = Flask(__name__)
 
+# Initialize DB on startup
+db.init_db()
+
 
 # ── Existing endpoints ──
 
@@ -273,6 +276,73 @@ def webhook_stripe():
 @app.route("/static/<path:path>")
 def static_files(path):
     return send_from_directory("static", path)
+
+
+# ── Seed endpoint ──
+
+@app.route("/admin/seed", methods=["POST"])
+def seed_data():
+    """Seed the database with initial data (protected by SEED_TOKEN)"""
+    seed_token = os.environ.get("SEED_TOKEN", "")
+    if seed_token and request.headers.get("X-Seed-Token", "") != seed_token:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "No JSON body"}), 400
+
+    conn = db.get_db()
+    imported = {"restaurants": 0, "leads": 0, "sites": 0}
+
+    # Import restaurants
+    for r in data.get("restaurants", []):
+        try:
+            conn.execute("""
+                INSERT OR IGNORE INTO restaurants (id, place_id, name, address, phone, cuisine, rating, price_level, user_ratings_total, has_website, website_status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                r["id"], r.get("place_id", ""), r["name"], r.get("address", ""),
+                r.get("phone", ""), r.get("cuisine", ""), r.get("rating"),
+                r.get("price_level"), r.get("user_ratings_total"),
+                1 if r.get("website") else 0,
+                "has_site" if r.get("website") else "no_site"
+            ))
+            imported["restaurants"] += 1
+        except Exception as e:
+            print(f"  Skip restaurant: {e}")
+
+    # Import leads
+    for l in data.get("leads", []):
+        try:
+            conn.execute("""
+                INSERT OR IGNORE INTO leads (id, restaurant_id, status, priority, demo_token, demo_created_at, demo_expires_at, demo_viewed, emailed, sold)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                l["id"], l["restaurant_id"], l.get("status", "new"),
+                l.get("priority", 0), l.get("demo_token"),
+                l.get("demo_created_at"), l.get("demo_expires_at"),
+                l.get("demo_viewed", 0), l.get("emailed", 0), l.get("sold", 0)
+            ))
+            imported["leads"] += 1
+        except Exception as e:
+            print(f"  Skip lead: {e}")
+
+    # Import generated sites
+    for s in data.get("sites", []):
+        try:
+            conn.execute("""
+                INSERT OR IGNORE INTO generated_sites (id, lead_id, restaurant_id, html_content, token, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                s["id"], s["lead_id"], s["restaurant_id"],
+                s["html_content"], s["token"], s.get("created_at", datetime.now().isoformat())
+            ))
+            imported["sites"] += 1
+        except Exception as e:
+            print(f"  Skip site: {e}")
+
+    conn.commit()
+    return jsonify({"imported": imported, "status": "ok"}), 200
 
 
 if __name__ == "__main__":
