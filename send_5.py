@@ -8,7 +8,7 @@ load_dotenv()
 import os
 RESEND_KEY = os.getenv("RESEND_API_KEY", "")
 FROM = "M O <onboarding@resend.dev>"
-REPLY_TO = "iconcre8tion@gmail.com"
+REPLY_TO = "mwo72inc@gmail.com"
 
 restaurants = [
     ("Enjels African Restaurant, Grocery & Lounge", "enjelsafrican@gmail.com", "281-473-7322", "271bcd4fd6cabe7ec983b78b"),
@@ -50,7 +50,7 @@ Reply to this email or call for questions.
 
 Best,
 M O
-iconcre8tion@gmail.com"""
+mwo72inc@gmail.com"""
 
     payload = {
         'from': FROM,

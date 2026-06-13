@@ -4,7 +4,7 @@ import requests, json
 
 from config import RESEND_API_KEY as RESEND_KEY
 FROM = "M O <onboarding@resend.dev>"
-REPLY_TO = "iconcre8tion@gmail.com"
+REPLY_TO = "mwo72inc@gmail.com"
 
 restaurants = [
     {
@@ -74,7 +74,7 @@ Reply to this email or call for questions.
 
 Best,
 M O
-iconcre8tion@gmail.com
+mwo72inc@gmail.com
 """
 
     payload = {

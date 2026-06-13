@@ -7,7 +7,7 @@ import db
 
 RESEND_KEY = "***"
 FROM = "M O <onboarding@resend.dev>"
-REPLY_TO = "iconcre8tion@gmail.com"
+REPLY_TO = "mwo72inc@gmail.com"
 
 def send_email(to_email, restaurant_name, demo_token, phone):
     """Send outreach email with invoice"""
@@ -38,7 +38,7 @@ Want to see it live? Reply to this email or call your dedicated line.
 
 Best,
 M O
-iconcre8tion@gmail.com
+mwo72inc@gmail.com
 """
 
     headers = {
