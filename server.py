@@ -196,6 +196,8 @@ def webhook_resend():
         print(f"📧 Positive reply from {sender} but no matching lead found")
         return jsonify({"status": "not_found"}), 200
 
+    lead = dict(lead)
+
     # Record the reply
     db.get_db().execute(
         "UPDATE leads SET email_replied = 1, followed_up = 1, status = 'interested' WHERE id = ?",

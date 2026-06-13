@@ -216,6 +216,7 @@ def process_sale(lead_id):
         print(f"❌ process_sale: lead #{lead_id} not found")
         return
 
+    lead = dict(lead)
     name = lead.get("name", "Restaurant")
     demo_token = lead.get("demo_token", "")
     buy_url = f"{DEMO_BASE_URL}/buy/{lead_id}"
@@ -243,6 +244,7 @@ def complete_sale(lead_id, payment_id, customer_email):
         print(f"❌ complete_sale: lead #{lead_id} not found")
         return
 
+    lead = dict(lead)
     name = lead.get("name", "Restaurant")
 
     # 1. Mark as sold
