@@ -150,20 +150,42 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
                 f'{name_s}. Nothing is published. '
                 f'<a href="#claim">See how to claim it</a></div>')
 
+    map_html = ""
+    if address:
+        map_q = html.escape(str(address), quote=True)
+        map_html = (f'<iframe class="map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" '
+                    f'src="https://maps.google.com/maps?q={map_q}&output=embed"></iframe>')
+
+    desc = e(hero)[:150]
+
     return f"""<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="{dark}">
+<meta property="og:title" content="{name_s}">
+<meta property="og:description" content="{desc}">
+<meta property="og:type" content="website">
 <title>{name_s}</title>
 <style>
 *{{margin:0;padding:0;box-sizing:border-box}}
+html{{scroll-behavior:smooth}}
 body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
 background:{light};color:{dark};line-height:1.6}}
 .wm{{position:fixed;top:14px;right:14px;background:{dark};color:{accent};
 padding:6px 14px;border-radius:99px;font-size:11px;letter-spacing:.2em;z-index:99;opacity:.9}}
 .claimbar{{background:{dark};color:{light};text-align:center;padding:10px 16px;font-size:13.5px}}
 .claimbar a{{color:{accent}}}
-header{{background:{dark};color:{light};padding:88px 24px 76px;text-align:{m['h_align']}}}
+nav{{position:sticky;top:0;z-index:50;background:{light}ee;backdrop-filter:blur(8px);
+border-bottom:1px solid rgba(0,0,0,.08);display:flex;align-items:center;justify-content:space-between;
+padding:14px 24px}}
+nav .brand{{font-weight:700;font-size:15px;font-family:{m['heading_font']}}}
+nav .links a{{color:{dark};text-decoration:none;font-size:13.5px;margin-left:22px;opacity:.75}}
+nav .links a:hover{{opacity:1}}
+nav .navcall{{background:{accent};color:{dark};padding:8px 16px;border-radius:{m['radius_cta']};
+font-weight:600}}
+header{{background:linear-gradient(160deg,{dark},{dark} 60%,{accent}22);color:{light};
+padding:88px 24px 76px;text-align:{m['h_align']}}}
 header h1{{font-size:clamp(32px,6vw,58px);font-weight:{m['h_weight']};letter-spacing:.02em;
 font-family:{m['heading_font']}}}
 .tag{{color:{accent};letter-spacing:{m['tag_ls']};text-transform:uppercase;font-size:12px;margin-bottom:20px}}
@@ -176,14 +198,18 @@ section{{max-width:940px;margin:0 auto;padding:64px 24px}}
 h2{{font-size:26px;font-weight:{m['h_weight']};margin-bottom:8px;font-family:{m['heading_font']}}}
 .sub{{color:#6b6b6b;font-size:14px;margin-bottom:28px}}
 .grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}}
-.card{{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:{m['radius_card']};padding:22px}}
+.card{{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:{m['radius_card']};padding:22px;
+transition:transform .15s ease,box-shadow .15s ease}}
+.card:hover{{transform:translateY(-3px);box-shadow:0 10px 24px rgba(0,0,0,.08)}}
 .card h3{{font-size:17px;margin-bottom:6px}}
 .card p{{color:#6b6b6b;font-size:14px}}
 .info{{background:#fff;border-top:1px solid rgba(0,0,0,.07)}}
-.inforow{{display:flex;flex-wrap:wrap;gap:36px;max-width:940px;margin:0 auto;padding:44px 24px}}
+.inforow{{display:flex;flex-wrap:wrap;gap:36px;max-width:940px;margin:0 auto;padding:44px 24px 0}}
 .inforow div{{flex:1;min-width:200px}}
 .inforow b{{display:block;font-size:12px;letter-spacing:.16em;text-transform:uppercase;
 color:{accent};margin-bottom:8px}}
+.map{{width:100%;max-width:940px;display:block;margin:28px auto 0;height:280px;border:0;
+border-radius:{m['radius_card']}}}
 #claim{{background:{dark};color:{light}}}
 #claim .box{{max-width:720px;margin:0 auto;padding:64px 24px;text-align:center}}
 #claim h2{{color:{light}}}
@@ -192,6 +218,14 @@ color:{accent};margin-bottom:8px}}
 footer{{background:{dark};color:{light};opacity:.75;text-align:center;padding:26px;font-size:12.5px}}
 </style></head><body>
 {mark}
+<nav>
+  <span class="brand">{name_s}</span>
+  <span class="links">
+    <a href="#menu">{e(meta['sections'][0])}</a>
+    <a href="#location">Location</a>
+    {f'<a class="navcall" href="tel:{tel}">Call</a>' if tel else '<a href="#claim">Get Yours</a>'}
+  </span>
+</nav>
 <header>
   <div class="tag">{e(meta['label'])}{(' · ' + e(city.title())) if city else ''}</div>
   <h1>{name_s}</h1>
@@ -200,17 +234,19 @@ footer{{background:{dark};color:{light};opacity:.75;text-align:center;padding:26
   {f'<a class="cta" href="tel:{tel}">Call {phone_s}</a>' if tel else ''}
 </header>
 
-<section>
+<section id="menu">
   <h2>{e(meta['sections'][0])}</h2>
   <p class="sub">Sample layout — your real items and prices go here.</p>
   <div class="grid">{cards}</div>
 </section>
 
-<div class="info"><div class="inforow">
+<div class="info" id="location"><div class="inforow">
   <div><b>Find us</b>{addr_s or 'Your address here'}</div>
   <div><b>Call</b>{phone_s or 'Your phone here'}</div>
   <div><b>Hours</b>Add your real hours — this line is a placeholder.</div>
-</div></div>
+</div>
+{map_html}
+</div>
 
 <section id="claim"><div class="box">
   <h2>Want this as your real website?</h2>
