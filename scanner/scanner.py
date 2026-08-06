@@ -242,6 +242,7 @@ def daily_scan_sample(budget: int = 12, cities=None, categories=None) -> int:
         total += scan_area(area, city=city, category=cat)
         time.sleep(1.0)
     print(f"=== daily sample: {total} new leads from {min(budget, len(combos))} areas ===")
+    return total
 
 
 def scan_multiple(cities=None, categories=None, max_areas_per_city: int = 5) -> int:
