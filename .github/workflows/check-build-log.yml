@@ -6,10 +6,15 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - name: Get deploy detail and build logs
+      - name: Get latest deploy detail and build logs
         run: |
+          deploy_id=$(curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys?limit=1" \
+            | python3 -c "import json,sys; print(json.load(sys.stdin)[0]['deploy']['id'])")
+          echo "latest deploy: $deploy_id"
+
           curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys/dep-d9q4vt67bikc738g7h10" \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys/$deploy_id" \
             | python3 -m json.tool
 
           owner=$(curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
