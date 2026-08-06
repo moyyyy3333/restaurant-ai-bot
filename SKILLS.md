@@ -196,3 +196,122 @@ type(scope): short description
 - Detail lines wrapped at 72 chars
 Types: feat, fix, refactor, docs, test, ci, chore, perf
 ```
+
+---
+
+## Bug Bounty Tools
+
+### Recon
+- `nmap` — port scanning
+- `ffuf` — fuzzing endpoints
+- `nuclei` — template-based vulnerability scanning
+- `amass` — subdomain enumeration
+- `httpx` — HTTP probing
+
+### Custom Detectors
+- Every lens fires real code, validated against real targets
+- Pattern: write detector → validate against known-bad target → refine
+
+### Video Evidence
+- `ffmpeg` — capture video evidence with burned timestamps
+- Every P1 gets video proof
+
+---
+
+## Obsidian Tools
+
+### Plugin Development
+- Obsidian plugins use TypeScript + the Obsidian API
+- Plugin manifest in `manifest.json`
+- Main entry: `src/main.ts`
+- Use `obsidian` npm package for types
+
+### Quick Plugin Setup
+```bash
+mkdir my-plugin && cd my-plugin
+npm init -y
+npm install obsidian
+```
+
+### Key Patterns
+- `Plugin.registerEvent()` for lifecycle hooks
+- `Workspace.getActiveFile()` for current file
+- `Vault.read()` / `Vault.modify()` for file operations
+- `Notice()` for user feedback
+- `Setting()` for plugin settings UI
+
+### Build & Deploy
+```bash
+# Build
+npx esbuild main.ts --bundle --outfile=dist/main.js --format=cjs --platform=node
+
+# Package
+zip -r my-plugin.zip manifest.json dist/
+```
+
+---
+
+## AI/ML Tools
+
+### Local Models
+- `ollama` — run models locally at `127.0.0.1:11434`
+- `qwen3-8b-local:latest`, `qwen3:8b`
+- `llama.cpp` — run quantized models, tune context windows
+
+### Fine-tuning
+- LoRA, QLoRA, Axolotl — for custom model training
+
+### Cloud Models
+- OpenRouter, HuggingFace Pro — any model, any task
+
+### Dolphin (uncensored)
+- Local uncensored model at `127.0.0.1:9001`
+
+---
+
+## Data Tools
+
+### PostgreSQL / Supabase
+- Relational, real-time, scalable
+- `supabase` CLI for local dev
+
+### Scraping
+- `Browser-harness` / `Puppeteer` — scrape anything
+- Python pipelines for ETL, enrichment, dataset building
+
+---
+
+## DevOps Tools
+
+### Vercel
+- `npx vercel --yes --prod`
+- `npx vercel redeploy <url>`
+- `npx vercel env add KEY`
+
+### Railway
+- `railway login`, `railway project link`, `railway deploy`
+- `railway variable set KEY=value`
+- `railway volume add --mount-path /data`
+
+### GitHub Actions
+- `gh workflow list`, `gh run list`, `gh run view`
+- `gh secret set KEY --body value`
+- `gh actions-importer` — migrate from Jenkins/CircleCI
+
+---
+
+## Security Tools
+
+### API Key Safety
+- Never embed API keys directly in scripts
+- Use env vars or file-based auth
+- `.env.example` for placeholders, `.gitignore` for `.env`
+
+### Shell Escaping
+- Keys with `$`, backticks, quotes break inline commands
+- Use `$(cat file)` or env vars instead
+- For Python `subprocess`, pass key as separate env var
+
+### Token Revocation
+- GitHub auto-revokes tokens that appear in chat logs
+- Use file-based auth for testing APIs
