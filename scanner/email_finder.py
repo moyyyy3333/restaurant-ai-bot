@@ -128,7 +128,7 @@ def _hunter_search(domain: str) -> str:
 
 def _apollo_search(domain: str) -> str:
     """Search Apollo.io for an email associated with a domain."""
-    url = f"https://api.apollo.io/v1/mixed_company/search?q={urllib.parse.quote(domain)}&api_key={APOLLO_API_KEY}"
+    url = f"https://api.apollo.io/v1/company/search?q={urllib.parse.quote(domain)}&api_key={APOLLO_API_KEY}"
     try:
         with urllib.request.urlopen(url, timeout=12) as r:
             data = json.loads(r.read())
