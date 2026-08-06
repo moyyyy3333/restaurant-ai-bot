@@ -301,6 +301,12 @@ def lock_user(user_id: int):
         c.execute("UPDATE bot_auth SET unlocked_at = NULL WHERE user_id = ?", (user_id,))
 
 
+def lock_all_users():
+    """Revoke all active unlocks. Used when the passcode is rotated."""
+    with conn() as c:
+        c.execute("UPDATE bot_auth SET unlocked_at = NULL WHERE unlocked_at IS NOT NULL")
+
+
 def record_failed_attempt(user_id: int, username: str = "") -> tuple[int, str | None]:
     """Increments the failure counter. Returns (attempts, last_attempt_iso)."""
     with conn() as c:
