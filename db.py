@@ -210,6 +210,23 @@ def leads_needing_email(limit: int = 25):
             "AND email IS NOT NULL AND email != '' LIMIT ?", (limit,)).fetchall()
 
 
+def leads_missing_email(limit: int = 25):
+    """Leads with a demo already built but no email on file yet, plus the
+    business's website/website_status so the caller has something to scrape."""
+    with conn() as c:
+        return c.execute(
+            "SELECT leads.*, businesses.website AS biz_website "
+            "FROM leads JOIN businesses ON businesses.id = leads.business_id "
+            "WHERE leads.demo_token IS NOT NULL AND leads.status != 'dead' "
+            "AND (leads.email IS NULL OR leads.email = '') LIMIT ?", (limit,)).fetchall()
+
+
+def set_email(lead_id: int, business_id: int, email: str):
+    with conn() as c:
+        c.execute("UPDATE leads SET email = ? WHERE id = ?", (email, lead_id))
+        c.execute("UPDATE businesses SET email = ? WHERE id = ?", (email, business_id))
+
+
 # ------------------------------------------------------------------ demo sites
 def create_demo_site(lead_id: int, business_id, html: str, token: str, template_used=None):
     """Write the generated HTML to disk and record it."""

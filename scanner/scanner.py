@@ -213,6 +213,28 @@ def scan_city(city_key: str, categories=None, max_areas: int = 8) -> int:
     return total
 
 
+def daily_scan_sample(budget: int = 12, cities=None, categories=None) -> int:
+    """Scan a random slice of the full (city, area, category) space instead of
+    the whole thing — a full sweep is thousands of LocationIQ calls, way past
+    what one scheduled run should do. google_place_id is UNIQUE, so re-rolling
+    a combo already scanned before just costs a wasted call, not a duplicate
+    lead — safe to pick randomly each run rather than track a cursor."""
+    import random
+    cities = cities or DEFAULT_CITIES
+    categories = categories or DEFAULT_CATEGORIES
+
+    combos = [(city, area, cat) for city in cities if city in CITIES
+              for area in CITIES[city]["areas"] for cat in categories]
+    random.shuffle(combos)
+
+    total = 0
+    for city, area, cat in combos[:budget]:
+        total += scan_area(area, city=city, category=cat)
+        time.sleep(1.0)
+    print(f"=== daily sample: {total} new leads from {min(budget, len(combos))} areas ===")
+    return total
+
+
 def scan_multiple(cities=None, categories=None, max_areas_per_city: int = 5) -> int:
     cities = cities or DEFAULT_CITIES
     total = 0

@@ -5,7 +5,7 @@ Demo server.
   /demo/<token>         serve a generated sample site (expires)
   /unsubscribe?e=...    one-click opt-out (GET renders, POST confirms)
   /webhook/resend       inbound reply/bounce events -> lead status
-  /pipeline/run         token-guarded: generate sites for new leads
+  /pipeline/run         token-guarded: full daily scan -> site -> email -> send
 
 Stdlib only — no Flask needed, so `python server.py` just works.
 """
@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 import db
-from config import DEMO_EXPIRE_HOURS, PORT
+from config import DAILY_SEND_LIMIT, DEMO_BASE_URL, DEMO_EXPIRE_HOURS, PORT
 
 PIPELINE_TOKEN = os.getenv("PIPELINE_TOKEN", "")
 
@@ -151,11 +151,19 @@ class Handler(BaseHTTPRequestHandler):
         return self.json_out(200, {"ok": True})
 
     def run_pipeline(self):
-        """Generate demo sites for leads that don't have one yet."""
+        """The full daily loop: scan -> build demo sites -> find emails -> send
+        proposals, capped at DAILY_SEND_LIMIT sends. Each stage is independent
+        so a slow/failed scan still lets today's backlog get emailed."""
         from datetime import timedelta
+        from emailer import send_proposal
         from generator import generate_site
+        from scanner.email_finder import find_email
+        from scanner.scanner import daily_scan_sample, verify_website
+
+        found = daily_scan_sample(budget=12)
+
         made = []
-        for lead in db.leads_needing_site(limit=10):
+        for lead in db.leads_needing_site(limit=DAILY_SEND_LIMIT):
             html_str, token = generate_site(
                 name=lead["name"], address=lead["address"] or "", phone=lead["phone"] or "",
                 category=lead["category"] or "restaurant", rating=lead["rating"],
@@ -167,7 +175,40 @@ class Handler(BaseHTTPRequestHandler):
                            demo_expires_at=(datetime.now() +
                                             timedelta(hours=DEMO_EXPIRE_HOURS)).isoformat())
             made.append({"lead": lead["id"], "name": lead["name"], "token": token})
-        return self.json_out(200, {"generated": len(made), "sites": made})
+
+        enriched = []
+        for lead in db.leads_missing_email(limit=DAILY_SEND_LIMIT * 2):
+            email = find_email(lead["name"], lead["biz_website"], lead["website_status"])
+            if email:
+                db.set_email(lead["id"], lead["business_id"], email)
+                enriched.append({"lead": lead["id"], "email": email})
+
+        sent = []
+        for lead in db.leads_needing_email(limit=DAILY_SEND_LIMIT):
+            if len(sent) >= DAILY_SEND_LIMIT:
+                break
+            if db.is_suppressed(lead["email"]):
+                continue
+            if lead["website_status"] != "has_site":
+                real_site = verify_website(lead["name"], lead["address"] or "")
+                if real_site:
+                    db.update_lead(lead["id"], website_status="has_site", status="dead")
+                    continue
+            url = f"{DEMO_BASE_URL}/demo/{lead['demo_token']}"
+            result = send_proposal(
+                business_name=str(lead["name"]), demo_url=url, owner_email=lead["email"],
+                category=lead["category"] or "business", city=lead["city"] or "",
+                lead_id=lead["id"])
+            if result:
+                db.update_lead(lead["id"], emailed=1, email_sent_at=datetime.now().isoformat(),
+                               status="proposed")
+                sent.append({"lead": lead["id"], "email": lead["email"]})
+
+        return self.json_out(200, {
+            "scanned_new": found, "sites_generated": len(made),
+            "emails_found": len(enriched), "proposals_sent": len(sent),
+            "sites": made, "sent": sent,
+        })
 
 
 def main():
