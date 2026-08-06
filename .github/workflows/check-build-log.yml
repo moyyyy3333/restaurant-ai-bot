@@ -1,6 +1,7 @@
 name: Check Build Log
 
-on: workflow_dispatch
+on:
+  workflow_dispatch: {}
 
 jobs:
   check:
