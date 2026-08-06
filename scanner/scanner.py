@@ -23,9 +23,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import db
 from config import (BUSINESS_CATEGORIES, CITIES, DEFAULT_CATEGORIES, DEFAULT_CITIES,
                     GOOGLE_PLACES_API_KEY, LOCATIONIQ_API_KEY, category_for_types,
-                    get_city, get_city_label)
+                    get_city)
 
-SEARCH_URL = "https://us1.locationiq.com/v1/search"
 NEARBY_URL = "https://us1.locationiq.com/v1/nearby"
 LOOKUP_URL = "https://us1.locationiq.com/v1/lookup"
 GOOGLE_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText"
@@ -55,17 +54,6 @@ def _get(url: str, params: dict) -> list:
     except Exception as e:
         print(f"    ! request failed: {e}")
         return []
-
-
-def _geocode_area(area_name: str, city_label: str) -> tuple:
-    """Resolve an area name to (lat, lon) so /nearby has a center point."""
-    results = _get(SEARCH_URL, {
-        "key": LOCATIONIQ_API_KEY, "q": f"{area_name}, {city_label}",
-        "format": "json", "limit": 1, "countrycodes": "us",
-    })
-    if not results:
-        return None
-    return results[0]["lat"], results[0]["lon"]
 
 
 def classify_website(url: str) -> str:
@@ -119,14 +107,11 @@ def scan_area(area_name: str, city: str = "houston", category: str = "restaurant
         return 0
 
     meta = BUSINESS_CATEGORIES.get(category, BUSINESS_CATEGORIES["restaurant"])
-    city_label = get_city_label(city)
-
-    coords = _geocode_area(area_name, city_label)
+    coords = get_city(city)["areas"].get(area_name)
     if not coords:
-        print(f"    {area_name} / {category}: could not geocode area")
+        print(f"    {area_name} / {category}: no known coordinates for this area")
         return 0
     lat, lon = coords
-    time.sleep(0.6)
 
     # /nearby finds real POIs by tag, but never returns extratags (website/phone).
     places = _get(NEARBY_URL, {
@@ -201,7 +186,7 @@ def scan_city(city_key: str, categories=None, max_areas: int = 8) -> int:
         return 0
     categories = categories or DEFAULT_CATEGORIES
     city = CITIES[city_key]
-    areas = city["areas"][:max_areas]
+    areas = list(city["areas"])[:max_areas]
 
     print(f"\n=== {city['name']}, {city['state']} — {len(areas)} areas x {len(categories)} categories ===")
     total = 0
