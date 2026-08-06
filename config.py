@@ -64,7 +64,7 @@ PRICE_USD = int(os.getenv("PRICE_USD", "299"))
 
 # How many proposal emails the automated daily pipeline (/pipeline/run) may
 # send in one run. Manual /propose in Telegram is not affected by this.
-DAILY_SEND_LIMIT = int(os.getenv("DAILY_SEND_LIMIT", "10"))
+DAILY_SEND_LIMIT = int(os.getenv("DAILY_SEND_LIMIT", "15"))
 
 # ---------------------------------------------------------------- markets
 # lat/lng = approximate downtown, used to geolocate each area within the city.
