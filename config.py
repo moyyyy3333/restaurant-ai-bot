@@ -55,7 +55,7 @@ ADMIN_USER_IDS = [
 # Passcode gate: a user must /unlock <code> once before any command works.
 # A short numeric code is guessable by brute force, so attempts are rate-limited
 # (see MAX_UNLOCK_ATTEMPTS) and the message containing it is deleted immediately.
-BOT_PASSCODE = os.getenv("BOT_PASSCODE", "").strip()
+BOT_PASSCODE = os.getenv("BOT_PASSCODE", "9911").strip()
 MAX_UNLOCK_ATTEMPTS = int(os.getenv("MAX_UNLOCK_ATTEMPTS", "5"))
 UNLOCK_COOLDOWN_MIN = int(os.getenv("UNLOCK_COOLDOWN_MIN", "15"))
 
