@@ -19,13 +19,47 @@ not a nice-to-have.
 import html
 import json
 import urllib.error
+import urllib.parse
 import urllib.request
 
 import db
 from config import (FROM_EMAIL, FROM_NAME, PRICE_USD, RESEND_API_KEY, REPLY_TO,
-                    SENDER_POSTAL_ADDRESS, UNSUBSCRIBE_BASE)
+                    SENDER_POSTAL_ADDRESS, UNSUBSCRIBE_BASE, TWILIO_ACCOUNT_SID,
+                    TWILIO_AUTH_TOKEN, TWILIO_FROM)
 
 RESEND_URL = "https://api.resend.com/emails"
+TWILIO_URL = "https://api.twilio.com/2010-04-01/Accounts"
+
+
+def send_sms(phone: str, body: str) -> bool:
+    """Send an SMS via Twilio. Returns True on success."""
+    if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN or not TWILIO_FROM:
+        return False
+    if not phone:
+        return False
+    payload = {
+        "To": phone,
+        "From": TWILIO_FROM,
+        "Body": body,
+    }
+    req = urllib.request.Request(
+        f"{TWILIO_URL}/{TWILIO_ACCOUNT_SID}/Messages.json",
+        data=urllib.parse.urlencode(payload).encode(),
+        method="POST",
+        headers={
+            "Authorization": "Basic " + __import__("base64").b64encode(
+                f"{TWILIO_ACCOUNT_SID}:{TWILIO_AUTH_TOKEN}".encode()
+            ).decode(),
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            data = json.loads(r.read())
+            return "sid" in data
+    except Exception as e:
+        print(f"  ! Twilio SMS failed: {e}")
+        return False
 
 
 def unsubscribe_url(email: str) -> str:

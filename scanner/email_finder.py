@@ -1,20 +1,21 @@
 """
 Best-effort email discovery for leads the scanner found with no email.
 
-Places APIs (LocationIQ, Google) never return a business's email — privacy
-policy on their end, not a gap here. The only public source left is whatever
-page classify_website() already found (a Facebook/Instagram/Linktree/Yelp
-page), which sometimes lists a contact email in its plain HTML. This scrapes
-that one page. If a business has no site *and* no social page (website_status
-== "none"), there's nothing to scrape and find_email() correctly returns "".
+Sources tried in order:
+1. Scrape the business website/social page (stdlib only).
+2. Hunter.io domain search (free tier: 25 searches/month).
+3. Apollo.io enrichment (free tier: 100 credits).
 
-Stdlib only. One GET per lead, a regex, and a junk filter — no scraping
-framework needed for "read one page, find one string".
+Places APIs (LocationIQ, Google) never return a business's email — privacy
+policy on their end, not a gap here.
 """
 
 import re
 import urllib.error
+import urllib.parse
 import urllib.request
+
+from config import APOLLO_API_KEY, HUNTER_API_KEY
 
 EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
 
@@ -58,8 +59,82 @@ def scrape_email(url: str, timeout: int = 12) -> str:
 
 
 def find_email(business_name: str, website: str, website_status: str) -> str:
-    """Entry point used by the pipeline. Only social_only/has_site leads carry
-    a URL worth scraping — "none" means no page was ever found to check."""
-    if website_status not in ("social_only", "has_site") or not website:
+    """Entry point used by the pipeline. Tries multiple sources in order:
+    1. Scrape the business website/social page (stdlib only).
+    2. Hunter.io domain search (free tier: 25 searches/month).
+    3. Apollo.io enrichment (free tier: 100 credits).
+    Returns the first email found, or "" if none.
+    """
+    # Source 1: scrape the website directly
+    if website_status in ("social_only", "has_site") and website:
+        email = scrape_email(website)
+        if email:
+            return email
+
+    # Source 2: Hunter.io domain search
+    domain = _extract_domain(website) or _extract_domain(business_name)
+    if domain and HUNTER_API_KEY:
+        email = _hunter_search(domain)
+        if email:
+            return email
+
+    # Source 3: Apollo.io enrichment
+    if domain and APOLLO_API_KEY:
+        email = _apollo_search(domain)
+        if email:
+            return email
+
+    return ""
+
+
+def _extract_domain(text: str) -> str:
+    """Extract a domain from a URL, email, or business name."""
+    if not text:
         return ""
-    return scrape_email(website)
+    # Already a domain
+    if "." in text and " " not in text and "@" not in text:
+        return text
+    # Extract from URL
+    if "://" in text:
+        from urllib.parse import urlparse
+        parsed = urlparse(text)
+        if parsed.netloc:
+            return parsed.netloc
+    # Extract from email
+    if "@" in text:
+        return text.split("@")[-1]
+    # Extract from business name (e.g. "Uchi Houston" → uchi.com)
+    # Try common TLDs
+    for tld in (".com", ".org", ".net", ".co"):
+        candidate = text.lower().replace(" ", "") + tld
+        if "." in candidate:
+            return candidate
+    return ""
+
+
+def _hunter_search(domain: str) -> str:
+    """Search Hunter.io for an email associated with a domain."""
+    url = f"https://api.hunter.io/v2/domain-search?domain={urllib.parse.quote(domain)}&api_key={HUNTER_API_KEY}"
+    try:
+        with urllib.request.urlopen(url, timeout=12) as r:
+            data = json.loads(r.read())
+            emails = data.get("data", {}).get("emails", [])
+            if emails:
+                return emails[0].get("value", "")
+    except Exception:
+        pass
+    return ""
+
+
+def _apollo_search(domain: str) -> str:
+    """Search Apollo.io for an email associated with a domain."""
+    url = f"https://api.apollo.io/v1/mixed_company/search?q={urllib.parse.quote(domain)}&api_key={APOLLO_API_KEY}"
+    try:
+        with urllib.request.urlopen(url, timeout=12) as r:
+            data = json.loads(r.read())
+            contacts = data.get("contacts", [])
+            if contacts:
+                return contacts[0].get("email", "")
+    except Exception:
+        pass
+    return ""

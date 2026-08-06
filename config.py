@@ -25,6 +25,20 @@ LOCATIONIQ_API_KEY = os.getenv("LOCATIONIQ_API_KEY", "").strip()
 GOOGLE_PLACES_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY", "").strip()
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
 
+# Twilio SMS — free trial (100 SMS, no credit card).
+# Used when a lead has a phone but no email.
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "").strip()
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
+TWILIO_FROM = os.getenv("TWILIO_FROM", "").strip()
+
+# Hunter.io — free tier (25 email searches/month).
+# Used to find business emails by domain.
+HUNTER_API_KEY = os.getenv("HUNTER_API_KEY", "").strip()
+
+# Apollo.io — free tier (100 enrichment credits).
+# Used as fallback for email/phone enrichment.
+APOLLO_API_KEY = os.getenv("APOLLO_API_KEY", "").strip()
+
 # Optional: powers per-business demo copy in writer.py. Any one of these is
 # enough — checked in this order, first one set wins. None set = generic
 # static copy (still works, just not personalized). No Hermes install needed.

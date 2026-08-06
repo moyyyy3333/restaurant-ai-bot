@@ -155,7 +155,7 @@ class Handler(BaseHTTPRequestHandler):
         proposals, capped at DAILY_SEND_LIMIT sends. Each stage is independent
         so a slow/failed scan still lets today's backlog get emailed."""
         from datetime import timedelta
-        from emailer import send_proposal
+        from emailer import send_proposal, send_sms
         from generator import generate_site
         from scanner.email_finder import find_email
         from scanner.scanner import daily_scan_sample, verify_website
@@ -195,14 +195,22 @@ class Handler(BaseHTTPRequestHandler):
                     db.update_lead(lead["id"], website_status="has_site", status="dead")
                     continue
             url = f"{DEMO_BASE_URL}/demo/{lead['demo_token']}"
-            result = send_proposal(
-                business_name=str(lead["name"]), demo_url=url, owner_email=lead["email"],
-                category=lead["category"] or "business", city=lead["city"] or "",
-                lead_id=lead["id"])
-            if result:
-                db.update_lead(lead["id"], emailed=1, email_sent_at=datetime.now().isoformat(),
-                               status="proposed")
-                sent.append({"lead": lead["id"], "email": lead["email"]})
+            if lead["email"]:
+                result = send_proposal(
+                    business_name=str(lead["name"]), demo_url=url, owner_email=lead["email"],
+                    category=lead["category"] or "business", city=lead["city"] or "",
+                    lead_id=lead["id"])
+                if result:
+                    db.update_lead(lead["id"], emailed=1, email_sent_at=datetime.now().isoformat(),
+                                   status="proposed")
+                    sent.append({"lead": lead["id"], "email": lead["email"]})
+            elif lead["phone"]:
+                # No email — send SMS with demo link instead.
+                body = f"Hi {lead['name']} — I built a free sample site for your business. Check it out: {url}"
+                if send_sms(lead["phone"], body):
+                    db.update_lead(lead["id"], emailed=1, email_sent_at=datetime.now().isoformat(),
+                                   status="proposed")
+                    sent.append({"lead": lead["id"], "phone": lead["phone"]})
 
         return self.json_out(200, {
             "scanned_new": found, "sites_generated": len(made),
