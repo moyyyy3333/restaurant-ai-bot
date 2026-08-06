@@ -140,6 +140,17 @@ CITIES = {
 
 DEFAULT_CITIES = ["houston", "miami", "austin"]
 
+# Chains and franchises the scanner should skip — they already have
+# corporate sites and don't need a local demo.
+CHAIN_NAMES = {
+    "starbucks", "pizza hut", "ihop", "mcdonald", "burger king",
+    "wendys", "chick-fil-a", "taco bell", "subway", "dominos",
+    "papa john", "dunkin", "kfc", "popeyes", "chick-fil",
+    "panera", "chipotle", "taco bell", "pizza hut", "kfc",
+    "burger king", "mcdonalds", "wendy", "dominos", "subway",
+    "papa johns", "dunkin donuts", "chick fil a",
+}
+
 # ---------------------------------------------------------------- categories
 # `types` are Google Places (New) primary types. `label` is human copy used in
 # emails and demo sites. `hero` drives the demo template's headline.
