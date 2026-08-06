@@ -1,0 +1,21 @@
+name: Check Build Log
+
+on: workflow_dispatch
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get deploy detail and build logs
+        run: |
+          curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys/dep-d9q4vt67bikc738g7h10" \
+            | python3 -m json.tool
+
+          owner=$(curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            "https://api.render.com/v1/owners" | python3 -c "import json,sys; print(json.load(sys.stdin)[0]['owner']['id'])")
+          echo "owner: $owner"
+
+          curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            "https://api.render.com/v1/logs?ownerId=$owner&resource=${{ secrets.RENDER_SERVICE_ID }}&type=build&limit=100" \
+            | python3 -m json.tool
