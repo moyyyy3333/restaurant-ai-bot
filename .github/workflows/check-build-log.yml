@@ -6,6 +6,21 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
+      - name: Check PYTHON_VERSION is set
+        run: |
+          curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/env-vars" \
+            | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for e in data:
+    if e['envVar']['key'] == 'PYTHON_VERSION':
+        print('PYTHON_VERSION =', e['envVar']['value'])
+        break
+else:
+    print('PYTHON_VERSION not set')
+"
+
       - name: Get latest deploy detail and build logs
         run: |
           deploy_id=$(curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
