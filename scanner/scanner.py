@@ -66,6 +66,39 @@ def classify_website(url: str) -> str:
     return "has_site"
 
 
+def google_enrich(name: str, address: str) -> dict:
+    """Google Places lookup for one business → {phone, website, website_status,
+    rating}. LocationIQ/OSM almost never carries phone/website for small shops,
+    so the scanner leans on Google for real contact data. Returns empty dict on
+    no key / no match / failure — caller keeps whatever LocationIQ gave it."""
+    if not GOOGLE_PLACES_API_KEY:
+        return {}
+    body = json.dumps({
+        "textQuery": f"{name}, {address}",
+        "maxResultCount": 1,
+    }).encode()
+    req = urllib.request.Request(GOOGLE_SEARCH_URL, body, {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
+        "X-Goog-FieldMask": "places.websiteUri,places.nationalPhoneNumber,places.rating",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            data = json.load(r)
+    except Exception as e:
+        print(f"    ! Google enrich failed: {e}")
+        return {}
+    places = data.get("places") or []
+    if not places:
+        return {}
+    p = places[0]
+    website = p.get("websiteUri", "") or ""
+    return {"phone": p.get("nationalPhoneNumber", "") or "",
+            "website": website,
+            "website_status": classify_website(website),
+            "rating": p.get("rating")}
+
+
 def verify_website(name: str, address: str) -> str:
     """One-off Google Places lookup for a single business, used only right before
     emailing a lead — LocationIQ's free OSM data under-reports websites, so this
@@ -75,27 +108,8 @@ def verify_website(name: str, address: str) -> str:
     clean or the check is inconclusive (no key, no match, request failure) — callers
     should treat "" as "safe to proceed", not as proof of no website.
     """
-    if not GOOGLE_PLACES_API_KEY:
-        return ""
-    body = json.dumps({
-        "textQuery": f"{name}, {address}",
-        "maxResultCount": 1,
-    }).encode()
-    req = urllib.request.Request(GOOGLE_SEARCH_URL, body, {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
-        "X-Goog-FieldMask": "places.websiteUri",
-    })
-    try:
-        with urllib.request.urlopen(req, timeout=20) as r:
-            data = json.load(r)
-    except Exception as e:
-        print(f"    ! Google verify failed: {e}")
-        return ""
-    places = data.get("places") or []
-    if not places:
-        return ""
-    website = places[0].get("websiteUri", "")
+    info = google_enrich(name, address)
+    website = info.get("website", "")
     return website if classify_website(website) == "has_site" else ""
 
 
@@ -139,8 +153,6 @@ def scan_area(area_name: str, city: str = "houston", category: str = "restaurant
         extratags = extratags_by_id.get(p.get("osm_id"), {})
         website = next((extratags[t] for t in WEBSITE_TAGS if extratags.get(t)), "")
         status = classify_website(website)
-        if status == "has_site":
-            continue  # already has a real site — not our customer
 
         name = (p.get("name") or "").strip()
         if not name:
@@ -149,6 +161,19 @@ def scan_area(area_name: str, city: str = "houston", category: str = "restaurant
         phone = next((extratags[t] for t in PHONE_TAGS if extratags.get(t)), "")
         osm_id = f"{p.get('osm_type', 'osm')}/{p.get('osm_id') or p.get('place_id')}"
         types = [p.get("type"), p.get("class")]
+
+        # OSM rarely has phone/website for small shops — backfill from Google.
+        info = google_enrich(name, p.get("display_name", ""))
+        if info:
+            phone = phone or info.get("phone", "")
+            website = website or info.get("website", "")
+            status = info.get("website_status") or status
+            rating = info.get("rating")
+        else:
+            rating = None
+
+        if status == "has_site":
+            continue  # already has a real site — not our customer
 
         bid = db.upsert_business(
             google_place_id=osm_id,
@@ -159,7 +184,7 @@ def scan_area(area_name: str, city: str = "houston", category: str = "restaurant
             city=city,
             area=area_name,
             category=category_for_types(types) or category,
-            rating=None,
+            rating=rating,
             review_count=None,
             website=website,
             website_status=status,
@@ -171,7 +196,7 @@ def scan_area(area_name: str, city: str = "houston", category: str = "restaurant
             bid, name=name, phone=phone, email="",
             address=p.get("display_name", ""), city=city, area=area_name,
             category=category_for_types(types) or category,
-            rating=None, website_status=status)
+            rating=rating, website_status=status)
         new += 1
 
     print(f" → {new} new")
@@ -217,7 +242,6 @@ def daily_scan_sample(budget: int = 12, cities=None, categories=None) -> int:
         total += scan_area(area, city=city, category=cat)
         time.sleep(1.0)
     print(f"=== daily sample: {total} new leads from {min(budget, len(combos))} areas ===")
-    return total
 
 
 def scan_multiple(cities=None, categories=None, max_areas_per_city: int = 5) -> int:
@@ -235,7 +259,15 @@ def main():
     ap.add_argument("--all", action="store_true", help="scan the default city set")
     ap.add_argument("--category", action="append", help="repeatable; defaults to config set")
     ap.add_argument("--areas", type=int, default=8, help="max areas per city")
+    ap.add_argument("--selftest", action="store_true",
+                    help="verify google_enrich returns contact data, then exit")
     args = ap.parse_args()
+
+    if args.selftest:
+        r = google_enrich("Uchi", "904 Westheimer Road, Houston TX")
+        assert r.get("phone"), f"expected a phone from Google, got: {r}"
+        print("OK google_enrich ->", r["website"], r["phone"])
+        return
 
     db.init_db()
     cats = args.category or DEFAULT_CATEGORIES
