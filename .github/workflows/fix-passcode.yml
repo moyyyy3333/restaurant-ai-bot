@@ -1,0 +1,41 @@
+name: Fix Render Passcode
+
+on: workflow_dispatch
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set BOT_PASSCODE=1980 on Render
+        run: |
+          curl -s -X GET \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/env-vars" \
+            -o current.json
+
+          python3 - <<'PY'
+          import json
+          with open("current.json") as f:
+              data = json.load(f)
+          vars_ = [{"key": e["envVar"]["key"], "value": e["envVar"]["value"]} for e in data]
+          found = False
+          for v in vars_:
+              if v["key"] == "BOT_PASSCODE":
+                  v["value"] = "1980"
+                  found = True
+          if not found:
+              vars_.append({"key": "BOT_PASSCODE", "value": "1980"})
+          with open("updated.json", "w") as f:
+              json.dump(vars_, f)
+          print(f"env vars: {len(vars_)} total, BOT_PASSCODE {'updated' if found else 'added'}")
+          PY
+
+          curl -s -X PUT \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            --data @updated.json \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/env-vars" \
+            -o put_result.json -w "HTTP %{http_code}\n"
+
+          echo "Result:"
+          cat put_result.json
