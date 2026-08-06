@@ -1,18 +1,77 @@
 """
-SQLite layer. Three tables: businesses (what we found), leads (what we're working),
-demo_sites (what we built). Plus a suppression list so an opt-out is permanent.
+Turso (hosted libSQL) layer. Three tables: businesses (what we found), leads
+(what we're working), demo_sites (what we built). Plus a suppression list so
+an opt-out is permanent.
 
-All read helpers return sqlite3.Row, so callers can use row["column"].
+All read helpers return a Row, so callers can use row["column"] like sqlite3.Row.
+Turso's client returns plain tuples with no named params, so this wraps it to
+keep the rest of the codebase (bot.py, server.py, ...) untouched.
 """
 
-import sqlite3
+import libsql_experimental as libsql
 from contextlib import contextmanager
 from datetime import datetime
-from pathlib import Path
 
-from config import DB_PATH
+from config import TURSO_DATABASE_URL, TURSO_AUTH_TOKEN
 
-Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
+
+class Row:
+    """dict-style bracket access over a Turso result tuple, sqlite3.Row-compatible."""
+    __slots__ = ("_cols", "_vals")
+
+    def __init__(self, cols, vals):
+        self._cols = cols
+        self._vals = vals
+
+    def __getitem__(self, key):
+        return self._vals[self._cols.index(key)] if isinstance(key, str) else self._vals[key]
+
+    def keys(self):
+        return list(self._cols)
+
+    def __repr__(self):
+        return repr(dict(zip(self._cols, self._vals)))
+
+
+class _Cursor:
+    def __init__(self, cur):
+        self._cur = cur
+
+    @property
+    def lastrowid(self):
+        return self._cur.lastrowid
+
+    def _wrap(self, row):
+        if row is None:
+            return None
+        return Row([d[0] for d in self._cur.description], row)
+
+    def fetchone(self):
+        return self._wrap(self._cur.fetchone())
+
+    def fetchall(self):
+        return [self._wrap(r) for r in self._cur.fetchall()]
+
+    def __iter__(self):
+        return iter(self.fetchall())
+
+
+class _Conn:
+    def __init__(self, raw):
+        self._raw = raw
+
+    def execute(self, sql, params=None):
+        cur = self._raw.execute(sql, tuple(params)) if params is not None else self._raw.execute(sql)
+        return _Cursor(cur)
+
+    def executescript(self, sql):
+        return self._raw.executescript(sql)
+
+    def commit(self):
+        self._raw.commit()
+
+    def close(self):
+        self._raw.close()
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS businesses (
@@ -105,8 +164,8 @@ CREATE INDEX IF NOT EXISTS idx_demo_token   ON demo_sites(token);
 
 @contextmanager
 def conn():
-    c = sqlite3.connect(DB_PATH, timeout=30)
-    c.row_factory = sqlite3.Row
+    raw = libsql.connect(TURSO_DATABASE_URL, auth_token=TURSO_AUTH_TOKEN)
+    c = _Conn(raw)
     try:
         yield c
         c.commit()
@@ -138,14 +197,11 @@ def upsert_business(**kw) -> int | None:
             """INSERT INTO businesses
                (google_place_id, name, phone, email, address, city, area, category,
                 rating, review_count, website, website_status, created_at)
-               VALUES (:google_place_id, :name, :phone, :email, :address, :city, :area,
-                       :category, :rating, :review_count, :website, :website_status, :created_at)""",
-            {"google_place_id": kw.get("google_place_id"), "name": kw.get("name"),
-             "phone": kw.get("phone"), "email": kw.get("email"), "address": kw.get("address"),
-             "city": kw.get("city"), "area": kw.get("area"), "category": kw.get("category"),
-             "rating": kw.get("rating"), "review_count": kw.get("review_count"),
-             "website": kw.get("website"), "website_status": kw.get("website_status", "none"),
-             "created_at": now()})
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (kw.get("google_place_id"), kw.get("name"), kw.get("phone"), kw.get("email"),
+             kw.get("address"), kw.get("city"), kw.get("area"), kw.get("category"),
+             kw.get("rating"), kw.get("review_count"), kw.get("website"),
+             kw.get("website_status", "none"), now()))
         return cur.lastrowid
 
 

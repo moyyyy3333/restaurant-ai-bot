@@ -63,10 +63,10 @@ UNLOCK_COOLDOWN_MIN = int(os.getenv("UNLOCK_COOLDOWN_MIN", "15"))
 DEMO_BASE_URL = os.getenv("DEMO_BASE_URL", "https://restaurant-ai-bot-n844.onrender.com").rstrip("/")
 DEMO_EXPIRE_HOURS = int(os.getenv("DEMO_EXPIRE_HOURS", "72"))
 PORT = int(os.getenv("PORT", "8080"))
-DB_PATH = os.getenv("DB_PATH", str(
-    Path("/app/persist/data/leads.db") if (Path("/app/persist").exists())
-    else BASE_DIR / "data" / "leads.db"
-))
+# Turso (hosted libSQL) — replaces local SQLite so data survives redeploys
+# on hosts with no persistent disk (e.g. Render free/starter plans).
+TURSO_DATABASE_URL = os.getenv("TURSO_DATABASE_URL", "")
+TURSO_AUTH_TOKEN = os.getenv("TURSO_AUTH_TOKEN", "")
 DEMO_DIR = Path(os.getenv("DEMO_DIR", str(
     Path("/app/persist/demos") if (Path("/app/persist").exists())
     else BASE_DIR / "demos"
