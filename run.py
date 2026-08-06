@@ -6,8 +6,8 @@ import sys
 import time
 
 procs = [
-    subprocess.Popen([sys.executable, "server.py"]),
-    subprocess.Popen([sys.executable, "bot.py"]),
+    subprocess.Popen([sys.executable, "-u", "server.py"]),
+    subprocess.Popen([sys.executable, "-u", "bot.py"]),
 ]
 
 while True:
