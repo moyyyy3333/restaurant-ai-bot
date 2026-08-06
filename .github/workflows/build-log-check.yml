@@ -11,22 +11,24 @@ jobs:
         run: |
           curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
             "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/env-vars" \
-            | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-for e in data:
-    if e['envVar']['key'] == 'PYTHON_VERSION':
-        print('PYTHON_VERSION =', e['envVar']['value'])
-        break
-else:
-    print('PYTHON_VERSION not set')
-"
+            -o env-vars.json
+          python3 - <<'PY'
+          import json
+          with open("env-vars.json") as f:
+              data = json.load(f)
+          for e in data:
+              if e["envVar"]["key"] == "PYTHON_VERSION":
+                  print("PYTHON_VERSION =", e["envVar"]["value"])
+                  break
+          else:
+              print("PYTHON_VERSION not set")
+          PY
 
-      - name: Get latest deploy detail and build logs
+      - name: Get latest deploy detail and app logs
         run: |
           deploy_id=$(curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
             "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys?limit=1" \
-            | python3 -c "import json,sys; print(json.load(sys.stdin)[0]['deploy']['id'])")
+            -o deploy.json; python3 -c "import json; print(json.load(open('deploy.json'))[0]['deploy']['id'])")
           echo "latest deploy: $deploy_id"
 
           curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
@@ -34,7 +36,7 @@ else:
             | python3 -m json.tool
 
           owner=$(curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-            "https://api.render.com/v1/owners" | python3 -c "import json,sys; print(json.load(sys.stdin)[0]['owner']['id'])")
+            "https://api.render.com/v1/owners" -o owners.json; python3 -c "import json; print(json.load(open('owners.json'))[0]['owner']['id'])")
           echo "owner: $owner"
 
           curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
