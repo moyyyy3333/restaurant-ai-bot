@@ -1,0 +1,6 @@
+interface:
+  display_name: "Restaurant Ai Bot"
+  short_description: "Repo-specific patterns and workflows for restaurant-ai-bot"
+  default_prompt: "Use the restaurant-ai-bot repo skill to follow existing architecture, testing, and workflow conventions."
+policy:
+  allow_implicit_invocation: true
