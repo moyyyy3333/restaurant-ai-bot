@@ -76,11 +76,8 @@ class HandlerTests(unittest.TestCase):
             httpd.shutdown()
             httpd.server_close()
 
-    def test_ensure_schema_fixes_missing_leads_table(self):
-        # Same failure production logged: GET / -> get_stats -> no such table
-        with self.assertRaises(ValueError):
-            db.get_stats()
-        db.ensure_schema()
+    def test_get_stats_bootstraps_missing_leads_table(self):
+        # Production crashed here: GET / -> get_stats -> no such table: leads
         stats = db.get_stats()
         self.assertEqual(stats["leads"], 0)
         self.assertEqual(stats["sites"], 0)

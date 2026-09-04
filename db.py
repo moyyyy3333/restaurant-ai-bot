@@ -443,6 +443,7 @@ def get_reply_to(user_id: int) -> str:
 
 # ----------------------------------------------------------------------- stats
 def get_stats() -> dict:
+    ensure_schema()
     with conn() as c:
         one = lambda q: c.execute(q).fetchone()[0]
         by_city = {r["city"] or "?": r["n"] for r in c.execute(
