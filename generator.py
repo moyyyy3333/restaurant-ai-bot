@@ -117,7 +117,7 @@ SAMPLE = {
 
 
 def generate_site(name, address="", phone="", category="restaurant", rating=None,
-                  city="", lead_id=None, business_id=None, watermark=True):
+                  city="", lead_id=None, business_id=None, watermark=True, use_ai=True):
     """Returns (html_string, token)."""
     token = secrets.token_urlsafe(9)
     cat = category if category in BUSINESS_CATEGORIES else "restaurant"
@@ -133,7 +133,7 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
         rating_html = (f'<div class="rating"><span class="stars">{stars}</span>'
                        f'<span class="rnum">{float(rating):.1f} on Google</span></div>')
 
-    ai = write_copy(name, meta["label"], city)
+    ai = write_copy(name, meta["label"], city) if use_ai else None
     hero = ai["tagline"] if ai and ai["tagline"] else meta["hero"]
     items = ai["items"] if ai else SAMPLE.get(cat, SAMPLE["restaurant"])
     if ai and ai["accent"]:

@@ -2,12 +2,16 @@
 Demo server.
 
   /                     health + counts
+  /health               process health (always 200 if the function is up)
   /demo/<token>         serve a generated sample site (expires)
   /unsubscribe?e=...    one-click opt-out (GET renders, POST confirms)
   /webhook/resend       inbound reply/bounce events -> lead status
   /pipeline/run         token-guarded: full daily scan -> site -> email -> send
 
 Stdlib only — no Flask needed, so `python server.py` just works.
+
+On Vercel the Handler class is invoked per request and main() never runs, so
+schema setup happens in ensure_schema() on the first request.
 """
 
 import json
@@ -53,14 +57,38 @@ class Handler(BaseHTTPRequestHandler):
     def json_out(self, code: int, obj: dict):
         self.send(code, json.dumps(obj, default=str).encode(), "application/json")
 
+    def _fail(self, err: Exception):
+        print(f"  handler error: {type(err).__name__}: {err}")
+        try:
+            self.json_out(500, {"ok": False, "error": "internal_error"})
+        except Exception:
+            pass
+
     # ---------------------------------------------------------------------- GET
     def do_GET(self):
+        try:
+            db.ensure_schema()
+            self._do_GET()
+        except Exception as e:
+            self._fail(e)
+
+    def _do_GET(self):
         u = urlparse(self.path)
         parts = [p for p in u.path.split("/") if p]
 
-        if not parts:
-            s = db.get_stats()
-            return self.json_out(200, {"ok": True, "service": "local-business-ai-bot", **s})
+        is_health = bool(parts) and (
+            parts[0] == "health" or (parts[0] == "api" and len(parts) > 1 and parts[1] == "health")
+        )
+        if not parts or is_health:
+            payload = {"ok": True, "service": "local-business-ai-bot", **db.db_status()}
+            if is_health:
+                return self.json_out(200, payload)
+            try:
+                payload.update(db.get_stats())
+            except Exception as e:
+                print(f"  homepage stats failed: {e}")
+                payload["error"] = "stats_unavailable"
+            return self.json_out(200, payload)
 
         if parts[0] == "demo" and len(parts) > 1:
             return self.serve_demo(parts[1])
@@ -99,15 +127,51 @@ class Handler(BaseHTTPRequestHandler):
                         that brought you here and it can be restored.</p>"""))
             except ValueError:
                 pass
+        html_inline = None
+        try:
+            html_inline = demo["html"]
+        except (KeyError, ValueError):
+            html_inline = None
+        if html_inline:
+            db.bump_demo_views(token)
+            body = html_inline.encode() if isinstance(html_inline, str) else html_inline
+            return self.send(200, body)
+
         path = demo["html_path"]
-        if not path or not os.path.exists(path):
-            return self.send(404, page("Missing", "<h1>Sample not found on disk</h1>"))
+        if path and os.path.exists(path):
+            db.bump_demo_views(token)
+            with open(path, "rb") as f:
+                return self.send(200, f.read())
+
+        # Vercel (and any host without the original disk) — rebuild from lead data.
+        from generator import generate_site
+        html_str, _ = generate_site(
+            name=lead["name"] or "Business",
+            address=lead["address"] or "",
+            phone=lead["phone"] or "",
+            category=lead["category"] or "restaurant",
+            rating=lead["rating"],
+            city=lead["city"] or "",
+            lead_id=lead["id"],
+            business_id=lead["business_id"],
+            use_ai=False,
+        )
+        try:
+            db.save_demo_html(token, html_str)
+        except Exception as e:
+            print(f"  could not persist regenerated demo: {e}")
         db.bump_demo_views(token)
-        with open(path, "rb") as f:
-            return self.send(200, f.read())
+        return self.send(200, html_str.encode())
 
     # --------------------------------------------------------------------- POST
     def do_POST(self):
+        try:
+            db.ensure_schema()
+            self._do_POST()
+        except Exception as e:
+            self._fail(e)
+
+    def _do_POST(self):
         u = urlparse(self.path)
         length = int(self.headers.get("Content-Length") or 0)
         raw = self.rfile.read(length) if length else b""
