@@ -122,6 +122,7 @@ CREATE TABLE IF NOT EXISTS demo_sites (
     business_id   INTEGER,
     token         TEXT UNIQUE NOT NULL,
     html_path     TEXT,
+    html          TEXT,            -- full page; required on hosts with no persistent disk
     template_used TEXT,
     views         INTEGER DEFAULT 0,
     is_live       INTEGER DEFAULT 1,
@@ -173,12 +174,45 @@ def conn():
         c.close()
 
 
+_schema_ready = False
+
+
+def turso_configured() -> bool:
+    return bool(TURSO_DATABASE_URL and TURSO_AUTH_TOKEN)
+
+
 def init_db():
     with conn() as c:
         c.executescript(SCHEMA)
         cols = {r["name"] for r in c.execute("PRAGMA table_info(bot_auth)")}
         if "reply_to_email" not in cols:
             c.execute("ALTER TABLE bot_auth ADD COLUMN reply_to_email TEXT")
+        demo_cols = {r["name"] for r in c.execute("PRAGMA table_info(demo_sites)")}
+        if "html" not in demo_cols:
+            c.execute("ALTER TABLE demo_sites ADD COLUMN html TEXT")
+
+
+def ensure_schema():
+    """Create tables if needed. Vercel invokes Handler without main(), so this
+    must run on the first request rather than only at process startup."""
+    global _schema_ready
+    if _schema_ready:
+        return
+    init_db()
+    _schema_ready = True
+
+
+def db_status() -> dict:
+    """Never raises — used by / and /health so a missing DB cannot 500 the site."""
+    if not turso_configured():
+        return {"db": "unconfigured", "persistent": False}
+    try:
+        ensure_schema()
+        with conn() as c:
+            c.execute("SELECT 1 FROM leads LIMIT 1")
+        return {"db": "ok", "persistent": True}
+    except Exception as e:
+        return {"db": "error", "persistent": True, "db_error": str(e)}
 
 
 def now() -> str:
@@ -293,10 +327,15 @@ def create_demo_site(lead_id: int, business_id, html: str, token: str, template_
     with conn() as c:
         c.execute(
             """INSERT OR REPLACE INTO demo_sites
-               (lead_id, business_id, token, html_path, template_used, created_at)
-               VALUES (?,?,?,?,?,?)""",
-            (lead_id, business_id, token, str(path), template_used, now()))
+               (lead_id, business_id, token, html_path, html, template_used, created_at)
+               VALUES (?,?,?,?,?,?,?)""",
+            (lead_id, business_id, token, str(path), html, template_used, now()))
     return str(path)
+
+
+def save_demo_html(token: str, html: str):
+    with conn() as c:
+        c.execute("UPDATE demo_sites SET html = ? WHERE token = ?", (html, token))
 
 
 def get_demo(token: str):
