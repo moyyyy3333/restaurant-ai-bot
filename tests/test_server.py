@@ -112,6 +112,16 @@ class HandlerTests(unittest.TestCase):
             httpd.shutdown()
             httpd.server_close()
 
+    def test_empty_turso_url_uses_local_file(self):
+        local = Path(tempfile.mkdtemp()) / "ephemeral.db"
+        with patch.object(db, "TURSO_DATABASE_URL", ""), \
+             patch.object(db, "_LOCAL_DB", str(local)):
+            db._schema_ready = False
+            db.ensure_schema()
+            stats = db.get_stats()
+            self.assertEqual(stats["leads"], 0)
+            self.assertTrue(local.exists())
+
     def test_unsubscribe_get(self):
         httpd = self._serve()
         try:

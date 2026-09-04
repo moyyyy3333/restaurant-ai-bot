@@ -8,11 +8,21 @@ Turso's client returns plain tuples with no named params, so this wraps it to
 keep the rest of the codebase (bot.py, server.py, ...) untouched.
 """
 
-import libsql_experimental as libsql
+import os
 from contextlib import contextmanager
 from datetime import datetime
 
+import libsql_experimental as libsql
+
 from config import TURSO_DATABASE_URL, TURSO_AUTH_TOKEN
+
+# Empty libsql URL is a new in-memory DB per connect(), so schema created in
+# ensure_schema() would vanish before get_stats(). Use a local file instead.
+_LOCAL_DB = os.environ.get("LOCAL_DB_PATH", "/tmp/restaurant-ai-bot.db")
+
+
+def _connect_url() -> str:
+    return TURSO_DATABASE_URL or _LOCAL_DB
 
 
 class Row:
@@ -165,7 +175,7 @@ CREATE INDEX IF NOT EXISTS idx_demo_token   ON demo_sites(token);
 
 @contextmanager
 def conn():
-    raw = libsql.connect(TURSO_DATABASE_URL, auth_token=TURSO_AUTH_TOKEN)
+    raw = libsql.connect(_connect_url(), auth_token=TURSO_AUTH_TOKEN or "")
     c = _Conn(raw)
     try:
         yield c
