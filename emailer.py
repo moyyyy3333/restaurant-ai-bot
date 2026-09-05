@@ -67,26 +67,54 @@ def unsubscribe_url(email: str) -> str:
     return f"{UNSUBSCRIBE_BASE}/unsubscribe?e={quote(email)}"
 
 
+def _biz_word(category: str) -> str:
+    """Singular label for copy. Cafe → cafe; else restaurant for food leads."""
+    c = (category or "").strip().lower()
+    if c == "cafe":
+        return "cafe"
+    if c in ("restaurant", "restaurants"):
+        return "restaurant"
+    # Growth pack is restaurant-first; keep generic fallback for other categories.
+    if c in ("business", "", "shop"):
+        return "restaurant"
+    return c.rstrip("s") or "restaurant"
+
+
+def build_sms(business_name: str, demo_url: str) -> str:
+    """Growth SMS line for Twilio (STOP opt-out)."""
+    return (
+        f"{business_name} — free sample website preview (not published): {demo_url} "
+        f"Reply STOP to opt out."
+    )
+
+
 def build_email(business_name: str, demo_url: str, owner_email: str,
                 category: str = "business", city: str = "", reply_to: str = "") -> tuple[str, str, str]:
-    """Returns (subject, html_body, text_body)."""
+    """Returns (subject, html_body, text_body). Growth pack 2026-09-05."""
     e = lambda s: html.escape(str(s or ""))
-    name, cat = e(business_name), e(category or "business")
+    name = e(business_name)
+    word = _biz_word(category)          # restaurant | cafe | …
+    words = word + "s"                  # restaurants | cafes
+    city_bit = f" in {city.title()}" if city else ""
+    city_bit_html = f" in {e(city.title())}" if city else ""
     unsub = unsubscribe_url(owner_email)
     reply_to = reply_to.strip() or REPLY_TO
 
-    subject = f"A sample website for {business_name} (free, nothing published)"
+    # Subject A (default). Honest B kept as comment for A/B later:
+    # f"A sample website for {business_name} (free, nothing published)"
+    if word == "cafe":
+        subject = "Your cafe deserves a real website"
+    else:
+        subject = "Your restaurant deserves a real website"
 
-    text = f"""Hi — I build simple websites for local {cat}s{f' in {city.title()}' if city else ''}.
+    text = f"""Hi — I build simple websites for local {words}{city_bit}.
 
-I noticed {business_name} doesn't have a website yet, so I built you a sample one
-to look at. It's free, it isn't published anywhere, and there's no obligation:
+I noticed {business_name} doesn't have a website yet — mostly a listing. I put together a free sample page so people can find your hours, menu, and how to get there. Nothing is published; no obligation:
 
 {demo_url}
 
-If you like it, I'll put your real menu, hours and photos on it and set it up on
-your own domain for a one-time ${PRICE_USD}. No subscription, no contract.
-If it's not for you, just ignore this — or use the link below and I won't email again.
+If you like it, I'll put your real menu, hours, and photos on it and set it up on your own domain for a one-time ${PRICE_USD}. No subscription.
+If it's not for you, ignore this — or use the opt-out link and I won't email again.
 
 {FROM_NAME}
 {f'Reply to: {reply_to}' if reply_to else ''}
@@ -100,19 +128,20 @@ Opt out permanently: {unsub}
     body = f"""<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f4f5">
 <div style="max-width:560px;margin:0 auto;padding:32px 24px;font-family:-apple-system,
 BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1a1a1a;line-height:1.62">
-  <p style="margin:0 0 16px">Hi — I build simple websites for local {cat}s{f" in {e(city.title())}" if city else ""}.</p>
+  <p style="margin:0 0 16px">Hi — I build simple websites for local {e(words)}{city_bit_html}.</p>
 
-  <p style="margin:0 0 16px">I noticed <b>{name}</b> doesn't have a website yet, so I built you a
-  sample one to look at. It's free, it isn't published anywhere, and there's no obligation.</p>
+  <p style="margin:0 0 16px">I noticed <b>{name}</b> doesn't have a website yet — mostly a listing.
+  I put together a free sample page so people can find your hours, menu, and how to get there.
+  Nothing is published; no obligation.</p>
 
   <p style="margin:24px 0"><a href="{e(demo_url)}"
     style="background:#1a1410;color:#e8b04b;padding:13px 28px;border-radius:6px;
-    text-decoration:none;font-weight:600;display:inline-block">See your sample site</a></p>
+    text-decoration:none;font-weight:600;display:inline-block">See your free sample</a></p>
 
-  <p style="margin:0 0 16px">If you like it, I'll add your real menu, hours and photos and set it
-  up on your own domain for a one-time <b>${PRICE_USD}</b> — no subscription, no contract.</p>
+  <p style="margin:0 0 16px">If you like it, I'll put your real menu, hours, and photos on it and
+  set it up on your own domain for a one-time <b>${PRICE_USD}</b>. No subscription.</p>
 
-  <p style="margin:0 0 24px">If it's not for you, just ignore this email.</p>
+  <p style="margin:0 0 24px">If it's not for you, ignore this — or use the opt-out link and I won't email again.</p>
 
   <p style="margin:0 0 4px">— {e(FROM_NAME)}</p>
   {f'<p style="margin:0 0 24px;color:#666">Reply directly to this email: {e(reply_to)}</p>' if reply_to else ''}
