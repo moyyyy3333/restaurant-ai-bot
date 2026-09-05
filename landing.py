@@ -266,7 +266,7 @@ footer {{
     <h1>No website? We’ll build <span class="extra">you </span>one.</h1>
     <p class="sub">{html.escape(SUB)}</p>
     <div class="ctas">
-      <a class="btn primary" href="{href}">Get <span class="extra">my </span>free <span class="extra">site </span>preview</a>
+      <a class="btn primary" href="{href}"><span>Get <span class="extra">my </span>free <span class="extra">site </span>preview</span></a>
       <a class="btn ghost" href="#how-it-works">{html.escape(CTA_SECONDARY)}</a>
     </div>
     {empty_block}
