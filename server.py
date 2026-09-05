@@ -330,7 +330,7 @@ class Handler(BaseHTTPRequestHandler):
         proposals, capped at DAILY_SEND_LIMIT sends. Each stage is independent
         so a slow/failed scan still lets today's backlog get emailed."""
         from datetime import timedelta
-        from emailer import send_proposal, send_sms
+        from emailer import send_proposal, send_sms, build_sms
         from generator import generate_site
         from scanner.email_finder import find_email
         from scanner.scanner import daily_scan_sample, check_website
@@ -389,7 +389,7 @@ class Handler(BaseHTTPRequestHandler):
                     sent.append({"lead": lead["id"], "email": lead["email"]})
             elif lead["phone"]:
                 # No email — send SMS with demo link instead.
-                body = f"Hi {lead['name']} — I built a free sample site for your business. Check it out: {url}"
+                body = build_sms(str(lead["name"]), url)
                 if send_sms(lead["phone"], body):
                     db.update_lead(lead["id"], emailed=1, email_sent_at=datetime.now().isoformat(),
                                    status="proposed")
