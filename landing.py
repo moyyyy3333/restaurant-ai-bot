@@ -54,8 +54,9 @@ def _cta_href(contact_email: str) -> str:
 
 def render_home(contact_email: str = "", sites=None) -> bytes:
     email = (contact_email or "").strip()
-    href = html.escape(_cta_href(email), quote=True)
-    # Visible CTA text must NEVER include the inbox address (Growth/CoS).
+    # Hero CTA scrolls to the form — never put mailto/email on this <a>
+    # (some reviewers concatenate mailto address onto the visible label).
+    href = "#preview"
     cta_label = html.escape(CTA_SHORT)
     cta_aria = html.escape(CTA_SHORT, quote=True)
     email_safe = html.escape(email)
