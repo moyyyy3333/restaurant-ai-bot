@@ -142,6 +142,16 @@ async def setemail_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ========== COMMANDS ==========
 
+
+async def cmd_board(update, context):
+    """Send the Prospect Board link (key-gated web dashboard)."""
+    import os as _os
+    key = (_os.getenv("BOARD_KEY") or _os.getenv("PIPELINE_TOKEN") or "").strip()
+    if not key:
+        await update.message.reply_text("Board key not configured (set PIPELINE_TOKEN or BOARD_KEY).")
+        return
+    await update.message.reply_text(f"Prospect Board:\n{DEMO_BASE_URL}/board?k={key}\n\nBookmark it. It shows today's focus, every lead, demo links, and a one-tap pipeline run.")
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not has_access(update.effective_user.id):
         await reply(update).reply_text(
@@ -461,6 +471,7 @@ def main():
     app.add_handler(CommandHandler("setemail", setemail_cmd))
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", start))
+    app.add_handler(CommandHandler("board", cmd_board))
     app.add_handler(CommandHandler("cities", cities_cmd))
     app.add_handler(CommandHandler("scan", scan_cmd))
     app.add_handler(CommandHandler("leads", leads_cmd))

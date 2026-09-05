@@ -28,6 +28,46 @@ from landing import preview_contact_email, render_home
 PIPELINE_TOKEN = os.getenv("PIPELINE_TOKEN", "")
 
 
+BOARD_KEY = (os.getenv("BOARD_KEY") or os.getenv("PIPELINE_TOKEN") or "").strip()
+
+
+def board_payload() -> dict:
+    """Everything the Prospect Board needs in one call. ponytail: one query set, no caching."""
+    from datetime import date
+    import config as C
+    cities = list(C.CITIES.keys())
+    cats = list(C.BUSINESS_CATEGORIES.keys())
+    doy = date.today().timetuple().tm_yday
+    stats = db.get_stats()
+    with db.conn() as c:
+        leads = [dict(r) for r in c.execute("SELECT * FROM leads ORDER BY id DESC LIMIT 200").fetchall()]
+        research = [dict(r) for r in c.execute(
+            "SELECT id, name, city, phone FROM leads WHERE (email IS NULL OR email = '') "
+            "AND status NOT IN ('dead','sold') ORDER BY id DESC LIMIT 50").fetchall()]
+        log = [dict(r) for r in c.execute(
+            "SELECT created_at, to_email, subject, status FROM email_log ORDER BY id DESC LIMIT 40").fetchall()]
+        qc = {
+            "new": c.execute("SELECT COUNT(*) FROM leads WHERE status='new'").fetchone()[0],
+            "need_site": c.execute("SELECT COUNT(*) FROM leads WHERE status='new' AND (demo_token IS NULL OR demo_token='')").fetchone()[0],
+            "need_send": c.execute("SELECT COUNT(*) FROM leads WHERE status='site_generated' AND emailed=0").fetchone()[0],
+        }
+    for l in leads:
+        l["demo_url"] = f"{DEMO_BASE_URL}/demo/{l['demo_token']}" if l.get("demo_token") else None
+        for k in ("business_id",):
+            l.pop(k, None)
+    entries = [{"when": (x.get("created_at") or "")[:16], "what": f"email {x.get('status') or ''} -> {x.get('to_email') or ''} · {x.get('subject') or ''}"} for x in log]
+    for l in leads:
+        if l.get("notes"):
+            for line in str(l["notes"]).splitlines():
+                entries.append({"when": line[1:17] if line.startswith("[") else "", "what": f"{l['name']}: {line[19:] if line.startswith('[') else line}"})
+    entries.sort(key=lambda e: e["when"], reverse=True)
+    return {
+        "today": {"city": cities[doy % len(cities)] if cities else "", "category": cats[doy % len(cats)] if cats else ""},
+        "cities": cities, "categories": cats, "stats": stats, "queue_counts": qc,
+        "leads": leads, "research": research, "log": entries[:60],
+    }
+
+
 def page(title: str, body: str) -> bytes:
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>{title}</title>
@@ -95,6 +135,20 @@ class Handler(BaseHTTPRequestHandler):
                 print(f"  homepage stats failed: {e}")
             return self.send(200, render_home(preview_contact_email(), sites),
                              robots=False)
+
+        if parts[0] == "board":
+            if not self._board_ok(u):
+                return self.send(403, page("Locked", "<h1>Locked</h1><p>Open the board from the bot with /help.</p>"))
+            try:
+                with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "board.html"), "rb") as f:
+                    return self.send(200, f.read(), robots=False)
+            except OSError:
+                return self.send(500, page("Board", "<h1>board.html missing</h1>"))
+
+        if parts[0] == "api" and len(parts) > 1 and parts[1] == "board":
+            if not self._board_ok(u):
+                return self.json_out(403, {"error": "locked"})
+            return self.json_out(200, board_payload())
 
         if parts[0] == "stats":
             payload = {"ok": True, "service": "local-business-ai-bot", **db.db_status()}
@@ -202,6 +256,33 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/webhook/resend":
             return self.resend_webhook(raw)
 
+        if u.path == "/api/lead":
+            if not self._board_ok(u):
+                return self.json_out(403, {"error": "locked"})
+            try:
+                body = json.loads(raw or b"{}")
+            except json.JSONDecodeError:
+                return self.json_out(400, {"error": "bad json"})
+            lead_id = int(body.get("id") or 0)
+            fields = {}
+            if body.get("status") in ("new", "site_generated", "proposed", "replied", "sold", "dead"):
+                fields["status"] = body["status"]
+                if body["status"] == "replied": fields["replied"] = 1
+                if body["status"] == "sold": fields["sold"] = 1
+            if isinstance(body.get("notes"), str) and body["notes"].strip():
+                old_lead = db.get_lead(lead_id)
+                prev = (old_lead["notes"] or "") if old_lead else ""
+                fields["notes"] = (prev + "\n" if prev else "") + f"[{db.now()[:16]}] " + body["notes"].strip()
+            if not lead_id or not fields:
+                return self.json_out(400, {"error": "nothing to update"})
+            db.update_lead(lead_id, **fields)
+            return self.json_out(200, {"ok": True})
+
+        if u.path == "/api/pipeline":
+            if not self._board_ok(u):
+                return self.json_out(403, {"error": "locked"})
+            return self.run_pipeline()
+
         if u.path == "/pipeline/run":
             if not PIPELINE_TOKEN or self.headers.get("X-Pipeline-Token") != PIPELINE_TOKEN:
                 return self.json_out(403, {"error": "bad or missing X-Pipeline-Token"})
@@ -228,6 +309,10 @@ class Handler(BaseHTTPRequestHandler):
                 c.execute("UPDATE leads SET replied = 1, status = 'replied' "
                           "WHERE lower(email) = ?", (to.lower(),))
         return self.json_out(200, {"ok": True})
+
+    def _board_ok(self, u) -> bool:
+        key = (parse_qs(u.query).get("k") or [""])[0]
+        return bool(BOARD_KEY) and key == BOARD_KEY
 
     def run_pipeline(self):
         """The full daily loop: scan -> build demo sites -> find emails -> send
