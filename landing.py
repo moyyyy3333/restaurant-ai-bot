@@ -161,7 +161,7 @@ h1 {{
   line-height: 1.05; font-weight: 500; letter-spacing: -.03em;
   margin: 0 0 18px; max-width: 14ch;
 }}
-.hero-long, .cta-long {{ display: none; }}
+.extra {{ display: none; }}
 .sub {{
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   font-size: 1.05rem; color: var(--muted); max-width: 38rem;
@@ -248,9 +248,7 @@ footer {{
   .tag {{ display: block; }}
   .hero {{ padding: 72px 0 40px; }}
   h1 {{ max-width: 16ch; }}
-  .hero-short, .cta-short {{ display: none; }}
-  .hero-long {{ display: block; }}
-  .cta-long {{ display: inline-flex; }}
+  .extra {{ display: inline; }}
   .beats {{ grid-template-columns: repeat(3, 1fr); gap: 18px; }}
   .card {{ padding: 36px 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }}
 }}
@@ -265,14 +263,10 @@ footer {{
 <main>
   <section class="hero wrap">
     <p class="kicker">Restaurants &amp; local shops</p>
-    <h1>
-      <span class="hero-short">{html.escape(HEADLINE_SHORT)}</span>
-      <span class="hero-long">{html.escape(HEADLINE_LONG)}</span>
-    </h1>
+    <h1>No website? We’ll build <span class="extra">you </span>one.</h1>
     <p class="sub">{html.escape(SUB)}</p>
     <div class="ctas">
-      <a class="btn primary cta-short" href="{href}">{html.escape(CTA_SHORT)}</a>
-      <a class="btn primary cta-long" href="{href}">{html.escape(CTA_LONG)}</a>
+      <a class="btn primary" href="{href}">Get <span class="extra">my </span>free <span class="extra">site </span>preview</a>
       <a class="btn ghost" href="#how-it-works">{html.escape(CTA_SECONDARY)}</a>
     </div>
     {empty_block}
