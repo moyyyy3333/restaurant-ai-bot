@@ -198,6 +198,15 @@ class HandlerTests(unittest.TestCase):
                                   lambda: "owner@example.com"):
                     _, body, _ = self._get(httpd, "/")
             self.assertIn(b"mailto:owner@example.com", body)
+            self.assertNotIn(b"Get free preview (owner@example.com)", body)
+            self.assertNotIn(b"Get my free site preview (owner@example.com)", body)
+            start = body.find(b'class="btn primary"')
+            inner = body[body.find(b">", start) + 1:body.find(b"</a>", start)]
+            self.assertIn(b"Get ", inner)
+            self.assertIn(b"preview", inner)
+            self.assertNotIn(b"owner@example.com", inner)
+            self.assertIn(b'aria-label="Get free preview"', body)
+            self.assertNotIn(b"owner@example.com", body[body.find(b'class="note"'):])
         finally:
             httpd.shutdown()
             httpd.server_close()
@@ -218,6 +227,19 @@ class ContactEmailTests(unittest.TestCase):
         with patch.object(landing, "REPLY_TO", ""), \
              patch.object(landing, "FROM_EMAIL", "hello@studio.test"):
             self.assertEqual(landing.preview_contact_email(), "hello@studio.test")
+
+
+class LandingCopyTests(unittest.TestCase):
+    def test_cta_label_stays_plain_when_mailto_exists(self):
+        html = landing.render_home("dealermatt72@me.com", sites=1).decode()
+        self.assertIn('href="mailto:dealermatt72@me.com', html)
+        self.assertIn('aria-label="Get free preview"', html)
+        self.assertNotIn("Get free preview (dealermatt72@me.com)", html)
+        self.assertNotIn("Get my free site preview (dealermatt72@me.com)", html)
+        self.assertNotIn("Opens your email app to dealermatt72@me.com", html)
+        note_at = html.find('class="note"')
+        self.assertGreater(note_at, 0)
+        self.assertNotIn("dealermatt72@me.com", html[note_at:])
 
 
 if __name__ == "__main__":

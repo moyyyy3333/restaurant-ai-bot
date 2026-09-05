@@ -65,8 +65,8 @@ def render_home(contact_email: str = "", sites=None) -> bytes:
     if email:
         form_action = f"mailto:{email_safe}"
         form_note = (
-            f"Opens your email app to {email_safe}. "
-            "We only use addresses already configured — nothing is posted to this server."
+            "Opens your email app to request a preview. "
+            "Nothing is posted to this page."
         )
         form_method = "post"
         form_enctype = ' enctype="text/plain"'
@@ -266,7 +266,7 @@ footer {{
     <h1>No website? We’ll build <span class="extra">you </span>one.</h1>
     <p class="sub">{html.escape(SUB)}</p>
     <div class="ctas">
-      <a class="btn primary" href="{href}"><span>Get <span class="extra">my </span>free <span class="extra">site </span>preview</span></a>
+      <a class="btn primary" href="{href}" aria-label="{html.escape(CTA_SHORT)}"><span>Get <span class="extra">my </span>free <span class="extra">site </span>preview</span></a>
       <a class="btn ghost" href="#how-it-works">{html.escape(CTA_SECONDARY)}</a>
     </div>
     {empty_block}
