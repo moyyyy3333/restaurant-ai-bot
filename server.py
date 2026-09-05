@@ -1,7 +1,8 @@
 """
 Demo server.
 
-  /                     health + counts
+  /                     marketing homepage (HTML)
+  /stats                health + counts (former GET / JSON)
   /health               process health (always 200 if the function is up)
   /demo/<token>         serve a generated sample site (expires)
   /unsubscribe?e=...    one-click opt-out (GET renders, POST confirms)
@@ -22,6 +23,7 @@ from urllib.parse import parse_qs, urlparse
 
 import db
 from config import DAILY_SEND_LIMIT, DEMO_BASE_URL, DEMO_EXPIRE_HOURS, PORT
+from landing import preview_contact_email, render_home
 
 PIPELINE_TOKEN = os.getenv("PIPELINE_TOKEN", "")
 
@@ -46,11 +48,13 @@ class Handler(BaseHTTPRequestHandler):
         print(f"  {self.address_string()} {fmt % args}")
 
     # ------------------------------------------------------------------ helpers
-    def send(self, code: int, body: bytes, ctype="text/html; charset=utf-8"):
+    def send(self, code: int, body: bytes, ctype="text/html; charset=utf-8",
+             robots=True):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("X-Robots-Tag", "noindex, nofollow")
+        if robots:
+            self.send_header("X-Robots-Tag", "noindex, nofollow")
         self.end_headers()
         self.wfile.write(body)
 
@@ -79,10 +83,21 @@ class Handler(BaseHTTPRequestHandler):
         is_health = bool(parts) and (
             parts[0] == "health" or (parts[0] == "api" and len(parts) > 1 and parts[1] == "health")
         )
-        if not parts or is_health:
+        if is_health:
             payload = {"ok": True, "service": "local-business-ai-bot", **db.db_status()}
-            if is_health:
-                return self.json_out(200, payload)
+            return self.json_out(200, payload)
+
+        if not parts:
+            sites = None
+            try:
+                sites = db.get_stats().get("sites")
+            except Exception as e:
+                print(f"  homepage stats failed: {e}")
+            return self.send(200, render_home(preview_contact_email(), sites),
+                             robots=False)
+
+        if parts[0] == "stats":
+            payload = {"ok": True, "service": "local-business-ai-bot", **db.db_status()}
             try:
                 payload.update(db.get_stats())
             except Exception as e:
@@ -286,7 +301,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     db.init_db()
     print(f"demo server on http://localhost:{PORT}")
-    print(f"  /demo/<token>  /unsubscribe  /webhook/resend  /pipeline/run")
+    print(f"  /  /stats  /health  /demo/<token>  /unsubscribe  /webhook/resend  /pipeline/run")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
 
 

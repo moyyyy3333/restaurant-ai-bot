@@ -149,11 +149,22 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown")
         return
 
+    empty = ""
+    try:
+        if db.get_stats().get("sites", 0) == 0:
+            empty = (
+                "\n\nNo sites yet. Point us at a restaurant without a website "
+                "and we’ll draft one."
+            )
+    except Exception:
+        pass
+
     text = (
         "🏪 *Local Business AI Bot*\n\n"
         "Find independent businesses without real websites, "
         "generate clean demo sites, and send *proposal* emails "
-        "(free sample, no invoice).\n\n"
+        "(free sample, no invoice)."
+        f"{empty}\n\n"
         "*Commands*\n"
         "/cities — list available cities\n"
         "/scan `[city]` — scan a city (or all defaults)\n"
@@ -393,6 +404,12 @@ async def stats_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Businesses: {s['businesses']}",
         f"Leads: {s['leads']}",
         f"Sites: {s['sites']}",
+    ]
+    if s["sites"] == 0:
+        lines.append(
+            "No sites yet. Point us at a restaurant without a website and we’ll draft one."
+        )
+    lines += [
         f"Proposed: {s['emailed']}",
         f"Replied: {s['replied']}",
         f"Sold: {s['sold']}",

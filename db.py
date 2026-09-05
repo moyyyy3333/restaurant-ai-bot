@@ -213,7 +213,7 @@ def ensure_schema():
 
 
 def db_status() -> dict:
-    """Never raises — used by / and /health so a missing DB cannot 500 the site."""
+    """Never raises — used by /stats and /health so a missing DB cannot 500 the site."""
     if not turso_configured():
         return {"db": "unconfigured", "persistent": False}
     try:
