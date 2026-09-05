@@ -55,6 +55,9 @@ def _cta_href(contact_email: str) -> str:
 def render_home(contact_email: str = "", sites=None) -> bytes:
     email = (contact_email or "").strip()
     href = html.escape(_cta_href(email), quote=True)
+    # Visible CTA text must NEVER include the inbox address (Growth/CoS).
+    cta_label = html.escape(CTA_SHORT)
+    cta_aria = html.escape(CTA_SHORT, quote=True)
     email_safe = html.escape(email)
     empty = sites == 0
     empty_block = (
@@ -266,7 +269,7 @@ footer {{
     <h1>No website? We’ll build <span class="extra">you </span>one.</h1>
     <p class="sub">{html.escape(SUB)}</p>
     <div class="ctas">
-      <a class="btn primary" href="{href}"><span>Get <span class="extra">my </span>free <span class="extra">site </span>preview</span></a>
+      <a class="btn primary" href="{href}" aria-label="{cta_aria}">{cta_label}</a>
       <a class="btn ghost" href="#how-it-works">{html.escape(CTA_SECONDARY)}</a>
     </div>
     {empty_block}
