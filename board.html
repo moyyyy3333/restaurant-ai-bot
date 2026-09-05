@@ -25,6 +25,7 @@ textarea{width:100%;min-height:60px;border:1px solid var(--line);border-radius:8
 <header><div class="brand"><span>●</span> LOCAL WEB STUDIO — PROSPECT BOARD</div><div class="date" id="date"></div></header>
 <div class="hero"><div class="k">Today's focus · auto-rotated</div><h1 id="focus">Loading…</h1><p id="focusSub"></p>
 <div class="row" style="margin-top:14px"><button class="btn" id="runBtn">Run today's pipeline</button><span class="muted mono" id="runOut"></span></div></div>
+<div class="card" id="sendCard" style="display:none;border-color:#e8b04b;background:#fffaf0"><h2 style="color:#8a6d1f">Outreach email</h2><div id="sendMsg"></div></div>
 <div class="card"><h2>Daily rhythm · one run does all three</h2><div class="steps">
 <div class="step"><b>1 · Scan</b><small>Find businesses with no website in today's city. <span id="s1"></span></small></div>
 <div class="step"><b>2 · Build</b><small>Generate a demo site for each new lead. <span id="s2"></span></small></div>
@@ -46,6 +47,8 @@ function render(){
   document.getElementById('date').textContent=new Date().toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'});
   document.getElementById('focus').textContent=`${D.today.category} · ${D.today.city}`;
   document.getElementById('focusSub').textContent=`${D.stats.leads} leads · ${D.stats.sites} demos built · ${D.stats.emailed} contacted · ${D.stats.replied} replied · ${D.stats.sold} sold`;
+  const sc=document.getElementById('sendCard');
+  if(D.sending&&!D.sending.ok){sc.style.display='';document.getElementById('sendMsg').innerHTML=`<b>Paused.</b> ${esc(D.sending.why)}<br><span class="muted mono">current sender: ${esc(D.sending.from)}</span>`}else if(D.sending){sc.style.display='';sc.style.borderColor='#cfe8d8';sc.style.background='#f4fbf6';document.getElementById('sendMsg').innerHTML=`<b>Live.</b> Sending as <span class="mono">${esc(D.sending.from)}</span>`}
   document.getElementById('s1').textContent=`${D.queue_counts.new} new`;document.getElementById('s2').textContent=`${D.queue_counts.need_site} waiting`;document.getElementById('s3').textContent=`${D.queue_counts.need_send} ready to send`;
   document.getElementById('cats').innerHTML=D.categories.map(c=>chip(c,D.stats.by_category[c],c===D.today.category)).join('');
   document.getElementById('cities').innerHTML=D.cities.map(c=>chip(c,D.stats.by_city[c],c===D.today.city)).join('');

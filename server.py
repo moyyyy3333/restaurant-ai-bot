@@ -61,7 +61,18 @@ def board_payload() -> dict:
             for line in str(l["notes"]).splitlines():
                 entries.append({"when": line[1:17] if line.startswith("[") else "", "what": f"{l['name']}: {line[19:] if line.startswith('[') else line}"})
     entries.sort(key=lambda e: e["when"], reverse=True)
+    import config as CFG
+    from_email = (CFG.FROM_EMAIL or "").strip()
+    sending_ok = bool(CFG.RESEND_API_KEY) and not from_email.endswith("@resend.dev")
     return {
+        "sending": {
+            "ok": sending_ok,
+            "from": from_email or "(unset)",
+            "why": "" if sending_ok else
+                   "Outreach email is OFF. FROM_EMAIL is still Resend's test address, which can only "
+                   "deliver to the Resend account owner — not to business owners. Verify a sending "
+                   "domain in Resend, then set FROM_EMAIL and RESEND_API_KEY.",
+        },
         "today": {"city": cities[doy % len(cities)] if cities else "", "category": cats[doy % len(cats)] if cats else ""},
         "cities": cities, "categories": cats, "stats": stats, "queue_counts": qc,
         "leads": leads, "research": research, "log": entries[:60],
