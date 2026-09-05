@@ -6,6 +6,7 @@ Admin-only. Commands for scanning, generating demos, sending proposals, stats.
 import sys
 import os
 import asyncio
+import time
 from datetime import datetime, timedelta
 import html as html_module
 
@@ -482,8 +483,23 @@ def main():
     app.add_handler(CommandHandler("stats", stats_cmd))
     app.add_handler(CallbackQueryHandler(button_handler))
 
-    print("🚀 Polling…")
-    app.run_polling()
+    print("🚀 Polling…", flush=True)
+    # A deploy overlaps the old and new instance for a few seconds, and Telegram
+    # answers the loser with Conflict. run_polling() raises and the process dies,
+    # which is how the bot silently stopped responding. Retry instead of exiting;
+    # drop_pending_updates clears anything the dying instance half-consumed.
+    from telegram.error import Conflict, NetworkError
+    while True:
+        try:
+            app.run_polling(drop_pending_updates=True)
+            print("polling stopped cleanly", flush=True)
+            return
+        except Conflict:
+            print("⚠️  another instance is polling; retrying in 20s", flush=True)
+            time.sleep(20)
+        except NetworkError as e:
+            print(f"⚠️  network error ({e}); retrying in 10s", flush=True)
+            time.sleep(10)
 
 
 if __name__ == "__main__":
