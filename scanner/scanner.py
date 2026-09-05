@@ -86,26 +86,53 @@ def name_matches(queried: str, returned: str, threshold: float = 0.6) -> bool:
     return len(a & b) / len(min(a, b, key=len)) >= threshold
 
 
-def url_is_live(url: str, timeout: int = 8) -> bool:
-    """Does this URL actually serve a page? Dead and parked domains do not
-    count as 'has a website'."""
+# A site that refuses automated clients is not the same as a site that is gone.
+# Guessing "no website" from a bot block is exactly how a business with a
+# perfectly good site gets told it has none.
+BLOCKED_CODES = {401, 403, 405, 406, 429, 503}
+
+
+def url_liveness(url: str, timeout: int = 8) -> str:
+    """live | dead | unknown
+
+    dead    - the page is genuinely gone (404/410, DNS failure, refused) or the
+              domain is a parking page. Safe to treat as "no real website".
+    unknown - the check was refused or timed out. We cannot tell, so we do not
+              get to claim the business has no website.
+    """
     if not url:
-        return False
+        return "dead"
     low = url.lower()
     if any(h in low for h in PARKED_HOSTS):
-        return False
+        return "dead"
     req = urllib.request.Request(url, method="GET", headers={
-        "User-Agent": "Mozilla/5.0 (compatible; site-check/1.0)"})
+        "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36")})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
-            if r.status >= 400:
-                return False
             final = (r.geturl() or "").lower()
             if any(h in final for h in PARKED_HOSTS):
-                return False
-            return True
+                return "dead"
+            return "live" if r.status < 400 else "unknown"
+    except urllib.error.HTTPError as e:
+        if e.code in BLOCKED_CODES:
+            return "unknown"
+        return "dead" if e.code in (404, 410) else "unknown"
+    except urllib.error.URLError as e:
+        # DNS failure / connection refused = really gone; timeouts = can't tell.
+        reason = str(getattr(e, "reason", "")).lower()
+        if "name or service not known" in reason or "nodename nor servname" in reason \
+           or "connection refused" in reason:
+            return "dead"
+        return "unknown"
     except Exception:
-        return False
+        return "unknown"
+
+
+def url_is_live(url: str, timeout: int = 8) -> bool:
+    """Back-compat boolean. Prefer url_liveness() — this collapses
+    'cannot tell' into False."""
+    return url_liveness(url, timeout) == "live"
 
 
 def classify_website(url: str, *, source_answered: bool = True) -> str:
@@ -156,12 +183,19 @@ def google_enrich(name: str, address: str) -> dict:
         print(f"    ~ Google returned '{returned_name}' for '{name}' — treating as no match")
         return {}
     website = p.get("websiteUri", "") or ""
-    if website and not url_is_live(website):
-        print(f"    ~ {name}: listed site {website} is dead/parked")
-        website = ""
+    status = classify_website(website, source_answered=True)
+    if website and status == "has_site":
+        live = url_liveness(website)
+        if live == "dead":
+            print(f"    ~ {name}: listed site {website} is dead/parked")
+            website, status = "", "none"
+        elif live == "unknown":
+            # The site exists on paper but refused our check. Do not pitch.
+            print(f"    ~ {name}: {website} could not be verified — leaving unknown")
+            status = "unknown"
     return {"phone": p.get("nationalPhoneNumber", "") or "",
             "website": website,
-            "website_status": classify_website(website, source_answered=True),
+            "website_status": status,
             "rating": p.get("rating")}
 
 

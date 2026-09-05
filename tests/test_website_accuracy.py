@@ -4,7 +4,7 @@ Run: ./venv/bin/python -m tests.test_website_accuracy
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from scanner.scanner import classify_website, name_matches
+from scanner.scanner import classify_website, name_matches, url_liveness
 
 
 def test_empty_url_is_unknown_when_nothing_answered():
@@ -37,6 +37,19 @@ def test_name_match_rejects_a_different_business():
 def test_generic_words_alone_do_not_match():
     # "Cafe" vs "Cafe" must not be enough to accept a wrong result
     assert not name_matches("Koko Cafe", "Bluebird Cafe")
+
+
+def test_parked_domain_is_dead():
+    assert url_liveness("https://foo.sedoparking.com/") == "dead"
+
+
+def test_nonexistent_domain_is_dead():
+    assert url_liveness("http://this-domain-truly-does-not-exist-9x7q2.com") == "dead"
+
+
+def test_blocked_site_is_unknown_not_dead():
+    # A 403 means we were refused, not that the business has no website.
+    assert url_liveness("https://tksugarland.square.site/") == "unknown"
 
 
 if __name__ == "__main__":
