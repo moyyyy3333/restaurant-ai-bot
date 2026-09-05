@@ -56,10 +56,67 @@ def _get(url: str, params: dict) -> list:
         return []
 
 
-def classify_website(url: str) -> str:
-    """none | social_only | has_site"""
+# Domains that serve a "this domain is for sale"/holding page. A business
+# whose only web presence is one of these effectively has no website.
+PARKED_HOSTS = ("sedoparking.com", "afternic.com", "godaddysites.com/parked",
+                "parkingcrew.net", "bodis.com", "dan.com", "hugedomains.com")
+
+
+def _norm_tokens(s: str) -> set:
+    """Lowercase word set with punctuation and generic filler removed."""
+    import re as _re
+    stop = {"the", "and", "a", "of", "restaurant", "cafe", "coffee", "bar",
+            "grill", "kitchen", "llc", "inc", "co"}
+    # Drop apostrophes first so "Sam's" is one token, not "sam" + "s".
+    flat = (s or "").lower().replace("'", "").replace("\u2019", "")
+    words = _re.findall(r"[a-z0-9]+", flat)
+    return {w for w in words if w not in stop}
+
+
+def name_matches(queried: str, returned: str, threshold: float = 0.6) -> bool:
+    """Is the place the API returned actually the business we asked about?
+
+    Google's text search always returns *something*. Without this check a
+    wrong match imports a wrong website (or a wrong absence of one), which is
+    exactly how leads were mislabelled as having no site.
+    """
+    a, b = _norm_tokens(queried), _norm_tokens(returned)
+    if not a or not b:
+        return False
+    return len(a & b) / len(min(a, b, key=len)) >= threshold
+
+
+def url_is_live(url: str, timeout: int = 8) -> bool:
+    """Does this URL actually serve a page? Dead and parked domains do not
+    count as 'has a website'."""
     if not url:
-        return "none"
+        return False
+    low = url.lower()
+    if any(h in low for h in PARKED_HOSTS):
+        return False
+    req = urllib.request.Request(url, method="GET", headers={
+        "User-Agent": "Mozilla/5.0 (compatible; site-check/1.0)"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            if r.status >= 400:
+                return False
+            final = (r.geturl() or "").lower()
+            if any(h in final for h in PARKED_HOSTS):
+                return False
+            return True
+    except Exception:
+        return False
+
+
+def classify_website(url: str, *, source_answered: bool = True) -> str:
+    """has_site | social_only | none | unknown
+
+    `none` is a CLAIM that the business has no website, so it is only returned
+    when a lookup actually answered. If nothing authoritative was consulted,
+    the honest answer is `unknown` — and unknown is never pitched.
+    """
+    if not url:
+        return "none" if source_answered else "unknown"
     low = url.lower()
     if any(h in low for h in SOCIAL_HOSTS):
         return "social_only"
@@ -80,7 +137,7 @@ def google_enrich(name: str, address: str) -> dict:
     req = urllib.request.Request(GOOGLE_SEARCH_URL, body, {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
-        "X-Goog-FieldMask": "places.websiteUri,places.nationalPhoneNumber,places.rating",
+        "X-Goog-FieldMask": "places.websiteUri,places.nationalPhoneNumber,places.rating,places.displayName",
     })
     try:
         with urllib.request.urlopen(req, timeout=20) as r:
@@ -90,27 +147,49 @@ def google_enrich(name: str, address: str) -> dict:
         return {}
     places = data.get("places") or []
     if not places:
+        # Google answered and knows of no such business. That is not evidence
+        # about a website either way.
         return {}
     p = places[0]
+    returned_name = ((p.get("displayName") or {}).get("text")) or ""
+    if returned_name and not name_matches(name, returned_name):
+        print(f"    ~ Google returned '{returned_name}' for '{name}' — treating as no match")
+        return {}
     website = p.get("websiteUri", "") or ""
+    if website and not url_is_live(website):
+        print(f"    ~ {name}: listed site {website} is dead/parked")
+        website = ""
     return {"phone": p.get("nationalPhoneNumber", "") or "",
             "website": website,
-            "website_status": classify_website(website),
+            "website_status": classify_website(website, source_answered=True),
             "rating": p.get("rating")}
 
 
 def verify_website(name: str, address: str) -> str:
-    """One-off Google Places lookup for a single business, used only right before
-    emailing a lead — LocationIQ's free OSM data under-reports websites, so this
-    catches leads that were wrongly flagged as having none.
+    """Back-compat wrapper: returns a real site URL, or "" otherwise.
 
-    Returns the website URL if a real (non-social) site is found, "" if confirmed
-    clean or the check is inconclusive (no key, no match, request failure) — callers
-    should treat "" as "safe to proceed", not as proof of no website.
+    Prefer check_website() — this collapses "confirmed no site" and "could not
+    tell" into the same empty string, which is what caused leads with websites
+    to be pitched as having none.
     """
+    status, url = check_website(name, address)
+    return url if status == "has_site" else ""
+
+
+def check_website(name: str, address: str) -> tuple:
+    """Authoritative tri-state check for one business.
+
+    Returns (status, url) where status is has_site | social_only | none |
+    unknown. Only `none` and `social_only` are safe to pitch; `unknown` means
+    the check could not answer and the lead must not be contacted yet.
+    """
+    if not GOOGLE_PLACES_API_KEY:
+        return ("unknown", "")
     info = google_enrich(name, address)
-    website = info.get("website", "")
-    return website if classify_website(website) == "has_site" else ""
+    if not info:
+        return ("unknown", "")
+    url = info.get("website", "")
+    return (info.get("website_status") or classify_website(url, source_answered=True), url)
 
 
 def scan_area(area_name: str, city: str = "houston", category: str = "restaurant",

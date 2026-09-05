@@ -333,7 +333,7 @@ class Handler(BaseHTTPRequestHandler):
         from emailer import send_proposal, send_sms
         from generator import generate_site
         from scanner.email_finder import find_email
-        from scanner.scanner import daily_scan_sample, verify_website
+        from scanner.scanner import daily_scan_sample, check_website
 
         found = daily_scan_sample(budget=12)
 
@@ -359,16 +359,24 @@ class Handler(BaseHTTPRequestHandler):
                 enriched.append({"lead": lead["id"], "email": email})
 
         sent = []
+        skipped_unknown = []
         for lead in db.leads_needing_email(limit=DAILY_SEND_LIMIT):
             if len(sent) >= DAILY_SEND_LIMIT:
                 break
             if db.is_suppressed(lead["email"]):
                 continue
-            if lead["website_status"] != "has_site":
-                real_site = verify_website(lead["name"], lead["address"] or "")
-                if real_site:
-                    db.update_lead(lead["id"], website_status="has_site", status="dead")
-                    continue
+            # Truthfulness gate: only pitch a business we have CONFIRMED has no
+            # real website. "unknown" means the check could not answer, and the
+            # lead waits rather than getting a false "you have no website" email.
+            status, real_site = check_website(lead["name"], lead["address"] or "")
+            if status == "has_site":
+                db.update_lead(lead["id"], website_status="has_site", status="dead")
+                continue
+            if status == "unknown":
+                db.update_lead(lead["id"], website_status="unknown")
+                skipped_unknown.append({"lead": lead["id"], "name": lead["name"]})
+                continue
+            db.update_lead(lead["id"], website_status=status)
             url = f"{DEMO_BASE_URL}/demo/{lead['demo_token']}"
             if lead["email"]:
                 result = send_proposal(
@@ -390,7 +398,8 @@ class Handler(BaseHTTPRequestHandler):
         return self.json_out(200, {
             "scanned_new": found, "sites_generated": len(made),
             "emails_found": len(enriched), "proposals_sent": len(sent),
-            "sites": made, "sent": sent,
+            "skipped_unverified": len(skipped_unknown),
+            "sites": made, "sent": sent, "unverified": skipped_unknown,
         })
 
 

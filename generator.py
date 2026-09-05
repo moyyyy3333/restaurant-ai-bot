@@ -11,6 +11,7 @@ name.
 """
 
 import html
+import json
 import secrets
 from datetime import datetime
 
@@ -157,110 +158,221 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
                     f'src="https://maps.google.com/maps?q={map_q}&output=embed"></iframe>')
 
     desc = e(hero)[:150]
+    sec0 = e(meta["sections"][0])
+    year = datetime.now().year
+
+    # Menu as an editorial list, not a card grid. No invented prices — the page
+    # says plainly that real items and prices go in.
+    menu_html = "".join(
+        f'''<li class="item">
+      <div class="item-h"><h3>{e(t)}</h3><span class="dots" aria-hidden="true"></span></div>
+      <p>{e(d)}</p>
+    </li>''' for t, d in items)
+
+    # Machine-readable business record so search engines and assistants can use it.
+    ld = {
+        "@context": "https://schema.org", "@type": "LocalBusiness",
+        "name": str(name), "description": str(hero),
+    }
+    if address: ld["address"] = str(address)
+    if phone: ld["telephone"] = str(phone)
+    if rating: ld["aggregateRating"] = {"@type": "AggregateRating",
+                                        "ratingValue": float(rating), "bestRating": 5}
+    ld_json = json.dumps(ld)
 
     return f"""<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="{dark}">
+<meta name="description" content="{desc}">
 <meta property="og:title" content="{name_s}">
 <meta property="og:description" content="{desc}">
 <meta property="og:type" content="website">
-<title>{name_s}</title>
+<title>{name_s}{(' · ' + e(city.title())) if city else ''}</title>
+<script type="application/ld+json">{ld_json}</script>
 <style>
+:root{{
+  --ink:{dark}; --accent:{accent}; --surface:{light};
+  --paper:#fff; --muted:color-mix(in srgb, {dark} 55%, {light});
+  --line:color-mix(in srgb, {dark} 14%, {light});
+  --step--1:clamp(.82rem,.79rem + .14vw,.9rem);
+  --step-0:clamp(1rem,.96rem + .2vw,1.1rem);
+  --step-1:clamp(1.28rem,1.18rem + .5vw,1.6rem);
+  --step-2:clamp(1.6rem,1.4rem + 1vw,2.3rem);
+  --step-3:clamp(2.2rem,1.7rem + 2.6vw,4.2rem);
+  --gap:clamp(1.4rem,1rem + 2vw,3rem);
+  --rc:{m['radius_card']}; --rb:{m['radius_cta']};
+}}
 *{{margin:0;padding:0;box-sizing:border-box}}
-html{{scroll-behavior:smooth}}
-body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
-background:{light};color:{dark};line-height:1.6}}
-.wm{{position:fixed;top:14px;right:14px;background:{dark};color:{accent};
-padding:6px 14px;border-radius:99px;font-size:11px;letter-spacing:.2em;z-index:99;opacity:.9}}
-.claimbar{{background:{dark};color:{light};text-align:center;padding:10px 16px;font-size:13.5px}}
-.claimbar a{{color:{accent}}}
-nav{{position:sticky;top:0;z-index:50;background:{light}ee;backdrop-filter:blur(8px);
-border-bottom:1px solid rgba(0,0,0,.08);display:flex;align-items:center;justify-content:space-between;
-padding:14px 24px}}
-nav .brand{{font-weight:700;font-size:15px;font-family:{m['heading_font']}}}
-nav .links a{{color:{dark};text-decoration:none;font-size:13.5px;margin-left:22px;opacity:.75}}
-nav .links a:hover{{opacity:1}}
-nav .navcall{{background:{accent};color:{dark};padding:8px 16px;border-radius:{m['radius_cta']};
-font-weight:600}}
-header{{background:linear-gradient(160deg,{dark},{dark} 60%,{accent}22);color:{light};
-padding:88px 24px 76px;text-align:{m['h_align']}}}
-header h1{{font-size:clamp(32px,6vw,58px);font-weight:{m['h_weight']};letter-spacing:.02em;
-font-family:{m['heading_font']}}}
-.tag{{color:{accent};letter-spacing:{m['tag_ls']};text-transform:uppercase;font-size:12px;margin-bottom:20px}}
-.hero{{color:{light};opacity:.82;margin-top:16px;font-size:18px}}
-.rating{{margin-top:22px;font-size:14px;color:{light};opacity:.9}}
-.stars{{color:{accent};letter-spacing:2px;margin-right:8px}}
-.cta{{display:inline-block;margin-top:30px;background:{accent};color:{dark};
-padding:14px 34px;border-radius:{m['radius_cta']};text-decoration:none;font-weight:600;font-size:15px}}
-section{{max-width:940px;margin:0 auto;padding:64px 24px}}
-h2{{font-size:26px;font-weight:{m['h_weight']};margin-bottom:8px;font-family:{m['heading_font']}}}
-.sub{{color:#6b6b6b;font-size:14px;margin-bottom:28px}}
-.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}}
-.card{{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:{m['radius_card']};padding:22px;
-transition:transform .15s ease,box-shadow .15s ease}}
-.card:hover{{transform:translateY(-3px);box-shadow:0 10px 24px rgba(0,0,0,.08)}}
-.card h3{{font-size:17px;margin-bottom:6px}}
-.card p{{color:#6b6b6b;font-size:14px}}
-.info{{background:#fff;border-top:1px solid rgba(0,0,0,.07)}}
-.inforow{{display:flex;flex-wrap:wrap;gap:36px;max-width:940px;margin:0 auto;padding:44px 24px 0}}
-.inforow div{{flex:1;min-width:200px}}
-.inforow b{{display:block;font-size:12px;letter-spacing:.16em;text-transform:uppercase;
-color:{accent};margin-bottom:8px}}
-.map{{width:100%;max-width:940px;display:block;margin:28px auto 0;height:280px;border:0;
-border-radius:{m['radius_card']}}}
-#claim{{background:{dark};color:{light}}}
-#claim .box{{max-width:720px;margin:0 auto;padding:64px 24px;text-align:center}}
-#claim h2{{color:{light}}}
-#claim p{{opacity:.8;margin-bottom:22px}}
-.note{{font-size:12.5px;color:#8a8a8a;text-align:center;padding:0 24px 40px}}
-footer{{background:{dark};color:{light};opacity:.75;text-align:center;padding:26px;font-size:12.5px}}
+html{{scroll-behavior:smooth;-webkit-text-size-adjust:100%}}
+@media (prefers-reduced-motion:reduce){{html{{scroll-behavior:auto}}
+  *{{animation:none!important;transition:none!important}}}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif;
+  background:var(--surface);color:var(--ink);font-size:var(--step-0);line-height:1.6;
+  -webkit-font-smoothing:antialiased}}
+h1,h2,h3{{font-family:{m['heading_font']};font-weight:{m['h_weight']};line-height:1.1;
+  letter-spacing:-.01em;text-wrap:balance}}
+a{{color:inherit}}
+:focus-visible{{outline:3px solid var(--accent);outline-offset:3px;border-radius:2px}}
+.skip{{position:absolute;left:-9999px}}
+.skip:focus{{left:12px;top:12px;z-index:200;background:var(--ink);color:var(--surface);
+  padding:10px 16px;border-radius:var(--rb)}}
+.wrap{{max-width:1080px;margin:0 auto;padding-inline:clamp(20px,5vw,40px)}}
+.wm{{position:fixed;top:14px;right:14px;background:var(--ink);color:var(--accent);
+  padding:6px 14px;border-radius:99px;font-size:11px;letter-spacing:.2em;z-index:99}}
+.claimbar{{background:var(--ink);color:var(--surface);text-align:center;
+  padding:10px 16px;font-size:var(--step--1)}}
+.claimbar a{{color:var(--accent)}}
+nav{{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--surface) 88%,transparent);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}}
+nav .wrap{{display:flex;align-items:center;justify-content:space-between;
+  gap:1rem;padding-block:14px}}
+nav .brand{{font-family:{m['heading_font']};font-weight:600;font-size:var(--step-0)}}
+nav ul{{display:flex;align-items:center;gap:clamp(14px,2.4vw,28px);list-style:none}}
+nav a{{text-decoration:none;font-size:var(--step--1);color:var(--muted)}}
+nav a:hover{{color:var(--ink)}}
+.btn{{display:inline-block;background:var(--accent);color:var(--ink);font-weight:650;
+  padding:.7em 1.3em;border-radius:var(--rb);text-decoration:none;
+  border:1px solid transparent;transition:filter .15s ease}}
+.btn:hover{{filter:brightness(1.07)}}
+.btn.ghost{{background:transparent;border-color:var(--line);color:var(--ink)}}
+/* asymmetric editorial hero */
+header{{padding-block:clamp(3.5rem,9vw,7rem) clamp(2.5rem,6vw,4.5rem);
+  border-bottom:1px solid var(--line)}}
+header .grid{{display:grid;grid-template-columns:1fr;gap:var(--gap);align-items:end}}
+@media(min-width:820px){{header .grid{{grid-template-columns:1.35fr .65fr}}}}
+.eyebrow{{font-size:var(--step--1);letter-spacing:{m['tag_ls']};text-transform:uppercase;
+  color:var(--accent);font-weight:600;margin-bottom:1rem}}
+h1{{font-size:var(--step-3);margin-bottom:1rem}}
+.lede{{font-size:var(--step-1);color:var(--muted);max-width:34ch;line-height:1.35}}
+.actions{{display:flex;flex-wrap:wrap;gap:12px;margin-top:2rem}}
+.facts{{display:grid;gap:1.1rem;border-left:2px solid var(--accent);padding-left:1.2rem}}
+.facts dt{{font-size:var(--step--1);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted)}}
+.facts dd{{font-size:var(--step-0);font-weight:600;margin-top:.15rem}}
+.stars{{color:var(--accent);letter-spacing:2px}}
+section{{padding-block:clamp(3rem,7vw,5.5rem)}}
+.sec-h{{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;
+  gap:1rem;margin-bottom:2.2rem;padding-bottom:.9rem;border-bottom:1px solid var(--line)}}
+h2{{font-size:var(--step-2)}}
+.sub{{color:var(--muted);font-size:var(--step--1)}}
+/* menu list with leader dots */
+.menu{{list-style:none;display:grid;gap:1.6rem}}
+@media(min-width:760px){{.menu{{grid-template-columns:1fr 1fr;column-gap:3.5rem}}}}
+.item-h{{display:flex;align-items:baseline;gap:.6rem}}
+.item h3{{font-size:var(--step-1)}}
+.dots{{flex:1;border-bottom:1px dotted var(--line);transform:translateY(-.2em)}}
+.item p{{color:var(--muted);font-size:var(--step--1);margin-top:.35rem;max-width:46ch}}
+.panel{{background:var(--paper);border:1px solid var(--line);border-radius:var(--rc)}}
+.split{{display:grid;gap:0}}
+@media(min-width:820px){{.split{{grid-template-columns:1fr 1fr}}}}
+.split > div{{padding:clamp(1.6rem,3vw,2.4rem)}}
+.split > div + div{{border-top:1px solid var(--line)}}
+@media(min-width:820px){{.split > div + div{{border-top:0;border-left:1px solid var(--line)}}}}
+table{{width:100%;border-collapse:collapse;font-size:var(--step--1)}}
+th,td{{text-align:left;padding:.55rem 0;border-bottom:1px solid var(--line)}}
+th{{font-weight:600;color:var(--muted)}}
+td{{text-align:right;font-variant-numeric:tabular-nums}}
+tr:last-child th,tr:last-child td{{border-bottom:0}}
+.map{{width:100%;height:300px;border:0;display:block;border-radius:var(--rc);margin-top:1.4rem}}
+#claim{{background:var(--ink);color:var(--surface)}}
+#claim h2{{color:var(--surface);max-width:20ch}}
+#claim p{{opacity:.85;max-width:56ch;margin-top:1rem}}
+#claim .price{{opacity:1;font-weight:600;margin-top:1.4rem}}
+.note{{font-size:12.5px;color:var(--muted);padding-block:2.2rem;max-width:70ch}}
+footer{{border-top:1px solid var(--line);padding-block:1.6rem;
+  font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;
+  justify-content:space-between;gap:.6rem}}
+/* mobile: the one action that matters for a local business */
+.callbar{{position:fixed;left:0;right:0;bottom:0;z-index:80;display:none;
+  background:var(--accent);color:var(--ink);text-align:center;padding:15px;
+  font-weight:700;text-decoration:none;
+  box-shadow:0 -6px 20px color-mix(in srgb,var(--ink) 18%,transparent)}}
+@media(max-width:700px){{.callbar{{display:block}} body{{padding-bottom:60px}}}}
+@media print{{
+  nav,.callbar,.wm,.claimbar,#claim,.map{{display:none!important}}
+  body{{background:#fff;color:#000;font-size:11pt}}
+  header{{padding-block:0 1rem}} section{{padding-block:1rem}}
+  .menu{{grid-template-columns:1fr 1fr}}
+}}
 </style></head><body>
+<a class="skip" href="#main">Skip to content</a>
 {mark}
-<nav>
+<nav aria-label="Primary"><div class="wrap">
   <span class="brand">{name_s}</span>
-  <span class="links">
-    <a href="#menu">{e(meta['sections'][0])}</a>
-    <a href="#location">Location</a>
-    {f'<a class="navcall" href="tel:{tel}">Call</a>' if tel else '<a href="#claim">Get Yours</a>'}
-  </span>
-</nav>
-<header>
-  <div class="tag">{e(meta['label'])}{(' · ' + e(city.title())) if city else ''}</div>
-  <h1>{name_s}</h1>
-  <p class="hero">{e(hero)}</p>
-  {rating_html}
-  {f'<a class="cta" href="tel:{tel}">Call {phone_s}</a>' if tel else ''}
-</header>
+  <ul>
+    <li><a href="#menu">{sec0}</a></li>
+    <li><a href="#visit">Visit</a></li>
+    <li>{f'<a class="btn" href="tel:{tel}">Call</a>' if tel else '<a class="btn" href="#claim">Get yours</a>'}</li>
+  </ul>
+</div></nav>
 
-<section id="menu">
-  <h2>{e(meta['sections'][0])}</h2>
-  <p class="sub">Sample layout — your real items and prices go here.</p>
-  <div class="grid">{cards}</div>
-</section>
+<header><div class="wrap grid">
+  <div>
+    <p class="eyebrow">{e(meta['label'])}{(' · ' + e(city.title())) if city else ''}</p>
+    <h1>{name_s}</h1>
+    <p class="lede">{e(hero)}</p>
+    <div class="actions">
+      {f'<a class="btn" href="tel:{tel}">Call {phone_s}</a>' if tel else ''}
+      <a class="btn ghost" href="#menu">See the {sec0.lower()}</a>
+    </div>
+  </div>
+  <dl class="facts">
+    {f'<div><dt>Rating</dt><dd><span class="stars">{"★" * int(round(float(rating)))}</span> {float(rating):.1f} on Google</dd></div>' if rating else ''}
+    {f'<div><dt>Find us</dt><dd>{addr_s}</dd></div>' if addr_s else ''}
+    {f'<div><dt>Call</dt><dd>{phone_s}</dd></div>' if phone_s else ''}
+  </dl>
+</div></header>
 
-<div class="info" id="location"><div class="inforow">
-  <div><b>Find us</b>{addr_s or 'Your address here'}</div>
-  <div><b>Call</b>{phone_s or 'Your phone here'}</div>
-  <div><b>Hours</b>Add your real hours — this line is a placeholder.</div>
-</div>
-{map_html}
-</div>
-
-<section id="claim"><div class="box">
-  <h2>Want this as your real website?</h2>
-  <p>This sample was built for {name_s} at no cost and nothing is published.
-     If you want it live on your own domain — with your real menu, hours and photos —
-     reply to the email that brought you here.</p>
-  <p style="opacity:.95"><b>One-time setup: ${PRICE_USD}.</b> No subscription.
-     If you'd rather not hear from us again, every email has a one-click opt-out.</p>
+<main id="main">
+<section id="menu"><div class="wrap">
+  <div class="sec-h"><h2>{sec0}</h2>
+    <p class="sub">Sample layout — your real items and prices go here.</p></div>
+  <ul class="menu">{menu_html}</ul>
 </div></section>
 
-<p class="note">Sample content is marked as such. Business name, address, phone and rating
-come from public Google Places data. Not affiliated with or endorsed by {name_s}.</p>
+<section id="visit"><div class="wrap">
+  <div class="sec-h"><h2>Visit</h2><p class="sub">Replace with your real details.</p></div>
+  <div class="panel split">
+    <div>
+      <h3 style="font-size:var(--step-1);margin-bottom:.9rem">Hours</h3>
+      <table><tbody>
+        <tr><th scope="row">Mon – Thu</th><td>11:00 – 21:00</td></tr>
+        <tr><th scope="row">Fri – Sat</th><td>11:00 – 22:00</td></tr>
+        <tr><th scope="row">Sunday</th><td>12:00 – 20:00</td></tr>
+      </tbody></table>
+      <p class="sub" style="margin-top:1rem">Placeholder hours — send us your real ones.</p>
+    </div>
+    <div>
+      <h3 style="font-size:var(--step-1);margin-bottom:.9rem">Where</h3>
+      <p>{addr_s or 'Your address here'}</p>
+      {f'<p style="margin-top:.8rem"><a class="btn ghost" href="tel:{tel}">{phone_s}</a></p>' if tel else ''}
+    </div>
+  </div>
+  {map_html}
+</div></section>
 
-<footer>Preview generated {datetime.now().strftime('%B %d, %Y')} · ref {token}</footer>
+<section id="claim"><div class="wrap">
+  <h2>Want this as your real website?</h2>
+  <p>This sample was built for {name_s} at no cost, and nothing is published.
+     If you want it live on your own domain — with your real {sec0.lower()}, hours
+     and photos — reply to the email that brought you here.</p>
+  <p class="price">One-time setup: ${PRICE_USD}. No subscription.</p>
+  <p>If you'd rather not hear from us again, every email has a one-click opt-out.</p>
+</div></section>
+</main>
+
+<div class="wrap">
+  <p class="note">Sample content is marked as such. Business name, address, phone and
+  rating come from public Google Places data. Not affiliated with or endorsed by
+  {name_s}.</p>
+  <footer>
+    <span>© {year} {name_s}</span>
+    <span>Preview {datetime.now().strftime('%b %d, %Y')} · ref {token}</span>
+  </footer>
+</div>
+{f'<a class="callbar" href="tel:{tel}">Call {phone_s}</a>' if tel else ''}
 </body></html>""", token
 
 
