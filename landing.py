@@ -65,8 +65,8 @@ def render_home(contact_email: str = "", sites=None) -> bytes:
     if email:
         form_action = f"mailto:{email_safe}"
         form_note = (
-            f"Opens your email app to {email_safe}. "
-            "We only use addresses already configured — nothing is posted to this server."
+            "Opens your email app to request a free preview. "
+            "Nothing is posted to this server."
         )
         form_method = "post"
         form_enctype = ' enctype="text/plain"'
