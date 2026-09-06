@@ -80,9 +80,9 @@ def _biz_word(category: str) -> str:
         return "cafe"
     if c in ("restaurant", "restaurants", "bakery"):
         return "restaurant"
-    if c in _TRADE_WORDS:
+    if c in _TRADE_WORDS or c == "shop":
         return "shop"
-    if c in ("business", "", "shop"):
+    if c in ("business", ""):
         return "business"
     return c.rstrip("s") or "business"
 

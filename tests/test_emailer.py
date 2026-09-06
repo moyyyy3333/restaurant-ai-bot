@@ -17,6 +17,13 @@ class EmailDraftTests(unittest.TestCase):
         self.assertEqual(_subject_for("restaurant"), "Your restaurant deserves a real website")
         self.assertEqual(_subject_for("shop"), "Your shop deserves a real website")
         self.assertEqual(_subject_for("business"), "Your business deserves a real website")
+        self.assertEqual(_subject_for("florist"), "Your business deserves a real website")
+        self.assertEqual(
+            build_email("Ace Plumbing", "https://example.test/d", "a@b.com", "plumber")[0],
+            "Your shop deserves a real website")
+        self.assertEqual(
+            build_email("Bloom Co", "https://example.test/d", "a@b.com", "florist")[0],
+            "Your business deserves a real website")
 
     def test_pain_care_split_and_prices(self):
         subject, html, text = build_email(

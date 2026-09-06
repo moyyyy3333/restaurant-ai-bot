@@ -32,7 +32,7 @@ EMPTY_SITES = (
     "No sites yet. Point us at a shop without a website and we’ll draft one."
 )
 HOW_IT_WORKS = (
-    ("We find you", "restaurants and shops without a real site"),
+    ("We find you", "local businesses without a real site"),
     ("We build a preview", "name, menu/hours, photos, call/directions"),
     ("You approve", "go live or tweak; pay when you’re happy"),
 )
@@ -53,7 +53,7 @@ def _cta_href(contact_email: str) -> str:
     if not contact_email:
         return "#preview"
     subject = quote("Free site preview")
-    body = quote("Restaurant name:\nCity:\nHow to reach you:\n")
+    body = quote("Business name:\nCity:\nHow to reach you:\n")
     return f"mailto:{contact_email}?subject={subject}&body={body}"
 
 
@@ -277,7 +277,7 @@ footer {{
 </header>
 <main>
   <section class="hero wrap">
-    <p class="kicker">Restaurants &amp; local shops</p>
+    <p class="kicker">Local businesses</p>
     <h1>No website? We’ll build <span class="extra">you </span>one.</h1>
     <p class="sub">{html.escape(SUB)}</p>
     <div class="ctas">
@@ -300,7 +300,7 @@ footer {{
       </div>
       <form action="{form_action}" method="{form_method}"{form_enctype}>
         <div class="field">
-          <label for="biz">Restaurant or shop</label>
+          <label for="biz">Business or shop</label>
           <input id="biz" name="business" type="text" autocomplete="organization" required>
         </div>
         <div class="field">

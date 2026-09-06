@@ -56,6 +56,8 @@ class HandlerTests(unittest.TestCase):
             self.assertIn(b"free ", body)
             self.assertIn(b"preview", body)
             self.assertIn(landing.SUB.encode(), body)
+            self.assertIn(b"For local businesses stuck on Facebook, Instagram", body)
+            self.assertIn(b"Local businesses", body)
             self.assertIn(landing.ONE_LINER.encode(), body)
             self.assertIn(b"We find you", body)
             self.assertIn(b"We build a preview", body)

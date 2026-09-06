@@ -26,6 +26,7 @@ def test_real_site():
 
 def test_order_thanx_and_real_restaurants_are_has_site():
     assert classify_website("https://order.thanx.com/simply-pho") == "has_site"
+    assert classify_website("https://order.toasttab.com/shop") == "has_site"
     assert classify_website("https://dishsociety.com") == "has_site"
     assert classify_website("https://www.toutsuitehtx.com/menu") == "has_site"
 
