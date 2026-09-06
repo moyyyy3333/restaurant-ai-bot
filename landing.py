@@ -23,11 +23,8 @@ CTA_SHORT = "Get free preview"
 CTA_LONG = "Get my free site preview"
 CTA_SECONDARY = "How it works"
 ONE_LINER = "We build websites for local businesses that don’t have one yet."
-PRICE_LINE = (
-    "$99 builds the site. Care ($29/mo or $249/yr) keeps it online with hosting, "
-    "SSL, and small updates. No surprise subscription on the build."
-)
-PRICE_ONE_LINER = "$99 gets the site. Care keeps it live."
+PRICE_LINE = "$99 one-time. No subscription."
+PRICE_ONE_LINER = "One-time setup: $99."
 EMPTY_SITES = (
     "No sites yet. Point us at a shop without a website and we’ll draft one."
 )

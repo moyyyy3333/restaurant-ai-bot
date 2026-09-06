@@ -81,8 +81,6 @@ REPLY_TO = os.getenv("REPLY_TO", "").strip()
 SENDER_POSTAL_ADDRESS = os.getenv("SENDER_POSTAL_ADDRESS", "").strip()
 UNSUBSCRIBE_BASE = os.getenv("UNSUBSCRIBE_BASE", DEMO_BASE_URL).rstrip("/")
 PRICE_USD = int(os.getenv("PRICE_USD", "99"))
-CARE_MONTHLY_USD = int(os.getenv("CARE_MONTHLY_USD", "29"))
-CARE_YEARLY_USD = int(os.getenv("CARE_YEARLY_USD", "249"))
 
 # How many proposal emails the automated daily pipeline (/pipeline/run) may
 # send in one run. Manual /propose in Telegram is not affected by this.

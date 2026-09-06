@@ -114,9 +114,11 @@ def test_preview_chrome_is_in_claim_and_footer_only():
     assert "placeholder details" not in HTML.lower()
 
 
-def test_claim_shows_build_and_care_split():
-    assert "$99" in HTML and "$29" in HTML and "$249" in HTML
-    assert "builds it" in HTML.lower() and "keeps it live" in HTML.lower()
+def test_claim_shows_one_time_99():
+    assert "$99" in HTML
+    assert "no subscription" in HTML.lower()
+    assert "$299" not in HTML
+    assert "$29/mo" not in HTML and "$249" not in HTML
     assert "$79" not in HTML
 
 

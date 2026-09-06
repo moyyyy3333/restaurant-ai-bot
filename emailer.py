@@ -23,10 +23,9 @@ import urllib.parse
 import urllib.request
 
 import db
-from config import (CARE_MONTHLY_USD, CARE_YEARLY_USD, FROM_EMAIL, FROM_NAME,
-                    PRICE_USD, RESEND_API_KEY, REPLY_TO, SENDER_POSTAL_ADDRESS,
-                    UNSUBSCRIBE_BASE, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN,
-                    TWILIO_FROM)
+from config import (FROM_EMAIL, FROM_NAME, PRICE_USD, RESEND_API_KEY, REPLY_TO,
+                    SENDER_POSTAL_ADDRESS, UNSUBSCRIBE_BASE, TWILIO_ACCOUNT_SID,
+                    TWILIO_AUTH_TOKEN, TWILIO_FROM)
 
 _TRADE_WORDS = {
     "auto", "plumber", "electrician", "roofer", "locksmith", "barber", "salon",
@@ -125,8 +124,7 @@ I noticed {business_name} doesn't have a website yet — mostly a listing. I put
 
 {demo_url}
 
-Having a site is a pain — hosting, SSL, keeping hours current. ${PRICE_USD} one-time builds it (we finish your menu, hours, and photos). Care ${CARE_MONTHLY_USD}/mo (or ${CARE_YEARLY_USD}/yr) takes that off your plate: hosting, SSL, monitoring, and small menu/hours tweaks so it stays live.
-${PRICE_USD} builds it. Care keeps it live.
+If you like it, I'll put your real menu, hours, and photos on it and set it up on your own domain for a one-time ${PRICE_USD}. No subscription.
 If it's not for you, ignore this — or use the opt-out link and I won't email again.
 
 {FROM_NAME}
@@ -151,11 +149,8 @@ BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1a1a1a;line-heig
     style="background:#1a1410;color:#e8b04b;padding:13px 28px;border-radius:6px;
     text-decoration:none;font-weight:600;display:inline-block">See your free sample</a></p>
 
-  <p style="margin:0 0 16px">Having a site is a pain — hosting, SSL, keeping hours current.
-  <b>${PRICE_USD}</b> one-time builds it (we finish your menu, hours, and photos).
-  Care <b>${CARE_MONTHLY_USD}/mo</b> (or <b>${CARE_YEARLY_USD}/yr</b>) takes that off your plate:
-  hosting, SSL, monitoring, and small menu/hours tweaks so it stays live.</p>
-  <p style="margin:0 0 16px">${PRICE_USD} builds it. Care keeps it live.</p>
+  <p style="margin:0 0 16px">If you like it, I'll put your real menu, hours, and photos on it and
+  set it up on your own domain for a one-time <b>${PRICE_USD}</b>. No subscription.</p>
 
   <p style="margin:0 0 24px">If it's not for you, ignore this — or use the opt-out link and I won't email again.</p>
 
