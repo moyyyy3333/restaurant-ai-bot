@@ -16,7 +16,9 @@ import re
 import secrets
 from datetime import datetime
 
-from config import BUSINESS_CATEGORIES, PRICE_USD, theme_for
+from config import (BUSINESS_CATEGORIES, CARE_MONTHLY_USD, CARE_YEARLY_USD,
+                    PRICE_USD, theme_for)
+from profiles import FOOD_CATEGORIES, TRADE_CATEGORIES, infer_cuisine, looks_generic, profile_for
 from writer import write_copy
 
 # Mood is a light overlay on top of the category family — not a reskin.
@@ -234,33 +236,124 @@ def _hours_rows(hours) -> str:
     return "".join(rows)
 
 
+def _price_span(price) -> str:
+    if not price:
+        return '<span class="price-n">Ask</span>'
+    return f'<span class="price-n">${int(price)}</span>'
+
+
+def _triples(items):
+    out = []
+    for row in items:
+        if len(row) >= 3:
+            out.append((row[0], row[1], row[2]))
+        else:
+            out.append((row[0], row[1], None))
+    return out
+
+
 def _offer_html(family: str, items) -> str:
+    rows = _triples(items)
     if family == "bakery":
         return "".join(
-            f'<article class="case-card"><h3>{_esc(t)}</h3><p>{_esc(d)}</p></article>'
-            for t, d in items)
+            f'<article class="case-card"><div class="item-h"><h3>{_esc(t)}</h3>'
+            f'{_price_span(p)}</div><p>{_esc(d)}</p></article>'
+            for t, d, p in rows)
     if family in {"chair", "trade", "floor"}:
         out = []
-        for i, (t, d) in enumerate(items, 1):
+        for i, (t, d, p) in enumerate(rows, 1):
             out.append(
                 f'<li class="num-item"><span class="n" aria-hidden="true">{i:02d}</span>'
-                f'<div><h3>{_esc(t)}</h3><p>{_esc(d)}</p></div></li>')
+                f'<div><div class="item-h"><h3>{_esc(t)}</h3>{_price_span(p)}</div>'
+                f'<p>{_esc(d)}</p></div></li>')
         return "".join(out)
     if family == "cafe":
         return "".join(
             f'<li class="board-row"><h3>{_esc(t)}</h3><span class="rule" aria-hidden="true"></span>'
-            f'<p>{_esc(d)}</p></li>'
-            for t, d in items)
+            f'{_price_span(p)}<p>{_esc(d)}</p></li>'
+            for t, d, p in rows)
     if family in {"practice", "clinic", "gallery", "library"}:
         return "".join(
-            f'<li class="rule-item"><h3>{_esc(t)}</h3><p>{_esc(d)}</p></li>'
-            for t, d in items)
-    # supper, atelier, luxe, counter — editorial tasting list
+            f'<li class="rule-item"><div class="item-h"><h3>{_esc(t)}</h3>{_price_span(p)}</div>'
+            f'<p>{_esc(d)}</p></li>'
+            for t, d, p in rows)
     return "".join(
         f'''<li class="item">
-      <div class="item-h"><h3>{_esc(t)}</h3><span class="dots" aria-hidden="true"></span></div>
+      <div class="item-h"><h3>{_esc(t)}</h3><span class="dots" aria-hidden="true"></span>{_price_span(p)}</div>
       <p>{_esc(d)}</p>
-    </li>''' for t, d in items)
+    </li>''' for t, d, p in rows)
+
+
+def _hero_visual(cuisine: str, family: str) -> str:
+    """Labeled sample imagery — CSS/SVG, no external files."""
+    kind = cuisine if cuisine in {
+        "pho", "crepe", "pizza", "taco", "ice_cream", "coffee", "bbq", "bakery",
+    } else family
+    art = {
+        "pho": (
+            '<circle cx="120" cy="118" r="52" fill="none" stroke="currentColor" stroke-width="2"/>'
+            '<ellipse cx="120" cy="118" rx="38" ry="14" fill="currentColor" opacity=".18"/>'
+            '<path d="M78 100c18 8 28-6 46-2s28 12 42 4" fill="none" stroke="currentColor" stroke-width="1.5"/>'
+        ),
+        "crepe": (
+            '<ellipse cx="120" cy="120" rx="64" ry="28" fill="none" stroke="currentColor" stroke-width="2"/>'
+            '<path d="M70 118c20-22 80-22 100 0" fill="none" stroke="currentColor" stroke-width="1.5"/>'
+            '<path d="M86 122c16 18 52 18 68 0" fill="currentColor" opacity=".16"/>'
+        ),
+        "pizza": (
+            '<circle cx="120" cy="120" r="56" fill="none" stroke="currentColor" stroke-width="2"/>'
+            '<path d="M120 64 L164 148 L76 148 Z" fill="currentColor" opacity=".14"/>'
+            '<circle cx="112" cy="108" r="5" fill="currentColor" opacity=".45"/>'
+            '<circle cx="132" cy="124" r="4" fill="currentColor" opacity=".45"/>'
+        ),
+        "taco": (
+            '<path d="M56 140c8-56 120-56 128 0" fill="none" stroke="currentColor" stroke-width="2"/>'
+            '<path d="M68 138c10-40 96-40 104 0" fill="currentColor" opacity=".16"/>'
+        ),
+        "ice_cream": (
+            '<circle cx="120" cy="88" r="36" fill="currentColor" opacity=".2"/>'
+            '<circle cx="120" cy="88" r="36" fill="none" stroke="currentColor" stroke-width="2"/>'
+            '<path d="M92 112 L120 196 L148 112" fill="none" stroke="currentColor" stroke-width="2"/>'
+        ),
+        "coffee": (
+            '<rect x="78" y="78" width="70" height="72" rx="10" fill="none" stroke="currentColor" stroke-width="2"/>'
+            '<path d="M148 96h18c10 0 16 10 16 20s-6 20-16 20h-18" fill="none" stroke="currentColor" stroke-width="2"/>'
+            '<path d="M96 58c6 10 6 16 0 24M114 54c6 12 6 20 0 28" fill="none" stroke="currentColor" stroke-width="1.5"/>'
+        ),
+        "bakery": (
+            '<ellipse cx="120" cy="150" rx="70" ry="18" fill="none" stroke="currentColor" stroke-width="2"/>'
+            '<path d="M56 148c8-48 28-70 64-70s56 22 64 70" fill="currentColor" opacity=".14"/>'
+            '<path d="M56 148c8-48 28-70 64-70s56 22 64 70" fill="none" stroke="currentColor" stroke-width="2"/>'
+        ),
+        "bbq": (
+            '<rect x="70" y="70" width="100" height="70" rx="6" fill="none" stroke="currentColor" stroke-width="2"/>'
+            '<path d="M70 104h100M90 70v70M150 70v70" stroke="currentColor" stroke-width="1.2"/>'
+        ),
+        "chair": (
+            '<rect x="108" y="40" width="24" height="160" rx="4" fill="currentColor" opacity=".18"/>'
+            '<rect x="108" y="40" width="24" height="160" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>'
+            '<path d="M108 70h24M108 110h24M108 150h24" stroke="currentColor"/>'
+        ),
+        "practice": (
+            '<rect x="60" y="50" width="120" height="140" fill="none" stroke="currentColor" stroke-width="2"/>'
+            '<path d="M60 90h120M100 50v140M140 50v140" stroke="currentColor" stroke-width="1.2"/>'
+        ),
+        "trade": (
+            '<path d="M70 160 L120 56 L170 160Z" fill="none" stroke="currentColor" stroke-width="2"/>'
+            '<circle cx="120" cy="124" r="16" fill="currentColor" opacity=".18"/>'
+        ),
+    }.get(kind, (
+        '<rect x="48" y="58" width="144" height="124" fill="none" stroke="currentColor" stroke-width="1.5"/>'
+        '<circle cx="120" cy="120" r="34" fill="currentColor" opacity=".14"/>'
+        '<circle cx="120" cy="120" r="34" fill="none" stroke="currentColor" stroke-width="2"/>'
+    ))
+    return (
+        f'<figure class="hero-visual" data-visual="{_esc(kind)}">'
+        f'<svg viewBox="0 0 240 220" role="img" aria-label="Sample image">'
+        f'{art}</svg>'
+        f'<figcaption>Sample image — your photos go here</figcaption>'
+        f'</figure>'
+    )
 
 
 def _offer_wrap(family: str, inner: str) -> str:
@@ -432,6 +525,29 @@ h2{{font-size:var(--step-2)}}
 .item h3{{font-size:var(--step-1)}}
 .dots{{flex:1;border-bottom:1px dotted var(--line-strong);transform:translateY(-.22em)}}
 .item p{{color:var(--muted);font-size:var(--step--1);margin-top:.4rem;max-width:46ch}}
+.price-n{{font-variant-numeric:tabular-nums;font-weight:650;font-size:var(--step--1);
+  color:var(--ink);white-space:nowrap}}
+.hero-visual{{margin:0;position:relative;border-radius:var(--rc);overflow:hidden;
+  min-height:220px;background:
+    radial-gradient(120% 80% at 80% 0%, color-mix(in srgb,var(--accent) 28%,transparent), transparent 55%),
+    linear-gradient(160deg, color-mix(in srgb,var(--ink) 8%,var(--paper)), var(--paper));
+  color:var(--ink);border:1px solid var(--line)}}
+.hero-visual svg{{width:100%;height:240px;display:block}}
+.hero-visual figcaption{{position:absolute;left:14px;bottom:12px;font-size:10px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}}
+.family-supper .hero-visual,.family-luxe .hero-visual,.family-gallery .hero-visual,
+.family-floor .hero-visual,.family-practice .hero-visual,.family-chair .hero-visual,
+.family-library .hero-visual,.family-trade .hero-visual{{
+  background:
+    radial-gradient(120% 80% at 80% 0%, color-mix(in srgb,var(--accent) 22%,transparent), transparent 55%),
+    color-mix(in srgb,var(--on-hero) 6%,var(--hero));
+  color:var(--on-hero);border-color:color-mix(in srgb,var(--on-hero) 16%,transparent)}}
+.family-supper .hero-visual figcaption,.family-luxe .hero-visual figcaption,
+.family-gallery .hero-visual figcaption,.family-floor .hero-visual figcaption,
+.family-practice .hero-visual figcaption,.family-chair .hero-visual figcaption,
+.family-library .hero-visual figcaption,.family-trade .hero-visual figcaption{{
+  color:color-mix(in srgb,var(--on-hero) 62%,transparent)}}
+.hero-aside{{display:grid;gap:1.2rem}}
 .case{{display:grid;gap:1rem}}
 @media(min-width:700px){{.case{{grid-template-columns:repeat(3,1fr)}}}}
 .case-card{{background:var(--paper);border:1px solid var(--line);border-radius:var(--rc);
@@ -440,11 +556,13 @@ h2{{font-size:var(--step-2)}}
 .case-card p{{color:var(--muted);font-size:var(--step--1)}}
 .board{{list-style:none;background:var(--ink);color:var(--paper);border-radius:var(--rc);
   padding:clamp(1.4rem,3vw,2.2rem);display:grid;gap:1.1rem}}
-.board-row{{display:grid;grid-template-columns:minmax(8rem,auto) 1fr auto;gap:.8rem;align-items:baseline}}
+.board-row{{display:grid;grid-template-columns:minmax(8rem,auto) 1fr auto;gap:.35rem .8rem;align-items:baseline}}
 .board-row h3{{font-family:var(--display);font-size:var(--step-1);font-weight:500}}
 .board-row .rule{{border-bottom:1px dotted color-mix(in srgb,var(--paper) 28%,transparent);
   transform:translateY(-.25em)}}
-.board-row p{{color:color-mix(in srgb,var(--paper) 68%,transparent);font-size:var(--step--1);text-align:right}}
+.board-row .price-n{{color:var(--paper)}}
+.board-row p{{grid-column:1/-1;color:color-mix(in srgb,var(--paper) 68%,transparent);
+  font-size:var(--step--1);text-align:left}}
 .nums{{list-style:none;display:grid;gap:0;border-top:1px solid var(--line)}}
 .num-item{{display:grid;grid-template-columns:4.2rem 1fr;gap:1rem;align-items:baseline;
   padding:1.25rem 0;border-bottom:1px solid var(--line)}}
@@ -515,9 +633,18 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
     tel = "".join(ch for ch in str(phone or "") if ch.isdigit())
     city_s = _esc(city.title()) if city else ""
 
+    profile = profile_for(name, cat)
+    cuisine = infer_cuisine(name, cat)
     ai = write_copy(name, meta["label"], city) if use_ai else None
-    hero = ai["tagline"] if ai and ai["tagline"] else meta["hero"]
-    items = ai["items"] if ai else SAMPLE.get(cat, SAMPLE["restaurant"])
+    if ai and ai["tagline"] and ai["items"] and not looks_generic(ai["items"]):
+        hero = ai["tagline"]
+        items = ai["items"]
+    elif profile.get("items"):
+        hero = profile["tagline"] or meta["hero"]
+        items = profile["items"]
+    else:
+        hero = meta["hero"]
+        items = SAMPLE.get(cat, SAMPLE["restaurant"])
     if ai and ai["accent"]:
         theme["accent"] = ai["accent"]
     mood_name = ai["mood"] if ai and ai["mood"] else "classic"
@@ -525,11 +652,6 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
     family = theme["family"]
 
     mark = ""
-    if watermark:
-        mark = ('<div class="wm">PREVIEW</div>'
-                '<div class="claimbar">This is a free sample site built for '
-                f'{name_s}. Nothing is published. '
-                f'<a href="#claim">See how to claim it</a></div>')
 
     map_html = ""
     if address:
@@ -568,23 +690,34 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
     facts_html = f'<dl class="facts">{"".join(facts)}</dl>' if facts else ""
 
     place = f"{_esc(meta['label'])}{(' · ' + city_s) if city_s else ''}"
-    primary = (f'<a class="btn on-dark" href="tel:{tel}">{_esc(theme["cta"])}</a>'
-               if tel else f'<a class="btn on-dark" href="#claim">Claim this preview</a>')
-    ghost = f'<a class="btn on-dark ghost" href="#menu">{_esc(theme["cta_ghost"])}</a>'
+    if cat in FOOD_CATEGORIES:
+        cta_a, cta_b, cta_c = ("Call", "Order", "Reserve")
+        href_b, href_c = "#menu", "#visit"
+    elif cat in TRADE_CATEGORIES:
+        cta_a, cta_b, cta_c = ("Call", "Book", "Get a quote")
+        href_b, href_c = "#visit", "#claim"
+    else:
+        cta_a, cta_b, cta_c = (theme["cta"], theme["cta_ghost"], "Visit")
+        href_b, href_c = "#menu", "#visit"
+    primary = (f'<a class="btn on-dark" href="tel:{tel}">{_esc(cta_a)}</a>'
+               if tel else f'<a class="btn on-dark" href="#claim">{_esc(cta_a)}</a>')
+    ghost = (
+        f'<a class="btn on-dark ghost" href="{href_b}">{_esc(cta_b)}</a>'
+        f'<a class="btn on-dark ghost" href="{href_c}">{_esc(cta_c)}</a>'
+    )
     nav_call = (f'<a class="btn" href="tel:{tel}">Call</a>' if tel
                 else '<a class="btn" href="#claim">Get yours</a>')
-
+    visual = _hero_visual(cuisine, family)
     aside = (
-        f'<aside class="hero-aside">'
+        f'<aside class="hero-aside">{visual}'
         f'<div class="mono" aria-hidden="true">{_esc(_monogram(name))}</div>'
         f'{facts_html}</aside>'
     )
-    if family in {"chair", "practice"}:
-        aside = facts_html
-    if family == "trade":
-        aside = facts_html
     if family in {"cafe", "bakery", "atelier", "clinic", "counter"}:
-        aside = f'<div class="ticket">{facts_html or "<p class=sub>Details to come.</p>"}</div>'
+        aside = (
+            f'<div class="ticket">{visual}'
+            f'{facts_html or "<p class=sub>Hours and address go here.</p>"}</div>'
+        )
 
     return f"""<!DOCTYPE html>
 <html lang="en"><head>
@@ -598,7 +731,7 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
 <title>{name_s}{(' · ' + city_s) if city_s else ''}</title>
 <script type="application/ld+json">{ld_json}</script>
 <style>{_css(theme, mood)}</style></head>
-<body class="family-{family} mood-{mood_name}" data-family="{family}" data-category="{cat}">
+<body class="family-{family} mood-{mood_name}" data-family="{family}" data-category="{cat}" data-cuisine="{cuisine}">
 <a class="skip" href="#main">Skip to content</a>
 {mark}
 <nav aria-label="Primary"><div class="wrap">
@@ -626,15 +759,14 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
 <section id="menu"><div class="wrap">
   <div class="sec-h">
     <div><p class="kicker">{_esc(theme['offer_kicker'])}</p><h2>{sec0}</h2></div>
-    <p class="sub">Sample layout — your real items and prices go here.</p>
   </div>
   {menu_html}
+  <p class="sub" style="margin-top:1.2rem">Sample prices — your real {sec0.lower()} replaces these.</p>
 </div></section>
 
 <section id="visit"><div class="wrap">
   <div class="sec-h">
     <div><p class="kicker">{_esc(theme['visit_kicker'])}</p><h2>Visit</h2></div>
-    <p class="sub">Placeholder details — send us your real ones.</p>
   </div>
   <div class="panel split">
     <div>
@@ -654,19 +786,20 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
 <section id="claim"><div class="wrap">
   <p class="kicker">Make it real</p>
   <hr class="hairline">
-  <h2>Want this as your real website?</h2>
+  <h2>Want this live on your domain?</h2>
+  <p><strong>${PRICE_USD}</strong> one-time — we finish your {sec0.lower()}, hours, and photos.</p>
+  <p><strong>Care ${CARE_MONTHLY_USD}/mo</strong> (or <strong>${CARE_YEARLY_USD}/yr</strong>) —
+     hosting, SSL, monitoring, and small menu/hours tweaks so it stays live.</p>
+  <p class="price">${PRICE_USD} builds it. Care keeps it live. Reply to claim.</p>
   <p>This sample was built for {name_s} at no cost, and nothing is published.
-     If you want it live on your own domain — with your real {sec0.lower()}, hours
-     and photos — reply to the email that brought you here.</p>
-  <p class="price">One-time setup: ${PRICE_USD}. No subscription.</p>
-  <p>If you'd rather not hear from us again, every email has a one-click opt-out.</p>
+     Reply to the email that brought you here. Every email has a one-click opt-out.</p>
 </div></section>
 </main>
 
 <div class="wrap">
-  <p class="note">Sample content is marked as such. Business name, address, phone and
-  rating come from public Google Places data. Not affiliated with or endorsed by
-  {name_s}.</p>
+  <p class="note">This is a free unpublished sample. Sample content is marked as such.
+  Business name, address, phone and rating come from public Google Places data.
+  Not affiliated with or endorsed by {name_s}.</p>
   <footer>
     <span>© {year} {name_s}</span>
     <span>Preview {datetime.now().strftime('%b %d, %Y')} · ref {token}</span>
@@ -679,16 +812,20 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
 if __name__ == "__main__":
     from pathlib import Path
     samples = [
+        ("Simply Phở", "2929 Milam Street, Houston, TX",
+         "(713) 555-0101", "restaurant", 4.6, "houston"),
+        ("Melange Creperie", "1 Main St, Houston, TX",
+         "(713) 555-0102", "restaurant", 4.5, "houston"),
+        ("Revolucion Coffee", "2 Main St, Houston, TX",
+         "(713) 555-0103", "cafe", 4.7, "houston"),
+        ("Via313", "3 Main St, Houston, TX",
+         "(713) 555-0104", "restaurant", 4.4, "houston"),
+        ("Cream Parlor", "4 Main St, Houston, TX",
+         "(713) 555-0105", "cafe", 4.8, "houston"),
         ("Taqueria La Esquina", "1234 Navigation Blvd, Houston, TX",
          "(713) 555-0142", "restaurant", 4.6, "houston"),
-        ("Morning Light Coffee", "812 Westheimer Rd, Houston, TX",
-         "(713) 555-0190", "cafe", 4.8, "houston"),
-        ("Hearth & Rye Bakery", "2101 Yale St, Houston, TX",
-         "(713) 555-0166", "bakery", 4.7, "houston"),
         ("East End Barber Co.", "401 Navigation Blvd, Houston, TX",
          "(713) 555-0118", "barber", 4.9, "houston"),
-        ("Voss & Lane", "909 Fannin St, Houston, TX",
-         "(713) 555-0177", "lawyer", 4.5, "houston"),
     ]
     out = Path(__file__).parent / "demos"
     out.mkdir(exist_ok=True)

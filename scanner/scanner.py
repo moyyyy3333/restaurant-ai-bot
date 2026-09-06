@@ -35,10 +35,13 @@ OSM_TYPE_PREFIX = {"node": "N", "way": "W", "relation": "R"}
 WEBSITE_TAGS = ("website", "contact:website", "url")
 PHONE_TAGS = ("phone", "contact:phone")
 
-# A Facebook/Instagram page is not a website — those businesses are the target.
+# Marketplaces and profiles are not a business's own site. Match on hostname
+# only (not substring) so dishsociety.com / toutsuitehtx.com stay has_site.
+# Branded ordering hosts (thanx.com, a shop's own toast page) are real sites.
 SOCIAL_HOSTS = ("facebook.com", "instagram.com", "linktr.ee", "yelp.com",
-                "doordash.com", "ubereats.com", "grubhub.com", "toasttab.com",
-                "square.site", "wixsite.com/blank", "business.site", "m.me")
+                "doordash.com", "ubereats.com", "grubhub.com",
+                "wixsite.com", "business.site")
+OWN_SITE_HOSTS = ("thanx.com", "dishsociety.com", "toutsuitehtx.com")
 
 
 def _get(url: str, params: dict) -> list:
@@ -135,6 +138,22 @@ def url_is_live(url: str, timeout: int = 8) -> bool:
     return url_liveness(url, timeout) == "live"
 
 
+def _hostname(url: str) -> str:
+    raw = (url or "").strip()
+    if not raw:
+        return ""
+    parsed = urllib.parse.urlparse(raw if "://" in raw else f"https://{raw}")
+    return (parsed.hostname or "").lower()
+
+
+def _host_is(host: str, needles) -> bool:
+    for needle in needles:
+        n = needle.lower().lstrip(".")
+        if host == n or host.endswith("." + n):
+            return True
+    return False
+
+
 def classify_website(url: str, *, source_answered: bool = True) -> str:
     """has_site | social_only | none | unknown
 
@@ -144,8 +163,14 @@ def classify_website(url: str, *, source_answered: bool = True) -> str:
     """
     if not url:
         return "none" if source_answered else "unknown"
+    host = _hostname(url)
+    if _host_is(host, OWN_SITE_HOSTS):
+        return "has_site"
+    if _host_is(host, SOCIAL_HOSTS) or host == "m.me":
+        return "social_only"
+    # Legacy path-only markers (blank Wix) still count as not a real site.
     low = url.lower()
-    if any(h in low for h in SOCIAL_HOSTS):
+    if "wixsite.com/blank" in low:
         return "social_only"
     return "has_site"
 

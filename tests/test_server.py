@@ -71,10 +71,10 @@ class HandlerTests(unittest.TestCase):
         try:
             _, body, _ = self._get(httpd, "/")
             self.assertIn(b'class="extra">you </span>', body)
-            self.assertIn(b'class="extra">my </span>', body)
-            self.assertIn(b'class="extra">site </span>', body)
             self.assertIn(b".extra { display: none; }", body)
             self.assertIn(b".extra { display: inline; }", body)
+            self.assertIn(landing.PRICE_LINE.encode(), body)
+            self.assertIn(landing.PRICE_ONE_LINER.encode(), body)
         finally:
             httpd.shutdown()
             httpd.server_close()

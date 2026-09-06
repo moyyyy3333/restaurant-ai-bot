@@ -104,6 +104,50 @@ def test_no_operator_email_on_public_cta():
         assert "onboarding@resend.dev" not in page
         assert "reply to the email that brought you here" in page.lower()
 
+
+def test_preview_chrome_is_in_claim_and_footer_only():
+    assert 'class="wm"' not in HTML
+    assert 'class="claimbar"' not in HTML
+    assert "free unpublished sample" in HTML.lower()
+    assert "sample layout — your real items" not in HTML.lower()
+
+
+def test_claim_shows_build_and_care_split():
+    assert "$99" in HTML and "$29" in HTML and "$249" in HTML
+    assert "builds it" in HTML.lower() and "keeps it live" in HTML.lower()
+    assert "$79" not in HTML
+
+
+def test_name_aware_menus_are_not_universal():
+    pho, _ = generate_site("Simply Phở", "2929 Milam St, Houston, TX",
+                           "(713) 555-0101", "restaurant", 4.6, "houston", use_ai=False)
+    crepe, _ = generate_site("Melange Creperie", "1 Main St, Houston, TX",
+                             "(713) 555-0102", "restaurant", 4.5, "houston", use_ai=False)
+    coffee, _ = generate_site("Revolucion Coffee", "2 Main St, Houston, TX",
+                              "(713) 555-0103", "cafe", 4.7, "houston", use_ai=False)
+    pizza, _ = generate_site("Via313", "3 Main St, Houston, TX",
+                             "(713) 555-0104", "restaurant", 4.4, "houston", use_ai=False)
+    cream, _ = generate_site("Cream Parlor", "4 Main St, Houston, TX",
+                             "(713) 555-0105", "cafe", 4.8, "houston", use_ai=False)
+    assert 'data-cuisine="pho"' in pho and "Phở" in pho
+    assert "House Specialty" not in pho and "Daily Soup" not in pho
+    assert 'data-cuisine="crepe"' in crepe and "crepe" in crepe.lower()
+    assert "espresso" not in crepe.lower() or "Coffee" in crepe
+    assert "neighborhood cup" not in crepe.lower()
+    assert 'data-cuisine="coffee"' in coffee and "Espresso" in coffee
+    assert 'data-cuisine="pizza"' in pizza and "pie" in pizza.lower()
+    assert "Family Platter" not in pizza and "Daily Soup" not in pizza
+    assert 'data-cuisine="ice_cream"' in cream
+    assert "Espresso" not in cream and "neighborhood cup" not in cream.lower()
+    assert "Sample image" in pho and "hero-visual" in pho
+
+
+def test_food_and_trade_ctas():
+    assert 'href="#visit">Reserve</a>' in HTML
+    assert 'href="#menu">Order</a>' in HTML
+    assert 'href="#claim">Get a quote</a>' in BARBER
+    assert 'href="#visit">Book</a>' in BARBER
+
 if __name__ == "__main__":
     fails = 0
     for n, f in sorted(globals().items()):
