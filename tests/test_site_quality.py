@@ -10,7 +10,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import BUSINESS_CATEGORIES, CATEGORY_THEMES, theme_for
-from generator import generate_site
+from generator import SAMPLE, generate_site
 
 HTML, TOKEN = generate_site("Taqueria La Esquina", "1234 Navigation Blvd, Houston, TX",
                             "(713) 555-0142", "restaurant", 4.6, "houston", 1, 1,
@@ -173,6 +173,26 @@ def test_food_and_trade_ctas():
     assert 'href="#menu">Order</a>' in HTML
     assert 'href="#claim">Get a quote</a>' in BARBER
     assert 'href="#visit">Book</a>' in BARBER
+    salon, _ = generate_site("Rose Atelier", "10 Main St", "(713) 555-0120",
+                             "salon", 4.8, "houston", use_ai=False)
+    plumber, _ = generate_site("Ace Plumbing", "11 Main St", "(713) 555-0121",
+                               "plumber", 4.7, "houston", use_ai=False)
+    assert 'href="#claim">Get a quote</a>' in salon
+    assert 'href="#visit">Book</a>' in salon
+    assert 'href="#claim">Get a quote</a>' in plumber
+    assert "House Specialty" not in plumber and "Daily Soup" not in plumber
+
+
+def test_every_local_category_has_its_own_sample():
+    assert set(SAMPLE) == set(BUSINESS_CATEGORIES)
+    for cat in BUSINESS_CATEGORIES:
+        html, _ = generate_site(f"Sample {cat.title()}", "1 Main St",
+                                "(713) 555-0100", cat, 4.5, "houston",
+                                use_ai=False)
+        assert f'data-category="{cat}"' in html
+        if cat not in {"restaurant", "cafe", "bakery"}:
+            assert "Daily Soup" not in html
+            assert "House specialty" not in html
 
 if __name__ == "__main__":
     fails = 0
