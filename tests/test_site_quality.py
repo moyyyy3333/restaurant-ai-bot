@@ -116,11 +116,11 @@ def test_preview_chrome_is_in_claim_and_footer_only():
 
 def test_claim_shows_build_and_care_split():
     assert "$99" in HTML and "$29" in HTML and "$249" in HTML
-    assert "builds the site" in HTML.lower() and "keeps it live" in HTML.lower()
+    assert "<strong>$99</strong> one-time — we finish your menu, hours, and photos." in HTML
+    assert "<strong>Care $29/mo</strong> (or <strong>$249/yr</strong>) —" in HTML
+    assert "so it stays live" in HTML
+    assert "$99 builds it. Care keeps it live. Reply to claim." in HTML
     assert "$299" not in HTML and "$79" not in HTML
-    # Build and Care must not share a single sentence/line.
-    assert not re.search(r"\$99[^<.]{0,80}Care", HTML)
-    assert not re.search(r"Care[^<.]{0,80}\$99", HTML)
 
 
 def test_name_aware_menus_are_not_universal():

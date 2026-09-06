@@ -806,10 +806,10 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
   <p class="kicker">Make it real</p>
   <hr class="hairline">
   <h2>Want this live on your domain?</h2>
-  <p class="price"><strong>${PRICE_USD}</strong> one-time builds the site — we finish your {sec0.lower()}, hours, and photos.</p>
-  <p><strong>Care ${CARE_MONTHLY_USD}/mo</strong> (or <strong>${CARE_YEARLY_USD}/yr</strong>) keeps it live —
-     hosting, SSL, monitoring, and small menu/hours tweaks.</p>
-  <p>Reply to claim.</p>
+  <p><strong>${PRICE_USD}</strong> one-time — we finish your menu, hours, and photos.</p>
+  <p><strong>Care ${CARE_MONTHLY_USD}/mo</strong> (or <strong>${CARE_YEARLY_USD}/yr</strong>) —
+     hosting, SSL, monitoring, and small menu/hours tweaks so it stays live.</p>
+  <p class="price">${PRICE_USD} builds it. Care keeps it live. Reply to claim.</p>
   <p>This sample was built for {name_s} at no cost, and nothing is published.
      Reply to the email that brought you here. Every email has a one-click opt-out.</p>
 </div></section>

@@ -23,8 +23,11 @@ CTA_SHORT = "Get free preview"
 CTA_LONG = "Get my free site preview"
 CTA_SECONDARY = "How it works"
 ONE_LINER = "We build websites for local businesses that don’t have one yet."
-PRICE_LINE = "$99 one-time builds the site. We finish your menu, hours, and photos."
-PRICE_ONE_LINER = "Care $29/mo (or $249/yr) keeps it live — hosting, SSL, and small updates."
+PRICE_ONE_LINER = "$99 gets the site. Care keeps it live."
+PRICE_LINE = (
+    "$99 builds the site. Care ($29/mo or $249/yr) keeps it online with hosting, "
+    "SSL, and small updates. No surprise subscription on the build."
+)
 EMPTY_SITES = (
     "No sites yet. Point us at a shop without a website and we’ll draft one."
 )
@@ -177,6 +180,7 @@ h1 {{
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   font-size: 14px; color: var(--muted); max-width: 42rem; margin: 16px 0 0;
 }}
+.price-full {{ display: none; }}
 .ctas {{
   display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
 }}
@@ -259,6 +263,7 @@ footer {{
   .hero {{ padding: 72px 0 40px; }}
   h1 {{ max-width: 16ch; }}
   .extra {{ display: inline; }}
+  .price-full {{ display: block; }}
   .beats {{ grid-template-columns: repeat(3, 1fr); gap: 18px; }}
   .card {{ padding: 36px 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }}
 }}
@@ -279,8 +284,8 @@ footer {{
       <a class="btn primary" href="{href}" aria-label="{cta_aria}">{cta_label}</a>
       <a class="btn ghost" href="#how-it-works">{html.escape(CTA_SECONDARY)}</a>
     </div>
-    <p class="price-line">{html.escape(PRICE_LINE)}</p>
     <p class="price-line">{html.escape(PRICE_ONE_LINER)}</p>
+    <p class="price-line price-full">{html.escape(PRICE_LINE)}</p>
     {empty_block}
   </section>
   <section class="how wrap" id="how-it-works">
