@@ -304,6 +304,7 @@ async def generate_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lead_id=lid,
         business_id=lead["business_id"],
         watermark=True,
+        fetch_place=True,
     )
 
     db.create_demo_site(lid, lead["business_id"], html, token, template_used=lead["category"])

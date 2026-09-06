@@ -11,6 +11,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import BUSINESS_CATEGORIES, CATEGORY_THEMES, theme_for
 from generator import SAMPLE, generate_site
+from profiles import infer_cuisine
 
 HTML, TOKEN = generate_site("Taqueria La Esquina", "1234 Navigation Blvd, Houston, TX",
                             "(713) 555-0142", "restaurant", 4.6, "houston", 1, 1,
@@ -68,6 +69,7 @@ def test_generate_site_signature_unchanged():
     assert params == [
         "name", "address", "phone", "category", "rating", "city",
         "lead_id", "business_id", "watermark", "use_ai",
+        "hours", "place_types", "fetch_place",
     ]
 
 
@@ -91,11 +93,25 @@ def test_categories_are_not_one_skin():
     assert HTML.split("<style>")[1].split("</style>")[0] != CAFE.split("<style>")[1].split("</style>")[0]
 
 
-def test_hours_are_category_aware():
-    assert "17:00" in HTML
-    assert "07:00" in CAFE and "07:00" in BAKERY
-    assert "Closed" in BAKERY and "Closed" in BARBER
-    assert "By appointment" in LAWYER
+def test_hours_are_not_invented():
+    """Theme hours (dinner 17:00, cafe 07:00) must not appear unless passed in."""
+    for page in (HTML, CAFE, BAKERY, BARBER, LAWYER):
+        assert "17:00" not in page
+        assert "07:00 – 17:00" not in page
+        assert ">Hours</h3>" not in page
+        assert "placeholder hours" not in page.lower()
+
+
+def test_real_hours_render_when_provided():
+    html, _ = generate_site(
+        "Yale Street Grill", "2100 Yale Street, Houston, TX",
+        "(713) 861-3113", "restaurant", 4.4, "houston", use_ai=False,
+        hours=[("Mon – Sat", "7:00 AM – 4:30 PM"), ("Sunday", "7:00 AM – 5:00 PM")],
+    )
+    assert ">Hours</h3>" in html
+    assert "7:00 AM – 4:30 PM" in html
+    assert "17:00" not in html
+    assert "5:00 PM" in html
 
 
 def test_no_operator_email_on_public_cta():
@@ -109,9 +125,13 @@ def test_preview_chrome_is_in_claim_and_footer_only():
     assert 'class="wm"' not in HTML
     assert 'class="claimbar"' not in HTML
     assert "free unpublished sample" in HTML.lower()
+    assert "unpublished sample" in HTML.lower()
+    assert "Preview " not in HTML
     assert "sample layout — your real items" not in HTML.lower()
     assert "placeholder hours" not in HTML.lower()
     assert "placeholder details" not in HTML.lower()
+    assert "Sample image" not in HTML
+    assert "your photos go here" not in HTML.lower()
 
 
 def test_claim_shows_build_and_care_split():
@@ -152,7 +172,67 @@ def test_name_aware_menus_are_not_universal():
     assert "ice cream parlor" in cream.lower()
     assert 'data-family="bakery"' in cream and 'class="case"' in cream
     assert 'data-family="cafe"' not in cream
-    assert "Sample image" in pho and "hero-visual" in pho and 'class="photo"' in pho
+    assert "Sample image" not in pho
+    assert "your photos go here" not in pho.lower()
+    assert 'class="hero-visual"' not in pho
+    assert 'aria-label="Sample image"' not in pho
+
+
+def test_infer_cuisine_tokens():
+    assert infer_cuisine("Yale Street Grill") == "breakfast"
+    assert infer_cuisine("Thien An Sandwiches") == "banh_mi"
+    assert infer_cuisine("Apothecary Cafe & Wine Bar", "cafe") == "wine_bar"
+    assert infer_cuisine("Cream Parlor", "cafe") == "ice_cream"
+    assert infer_cuisine("Joe's Sandwiches") == "sandwich"
+    assert infer_cuisine("Joe's Bar & Grill") == "restaurant"
+    assert infer_cuisine("Thien An", "restaurant", "vietnamese_restaurant") == "pho"
+    assert infer_cuisine("Thien An Sandwiches", "restaurant",
+                         "vietnamese_restaurant sandwich_shop") == "banh_mi"
+
+
+def test_growth_accuracy_tokens():
+    """The four live demos Growth scored — name/category must pick the right menu."""
+    yale, _ = generate_site(
+        "Yale Street Grill",
+        "Yale Street Grill, 2100, Yale Street, Houston, TX",
+        "(713) 861-3113", "restaurant", 4.4, "houston", use_ai=False)
+    thien, _ = generate_site(
+        "Thien An Sandwiches",
+        "Thien An Sandwiches, 2611, San Jacinto Street, Houston, TX",
+        "(713) 555-0108", "restaurant", 4.5, "houston", use_ai=False)
+    apo, _ = generate_site(
+        "Apothecary Cafe & Wine Bar",
+        "Apothecary Cafe & Wine Bar, 4800, Burnet Road, Austin, TX",
+        "(512) 555-0109", "cafe", 4.6, "austin", use_ai=False)
+    cream, _ = generate_site(
+        "Cream Parlor", "8216 Biscayne Boulevard, Miami, FL",
+        "(305) 555-0110", "cafe", 4.8, "miami", use_ai=False)
+
+    assert 'data-cuisine="breakfast"' in yale
+    assert "Breakfast plate" in yale
+    assert "Seasonal plates" not in yale
+    assert "Tonight" not in yale
+    assert "17:00" not in yale
+    assert ">Hours</h3>" not in yale
+
+    assert 'data-cuisine="banh_mi"' in thien
+    assert "Bánh mì" in thien
+    assert "Phở" in thien
+    assert ">Grill</h3>" not in thien
+    assert "Catch" not in thien
+    assert "Pasta or grains" not in thien
+
+    assert 'data-cuisine="wine_bar"' in apo
+    assert "Wine by the glass" in apo
+    assert "Espresso" in apo
+    assert "Pour over" not in apo
+    assert 'data-family="cafe"' in apo
+
+    assert 'data-cuisine="ice_cream"' in cream
+    assert "House scoop" in cream
+    assert "Espresso" not in cream
+    assert "quiet counter" not in cream.lower()
+    assert 'data-family="bakery"' in cream
 
 
 def test_generate_site_is_deterministic_per_name():

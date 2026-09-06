@@ -175,13 +175,89 @@ def classify_website(url: str, *, source_answered: bool = True) -> str:
     return "has_site"
 
 
-def google_enrich(name: str, address: str) -> dict:
+def hours_from_descriptions(descriptions) -> list:
+    """Turn Google weekdayDescriptions into (day, hours) rows.
+
+    Invents nothing: empty or unparseable input → []. Consecutive days with
+    the same hours are collapsed (Mon – Sat) so the table stays readable.
+    """
+    rows = []
+    for line in descriptions or []:
+        line = (line or "").strip()
+        if not line or ":" not in line:
+            continue
+        day, _, rest = line.partition(":")
+        day, rest = day.strip(), rest.strip()
+        if day and rest:
+            rows.append((day, rest))
+    if not rows:
+        return []
+    groups = []
+    start, prev_time = rows[0][0], rows[0][1]
+    last = start
+    for day, time in rows[1:]:
+        if time == prev_time:
+            last = day
+            continue
+        groups.append((_day_span(start, last), prev_time))
+        start, last, prev_time = day, day, time
+    groups.append((_day_span(start, last), prev_time))
+    return groups
+
+
+def _day_span(start: str, end: str) -> str:
+    if start == end:
+        return start
+    short = lambda d: (d[:3] if len(d) > 3 else d)
+    return f"{short(start)} – {short(end)}"
+
+
+def types_from_place(place: dict) -> list:
+    """primaryType + display name + types, de-duplicated, order kept."""
+    out = []
+    if place.get("primaryType"):
+        out.append(str(place["primaryType"]))
+    disp = ((place.get("primaryTypeDisplayName") or {}).get("text") or "")
+    if disp:
+        out.append(disp)
+    for t in place.get("types") or []:
+        if t:
+            out.append(str(t))
+    seen, uniq = set(), []
+    for t in out:
+        key = t.lower()
+        if key not in seen:
+            seen.add(key)
+            uniq.append(t)
+    return uniq
+
+
+_ENRICH_CACHE: dict = {}
+
+# Website checks keep the 20s default. Demo rebuild uses a short timeout so a
+# slow Places call cannot hang /demo/{token}.
+_PLACE_FIELD_MASK = (
+    "places.websiteUri,places.nationalPhoneNumber,places.rating,"
+    "places.displayName,places.regularOpeningHours,places.primaryType,"
+    "places.types,places.primaryTypeDisplayName"
+)
+
+
+def google_enrich(name: str, address: str, timeout: int = 20,
+                  check_liveness: bool = True) -> dict:
     """Google Places lookup for one business → {phone, website, website_status,
-    rating}. LocationIQ/OSM almost never carries phone/website for small shops,
-    so the scanner leans on Google for real contact data. Returns empty dict on
-    no key / no match / failure — caller keeps whatever LocationIQ gave it."""
+    rating, hours, types}. LocationIQ/OSM almost never carries phone/website
+    for small shops, so the scanner leans on Google for real contact data.
+    Returns empty dict on no key / no match / failure — caller keeps whatever
+    LocationIQ gave it. Hours are omitted (not invented) when Google has none.
+    """
     if not GOOGLE_PLACES_API_KEY:
         return {}
+    cache_key = (name.lower().strip(), (address or "").lower().strip(),
+                 int(timeout), bool(check_liveness))
+    cached = _ENRICH_CACHE.get(cache_key)
+    if cached is not None:
+        return dict(cached)
     body = json.dumps({
         "textQuery": f"{name}, {address}",
         "maxResultCount": 1,
@@ -189,10 +265,10 @@ def google_enrich(name: str, address: str) -> dict:
     req = urllib.request.Request(GOOGLE_SEARCH_URL, body, {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
-        "X-Goog-FieldMask": "places.websiteUri,places.nationalPhoneNumber,places.rating,places.displayName",
+        "X-Goog-FieldMask": _PLACE_FIELD_MASK,
     })
     try:
-        with urllib.request.urlopen(req, timeout=20) as r:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
             data = json.load(r)
     except Exception as e:
         print(f"    ! Google enrich failed: {e}")
@@ -209,7 +285,7 @@ def google_enrich(name: str, address: str) -> dict:
         return {}
     website = p.get("websiteUri", "") or ""
     status = classify_website(website, source_answered=True)
-    if website and status == "has_site":
+    if website and status == "has_site" and check_liveness:
         live = url_liveness(website)
         if live == "dead":
             print(f"    ~ {name}: listed site {website} is dead/parked")
@@ -218,10 +294,16 @@ def google_enrich(name: str, address: str) -> dict:
             # The site exists on paper but refused our check. Do not pitch.
             print(f"    ~ {name}: {website} could not be verified — leaving unknown")
             status = "unknown"
-    return {"phone": p.get("nationalPhoneNumber", "") or "",
-            "website": website,
-            "website_status": status,
-            "rating": p.get("rating")}
+    hours = hours_from_descriptions(
+        ((p.get("regularOpeningHours") or {}).get("weekdayDescriptions")) or [])
+    result = {"phone": p.get("nationalPhoneNumber", "") or "",
+              "website": website,
+              "website_status": status,
+              "rating": p.get("rating"),
+              "hours": hours,
+              "types": types_from_place(p)}
+    _ENRICH_CACHE[cache_key] = result
+    return dict(result)
 
 
 def verify_website(name: str, address: str) -> str:
