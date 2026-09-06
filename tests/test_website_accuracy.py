@@ -4,7 +4,8 @@ Run: ./venv/bin/python -m tests.test_website_accuracy
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from scanner.scanner import classify_website, name_matches, url_liveness
+from scanner.scanner import (classify_website, hours_from_descriptions,
+                             name_matches, types_from_place, url_liveness)
 
 
 def test_empty_url_is_unknown_when_nothing_answered():
@@ -57,6 +58,37 @@ def test_nonexistent_domain_is_dead():
 def test_blocked_site_is_unknown_not_dead():
     # A 403 means we were refused, not that the business has no website.
     assert url_liveness("https://tksugarland.square.site/") == "unknown"
+
+
+def test_hours_from_descriptions_collapse_and_omit():
+    assert hours_from_descriptions([]) == []
+    assert hours_from_descriptions(None) == []
+    assert hours_from_descriptions(["not-a-row"]) == []
+    rows = hours_from_descriptions([
+        "Monday: 7:00 AM – 4:30 PM",
+        "Tuesday: 7:00 AM – 4:30 PM",
+        "Wednesday: 7:00 AM – 4:30 PM",
+        "Thursday: 7:00 AM – 4:30 PM",
+        "Friday: 7:00 AM – 4:30 PM",
+        "Saturday: 7:00 AM – 4:30 PM",
+        "Sunday: 7:00 AM – 5:00 PM",
+    ])
+    assert rows == [
+        ("Mon – Sat", "7:00 AM – 4:30 PM"),
+        ("Sunday", "7:00 AM – 5:00 PM"),
+    ]
+    assert hours_from_descriptions(["Monday: Closed"]) == [("Monday", "Closed")]
+
+
+def test_types_from_place_keeps_primary():
+    types = types_from_place({
+        "primaryType": "vietnamese_restaurant",
+        "primaryTypeDisplayName": {"text": "Vietnamese restaurant"},
+        "types": ["vietnamese_restaurant", "sandwich_shop", "restaurant"],
+    })
+    assert types[0] == "vietnamese_restaurant"
+    assert "sandwich_shop" in types
+    assert types.count("vietnamese_restaurant") == 1
 
 
 if __name__ == "__main__":

@@ -122,6 +122,62 @@ PROFILES = {
             ("Sandwich loaves", "Ask what's left", 8),
         ],
     },
+    "banh_mi": {
+        "tagline": "Bánh mì, phở, and a counter that moves.",
+        "label": "bánh mì shop",
+        "atmosphere": "A sandwich counter — bánh mì, a bowl if the pot is on.",
+        "theme_cat": "restaurant", "family": "supper",
+        "offer_kicker": "From the counter",
+        "items": [
+            ("Bánh mì", "Ask what's on today", 8),
+            ("Bánh mì đặc biệt", "The loaded one", 10),
+            ("Phở", "When the pot is on", 12),
+            ("Spring rolls", "Fresh or fried", 7),
+            ("Cà phê sữa", "If we have it on", 4),
+        ],
+    },
+    "wine_bar": {
+        "tagline": "A glass, a cup, a place to stay.",
+        "label": "cafe and wine bar",
+        "atmosphere": "Wine by the glass, coffee when you want it.",
+        "theme_cat": "cafe", "family": "cafe",
+        "offer_kicker": "On the board",
+        "items": [
+            ("Wine by the glass", "Ask what's open", 12),
+            ("Bottle list", "We can walk you through it", 0),
+            ("Espresso", "If you want coffee", 4),
+            ("Small plate", "Something to share", 14),
+            ("Pastry", "When the case has it", 5),
+        ],
+    },
+    "breakfast": {
+        "tagline": "Breakfast plates until the afternoon.",
+        "label": "breakfast diner",
+        "atmosphere": "Eggs, coffee, and a plate before the dinner hour.",
+        "theme_cat": "restaurant", "family": "supper",
+        "offer_kicker": "On the plate",
+        "items": [
+            ("Breakfast plate", "Eggs and the usual sides", 12),
+            ("Pancakes or french toast", "When you want sweet", 11),
+            ("Breakfast taco or sandwich", "On the go", 8),
+            ("Lunch plate", "Until we close", 13),
+            ("Coffee", "All morning", 3),
+        ],
+    },
+    "sandwich": {
+        "tagline": "A sandwich worth the stop.",
+        "label": "sandwich shop",
+        "atmosphere": "Built to order — bread, a filling, out the door.",
+        "theme_cat": "restaurant", "family": "supper",
+        "offer_kicker": "On the board",
+        "items": [
+            ("House sandwich", "Ask what's on", 10),
+            ("Hot sandwich", "Off the press", 11),
+            ("Cold cut", "The usual build", 9),
+            ("Soup", "When the pot is on", 6),
+            ("Chips or a side", "With the sandwich", 3),
+        ],
+    },
 }
 
 # Generic restaurant variants so two unnamed kitchens don't share a menu.
@@ -159,15 +215,27 @@ _RESTAURANT_VARIANTS = (
 )
 
 _RULES = (
-    (re.compile(r"ph[oởóô]|vietnamese|bún|banh\s*mi", re.I), "pho"),
+    (re.compile(r"cream\s*parlor|ice\s*cream|gelato|frozen\s*custard|\bscoops?\b", re.I), "ice_cream"),
     (re.compile(r"crepe|crêpe|creperie|crêperie", re.I), "crepe"),
     (re.compile(r"via\s*313|via313|pizza|pizzeria|pizzería", re.I), "pizza"),
     (re.compile(r"taco|taqueria|taquería", re.I), "taco"),
-    (re.compile(r"cream\s*parlor|ice\s*cream|gelato|frozen\s*custard|\bscoops?\b", re.I), "ice_cream"),
     (re.compile(r"bbq|barbeque|barbecue", re.I), "bbq"),
+    (re.compile(r"wine\s*bar|&\s*wine|winebar", re.I), "wine_bar"),
     (re.compile(r"coffee|espresso|roaster", re.I), "coffee"),
     (re.compile(r"bakery|bakehouse|patisserie|pâtisserie", re.I), "bakery"),
+    (re.compile(r"\bdiner\b|\bbreakfast\b|\bbrunch\b", re.I), "breakfast"),
 )
+
+# Vietnamese name/type tokens — used with "sandwich" to pick bánh mì, not deli.
+_VIET = re.compile(
+    r"ph[oởóô]|vietnamese|bún|banh|\bviet\b|\bsaigon\b|\bhanoi\b|"
+    r"\bthien\b|\bhuong\b|\bngon\b|\bphuong\b",
+    re.I,
+)
+_SANDWICH = re.compile(r"sandwich", re.I)
+_PHO = re.compile(r"ph[oởóô]|vietnamese|bún|banh\s*mi", re.I)
+_GRILL = re.compile(r"\bgrill\b", re.I)
+_BAR_AND_GRILL = re.compile(r"bar\s*(?:&|and)\s*grill", re.I)
 
 _GENERIC_TITLES = {
     "house specialty", "family platter", "daily soup", "espresso", "pour over",
@@ -175,11 +243,29 @@ _GENERIC_TITLES = {
 }
 
 
-def infer_cuisine(name: str, category: str = "restaurant") -> str:
-    text = name or ""
+def _blob(name: str, extra: str = "") -> str:
+    """Name plus Google types / display names, underscored types expanded."""
+    bits = [name or "", (extra or "").replace("_", " ")]
+    return " ".join(b for b in bits if b).strip()
+
+
+def infer_cuisine(name: str, category: str = "restaurant", extra: str = "") -> str:
+    """Cuisine from the business name, category, and optional Google type text.
+
+    `extra` is primaryType / types / display names from Places — not invented.
+    """
+    text = _blob(name, extra)
     for rx, key in _RULES:
         if rx.search(text):
             return key
+    if _SANDWICH.search(text) and _VIET.search(text):
+        return "banh_mi"
+    if _PHO.search(text):
+        return "pho"
+    if _SANDWICH.search(text):
+        return "sandwich"
+    if _GRILL.search(text) and not _BAR_AND_GRILL.search(text):
+        return "breakfast"
     cat = (category or "restaurant").lower()
     if cat == "cafe":
         return "coffee"
@@ -190,9 +276,9 @@ def infer_cuisine(name: str, category: str = "restaurant") -> str:
     return cat
 
 
-def profile_for(name: str, category: str = "restaurant") -> dict:
+def profile_for(name: str, category: str = "restaurant", extra: str = "") -> dict:
     """Deterministic tagline + priced items for this business name."""
-    cuisine = infer_cuisine(name, category)
+    cuisine = infer_cuisine(name, category, extra)
     if cuisine in PROFILES:
         out = dict(PROFILES[cuisine])
         out["cuisine"] = cuisine

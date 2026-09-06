@@ -166,7 +166,8 @@ class HandlerTests(unittest.TestCase):
             self.assertEqual(status, 200)
             self.assertIn(b"Taqueria Test", body)
             self.assertIn(b"<!DOCTYPE html>", body)
-            self.assertIn(b"hero-visual", body)
+            self.assertNotIn(b"Sample image", body)
+            self.assertNotIn(b"your photos go here", body)
         finally:
             httpd.shutdown()
             httpd.server_close()
@@ -199,7 +200,7 @@ class HandlerTests(unittest.TestCase):
             status, body, _ = self._get(httpd, "/demo/pho-token")
             self.assertEqual(status, 200)
             self.assertIn(b"Simply", body)
-            self.assertIn(b"hero-visual", body)
+            self.assertNotIn(b"Sample image", body)
             self.assertNotIn(b"House Specialty OLD", body)
             self.assertIn(b"Ph", body)
         finally:

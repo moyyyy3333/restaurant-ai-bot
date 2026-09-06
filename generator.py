@@ -18,7 +18,8 @@ from datetime import datetime
 
 from config import (BUSINESS_CATEGORIES, CARE_MONTHLY_USD, CARE_YEARLY_USD,
                     PRICE_USD, theme_for)
-from profiles import FOOD_CATEGORIES, TRADE_CATEGORIES, infer_cuisine, looks_generic, profile_for
+from profiles import (FOOD_CATEGORIES, PROFILES, TRADE_CATEGORIES, infer_cuisine,
+                      looks_generic, profile_for)
 from writer import write_copy
 
 # Mood is a light overlay on top of the category family — not a reskin.
@@ -284,77 +285,15 @@ def _offer_html(family: str, items) -> str:
     </li>''' for t, d, p in rows)
 
 
-def _hero_visual(cuisine: str, family: str) -> str:
-    """Labeled sample imagery — CSS/SVG, no external files."""
-    kind = cuisine if cuisine in {
-        "pho", "crepe", "pizza", "taco", "ice_cream", "coffee", "bbq", "bakery",
-    } else family
-    art = {
-        "pho": (
-            '<circle cx="120" cy="118" r="52" fill="none" stroke="currentColor" stroke-width="2"/>'
-            '<ellipse cx="120" cy="118" rx="38" ry="14" fill="currentColor" opacity=".18"/>'
-            '<path d="M78 100c18 8 28-6 46-2s28 12 42 4" fill="none" stroke="currentColor" stroke-width="1.5"/>'
-        ),
-        "crepe": (
-            '<ellipse cx="120" cy="120" rx="64" ry="28" fill="none" stroke="currentColor" stroke-width="2"/>'
-            '<path d="M70 118c20-22 80-22 100 0" fill="none" stroke="currentColor" stroke-width="1.5"/>'
-            '<path d="M86 122c16 18 52 18 68 0" fill="currentColor" opacity=".16"/>'
-        ),
-        "pizza": (
-            '<circle cx="120" cy="120" r="56" fill="none" stroke="currentColor" stroke-width="2"/>'
-            '<path d="M120 64 L164 148 L76 148 Z" fill="currentColor" opacity=".14"/>'
-            '<circle cx="112" cy="108" r="5" fill="currentColor" opacity=".45"/>'
-            '<circle cx="132" cy="124" r="4" fill="currentColor" opacity=".45"/>'
-        ),
-        "taco": (
-            '<path d="M56 140c8-56 120-56 128 0" fill="none" stroke="currentColor" stroke-width="2"/>'
-            '<path d="M68 138c10-40 96-40 104 0" fill="currentColor" opacity=".16"/>'
-        ),
-        "ice_cream": (
-            '<circle cx="120" cy="88" r="36" fill="currentColor" opacity=".2"/>'
-            '<circle cx="120" cy="88" r="36" fill="none" stroke="currentColor" stroke-width="2"/>'
-            '<path d="M92 112 L120 196 L148 112" fill="none" stroke="currentColor" stroke-width="2"/>'
-        ),
-        "coffee": (
-            '<rect x="78" y="78" width="70" height="72" rx="10" fill="none" stroke="currentColor" stroke-width="2"/>'
-            '<path d="M148 96h18c10 0 16 10 16 20s-6 20-16 20h-18" fill="none" stroke="currentColor" stroke-width="2"/>'
-            '<path d="M96 58c6 10 6 16 0 24M114 54c6 12 6 20 0 28" fill="none" stroke="currentColor" stroke-width="1.5"/>'
-        ),
-        "bakery": (
-            '<ellipse cx="120" cy="150" rx="70" ry="18" fill="none" stroke="currentColor" stroke-width="2"/>'
-            '<path d="M56 148c8-48 28-70 64-70s56 22 64 70" fill="currentColor" opacity=".14"/>'
-            '<path d="M56 148c8-48 28-70 64-70s56 22 64 70" fill="none" stroke="currentColor" stroke-width="2"/>'
-        ),
-        "bbq": (
-            '<rect x="70" y="70" width="100" height="70" rx="6" fill="none" stroke="currentColor" stroke-width="2"/>'
-            '<path d="M70 104h100M90 70v70M150 70v70" stroke="currentColor" stroke-width="1.2"/>'
-        ),
-        "chair": (
-            '<rect x="108" y="40" width="24" height="160" rx="4" fill="currentColor" opacity=".18"/>'
-            '<rect x="108" y="40" width="24" height="160" rx="4" fill="none" stroke="currentColor" stroke-width="2"/>'
-            '<path d="M108 70h24M108 110h24M108 150h24" stroke="currentColor"/>'
-        ),
-        "practice": (
-            '<rect x="60" y="50" width="120" height="140" fill="none" stroke="currentColor" stroke-width="2"/>'
-            '<path d="M60 90h120M100 50v140M140 50v140" stroke="currentColor" stroke-width="1.2"/>'
-        ),
-        "trade": (
-            '<path d="M70 160 L120 56 L170 160Z" fill="none" stroke="currentColor" stroke-width="2"/>'
-            '<circle cx="120" cy="124" r="16" fill="currentColor" opacity=".18"/>'
-        ),
-    }.get(kind, (
-        '<rect x="48" y="58" width="144" height="124" fill="none" stroke="currentColor" stroke-width="1.5"/>'
-        '<circle cx="120" cy="120" r="34" fill="currentColor" opacity=".14"/>'
-        '<circle cx="120" cy="120" r="34" fill="none" stroke="currentColor" stroke-width="2"/>'
-    ))
-    return (
-        f'<figure class="hero-visual" data-visual="{_esc(kind)}">'
-        f'<div class="photo" aria-hidden="true"></div>'
-        f'<svg viewBox="0 0 240 220" role="img" aria-label="Sample image">'
-        f'{art}</svg>'
-        f'<figcaption>Sample image — your photos go here</figcaption>'
-        f'</figure>'
-    )
+def _lookup_place(name: str, address: str) -> dict:
+    """Real hours/types from Google Places. Empty if unknown — never invent."""
+    if not name:
+        return {}
+    try:
+        from scanner.scanner import google_enrich
+        return google_enrich(name, address or "", timeout=4, check_liveness=False) or {}
+    except Exception:
+        return {}
 
 
 def _offer_wrap(family: str, inner: str) -> str:
@@ -637,8 +576,13 @@ footer{{border-top:1px solid var(--line);padding-block:1.7rem;margin-top:1.2rem;
 
 
 def generate_site(name, address="", phone="", category="restaurant", rating=None,
-                  city="", lead_id=None, business_id=None, watermark=True, use_ai=True):
-    """Returns (html_string, token)."""
+                  city="", lead_id=None, business_id=None, watermark=True, use_ai=True,
+                  hours=None, place_types=None, fetch_place=False):
+    """Returns (html_string, token).
+
+    hours: list of (day, time) from Google Places, or None to look up when
+    fetch_place=True. Unknown hours are omitted — never filled from a theme.
+    """
     token = secrets.token_urlsafe(9)
     cat = category if category in BUSINESS_CATEGORIES else "restaurant"
     meta = BUSINESS_CATEGORIES[cat]
@@ -648,12 +592,25 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
     tel = "".join(ch for ch in str(phone or "") if ch.isdigit())
     city_s = _esc(city.title()) if city else ""
 
-    profile = profile_for(name, cat)
-    cuisine = infer_cuisine(name, cat)
+    extras = {}
+    if fetch_place and (hours is None or place_types is None):
+        extras = _lookup_place(name, address)
+        if hours is None:
+            hours = extras.get("hours")
+        if place_types is None:
+            place_types = extras.get("types")
+    extra_text = " ".join(place_types or [])
+    profile = profile_for(name, cat, extra_text)
+    cuisine = infer_cuisine(name, cat, extra_text)
     if profile.get("theme_cat") in BUSINESS_CATEGORIES:
         theme = dict(theme_for(profile["theme_cat"]))
     ai = write_copy(name, meta["label"], city) if use_ai else None
-    if ai and ai["tagline"] and ai["items"] and not looks_generic(ai["items"]):
+    # Named cuisine profiles win over AI so "Thien An Sandwiches" cannot
+    # become Grill/Catch/Pasta because a model ignored the name.
+    if profile.get("items") and profile.get("cuisine") in PROFILES:
+        hero = profile["tagline"] or meta["hero"]
+        items = profile["items"]
+    elif ai and ai["tagline"] and ai["items"] and not looks_generic(ai["items"]):
         hero = ai["tagline"]
         items = ai["items"]
     elif profile.get("items"):
@@ -727,17 +684,14 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
     )
     nav_call = (f'<a class="btn" href="tel:{tel}">Call</a>' if tel
                 else '<a class="btn" href="#claim">Get yours</a>')
-    visual = _hero_visual(cuisine, family)
+    # Honest omission: no fake photo frames or "sample image" chrome.
     aside = (
-        f'<aside class="hero-aside">{visual}'
+        f'<aside class="hero-aside">'
         f'<div class="mono" aria-hidden="true">{_esc(_monogram(name))}</div>'
         f'{facts_html}</aside>'
     )
     if family in {"cafe", "bakery", "atelier", "clinic", "counter"}:
-        aside = (
-            f'<div class="ticket">{visual}'
-            f'{facts_html or "<p class=sub>Hours and address go here.</p>"}</div>'
-        )
+        aside = f'<div class="ticket">{facts_html}</div>' if facts_html else ""
 
     return f"""<!DOCTYPE html>
 <html lang="en"><head>
@@ -789,10 +743,10 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
     <div><p class="kicker">{_esc(theme['visit_kicker'])}</p><h2>Visit</h2></div>
   </div>
   <div class="panel split">
-    <div>
+    {f'''<div>
       <h3 style="font-size:var(--step-1);margin-bottom:.9rem">Hours</h3>
-      <table><tbody>{_hours_rows(theme['hours'])}</tbody></table>
-    </div>
+      <table><tbody>{_hours_rows(hours)}</tbody></table>
+    </div>''' if hours else ''}
     <div>
       <h3 style="font-size:var(--step-1);margin-bottom:.9rem">Where</h3>
       <p>{addr_s or 'Your address here'}</p>
@@ -817,11 +771,12 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
 
 <div class="wrap">
   <p class="note">This is a free unpublished sample. Sample content is marked as such.
-  Business name, address, phone and rating come from public Google Places data.
+  Business name, address, phone, rating, and hours (when shown) come from public
+  Google Places data. Hours are left off when we do not have them — we do not invent them.
   Not affiliated with or endorsed by {name_s}.</p>
   <footer>
     <span>© {year} {name_s}</span>
-    <span>Preview {datetime.now().strftime('%b %d, %Y')} · ref {token}</span>
+    <span>Unpublished sample · {datetime.now().strftime('%b %d, %Y')}</span>
   </footer>
 </div>
 {f'<a class="callbar" href="tel:{tel}">Call {phone_s}</a>' if tel else ''}
