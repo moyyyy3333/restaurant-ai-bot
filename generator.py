@@ -335,8 +335,8 @@ nav a:hover{{color:var(--ink)}}
 .btn:hover{{filter:brightness(1.06)}}
 .btn.ghost{{background:transparent;border-color:var(--line-strong);color:var(--ink)}}
 .btn.on-dark{{background:var(--accent);color:var(--ink)}}
-.btn.on-dark.ghost{{background:transparent;border-color:color-mix(in srgb,var(--on-hero) 28%,transparent);
-  color:var(--on-hero)}}
+.btn.on-dark.ghost{{background:color-mix(in srgb,var(--on-hero) 8%,transparent);
+  border-color:color-mix(in srgb,var(--on-hero) 48%,transparent);color:var(--on-hero)}}
 
 /* —— heroes —— */
 .hero{{position:relative;overflow:hidden}}
@@ -425,7 +425,7 @@ section{{padding-block:clamp(3.2rem,7.5vw,6rem)}}
 h2{{font-size:var(--step-2)}}
 .kicker{{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);
   font-weight:650;margin-bottom:.45rem}}
-.sub{{color:var(--muted);font-size:var(--step--1)}}
+.sub{{color:var(--muted);font-size:12.5px;letter-spacing:.01em;max-width:36ch}}
 .menu{{list-style:none;display:grid;gap:1.7rem}}
 @media(min-width:760px){{.menu{{grid-template-columns:1fr 1fr;column-gap:4rem}}}}
 .item-h{{display:flex;align-items:baseline;gap:.65rem}}
@@ -481,7 +481,7 @@ footer{{border-top:1px solid var(--line);padding-block:1.7rem;margin-top:1.2rem;
   justify-content:space-between;gap:.6rem}}
 .callbar{{position:fixed;left:0;right:0;bottom:0;z-index:80;display:none;
   background:var(--accent);color:var(--ink);text-align:center;
-  padding:15px 16px calc(15px + env(safe-area-inset-bottom));
+  min-height:56px;padding:16px 16px calc(16px + env(safe-area-inset-bottom));
   font-weight:700;text-decoration:none;
   box-shadow:0 -8px 24px color-mix(in srgb,var(--ink) 16%,transparent)}}
 @media(max-width:700px){{
