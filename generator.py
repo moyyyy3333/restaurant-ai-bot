@@ -652,10 +652,15 @@ footer{{border-top:1px solid var(--line);padding-block:1.7rem;margin-top:1.2rem;
 def _as_menu_result(menu) -> MenuResult | None:
     if menu is None:
         return None
-    if isinstance(menu, MenuResult):
-        return menu if menu.items else None
     if isinstance(menu, dict):
         return result_from_dict(menu)
+    # Duck-type: `python -m menu_enrich` loads this module as __main__, so
+    # isinstance(..., MenuResult) fails across the two copies.
+    if getattr(menu, "items", None) and getattr(menu, "source", None):
+        if isinstance(menu, MenuResult):
+            return menu
+        if hasattr(menu, "to_dict"):
+            return result_from_dict(menu.to_dict())
     return None
 
 

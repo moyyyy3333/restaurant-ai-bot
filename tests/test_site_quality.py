@@ -205,6 +205,11 @@ def test_injected_real_menu_is_marked_sourced():
     assert "Sample prices — your real" not in html
     assert "we do not invent dishes" in html.lower()
     assert "Seasonal plates" not in html
+    via_dict, _ = generate_site(
+        "Thien An Sandwiches", "2611 San Jacinto St, Houston, TX 77004",
+        "(713) 522-7007", "restaurant", 4.5, "houston", use_ai=False,
+        menu=menu.to_dict())
+    assert "Bánh Mì Thịt Nướng" in via_dict and 'data-menu-source="yelp"' in via_dict
 
 
 def test_failed_enrich_keeps_labeled_samples():

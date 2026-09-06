@@ -82,7 +82,8 @@ _HOST_SOURCE = (
     (("facebook.com", "instagram.com"), "social"),
     (("google.com", "googleusercontent.com"), "google"),
     (("roostcafeandbistro.com", "allmenus.com", "zmenu.com", "menupix.com",
-      "restaurantji.com", "restaurantguru.com", "wherevi.com", "kwickmenu.com"),
+      "restaurantji.com", "restaurantguru.com", "wherevi.com", "kwickmenu.com",
+      "res-pick.com", "sirved.com", "checkle.com", "menustatic.com"),
      "listing"),
 )
 
@@ -95,6 +96,7 @@ _SECTION_WORDS = {
     "menu", "breakfast", "lunch", "dinner", "appetizers", "desserts",
     "drinks", "sides", "kids", "beverages", "specials", "entrees",
     "sandwiches", "omelettes", "hours", "about",
+    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
 }
 
 _NOISE_NAME = re.compile(
@@ -250,13 +252,19 @@ def _clean_text(value) -> str:
     return re.sub(r"\s+", " ", text).strip(" \t\n\r-:·•|")
 
 
-def _parse_price(value) -> float | None:
+def _parse_price(value, require_dollar: bool = False) -> float | None:
     if value is None or value == "":
         return None
     if isinstance(value, (int, float)):
         n = float(value)
         return n if 0 < n <= MAX_PRICE else None
-    m = _PRICE_RE.search(str(value)) or re.search(r"(\d{1,3}(?:\.\d{2})?)", str(value))
+    s = str(value)
+    if require_dollar or "$" in s:
+        m = _PRICE_RE.search(s)
+    else:
+        # JSON-LD offers.price is a bare number. Do not scan prose for
+        # "7:00 AM" / "7AM–4:30PM" and call that a dish price.
+        m = re.fullmatch(r"\s*(\d{1,3}(?:\.\d{2})?)\s*", s)
     if not m:
         return None
     try:
@@ -355,7 +363,7 @@ def parse_html_menu(text: str) -> list[MenuItem]:
     for name, desc, price in named:
         n = _clean_text(name)
         if _good_name(n):
-            items.append(MenuItem(n, _clean_text(desc), _parse_price(price)))
+            items.append(MenuItem(n, _clean_text(desc), _parse_price(price, require_dollar=True)))
     if _confident(items):
         return _dedupe(items)
 
@@ -371,7 +379,7 @@ def parse_html_menu(text: str) -> list[MenuItem]:
         name = cells[0]
         desc = ""
         for cell in reversed(cells):
-            p = _parse_price(cell)
+            p = _parse_price(cell, require_dollar=True)
             if p:
                 price = p
                 break
@@ -389,7 +397,7 @@ def parse_html_menu(text: str) -> list[MenuItem]:
     ):
         n = _clean_text(m.group(1))
         if _good_name(n):
-            items.append(MenuItem(n, "", _parse_price(m.group(2))))
+            items.append(MenuItem(n, "", _parse_price(m.group(2), require_dollar=True)))
     return _dedupe(items)
 
 
@@ -428,7 +436,7 @@ def parse_ocr_text(text: str) -> list[MenuItem]:
     lines = [ln for ln in lines if ln]
     pending = ""
     for ln in lines:
-        price = _parse_price(ln)
+        price = _parse_price(ln, require_dollar=True)
         name_part = _PRICE_RE.sub("", ln).strip(" .-$")
         if price and _good_name(name_part):
             items.append(MenuItem(name_part, "", price))
@@ -653,26 +661,47 @@ def menu_photos_from_html(text: str) -> list[str]:
     return urls[:6]
 
 
-def _page_mentions_business(text: str, name: str) -> bool:
-    if not text or not name:
+def _page_title(text: str) -> str:
+    m = re.search(r"<title[^>]*>(.*?)</title>", text or "", re.S | re.I)
+    return _clean_text(m.group(1)) if m else ""
+
+
+def strict_name_matches(queried: str, returned: str, threshold: float = 0.7) -> bool:
+    """Jaccard match. The scanner's overlap-on-shorter rule would accept
+    'Cream Parlor' for 'Hank's Ice Cream Parlor' — that is a different shop."""
+    noise = {"menu", "houston", "tx", "texas", "prices", "order", "online",
+             "gift", "gifts"}
+    a, b = _norm_tokens(queried) - noise, _norm_tokens(returned) - noise
+    if not a or not b:
         return False
-    window = re.sub(r"<[^>]+>", " ", text[:8000])
-    return name_matches(name, window)
+    return len(a & b) / len(a | b) >= threshold
+
+
+def url_names_business(name: str, url: str) -> bool:
+    """True only when the path/host is this business's slug, not a substring
+    of a longer parlor/grill name."""
+    slug = _slug(name)
+    if not slug or not url:
+        return False
+    parsed = urllib.parse.urlparse(url)
+    host = (parsed.hostname or "").lower()
+    path = (parsed.path or "").lower()
+    if host == slug or host.startswith(slug + "."):
+        return True
+    for seg in path.strip("/").split("/"):
+        if seg == slug or seg.startswith(slug + "-"):
+            return True
+    return False
 
 
 def _accept_page(name: str, url: str, text: str) -> bool:
     """Reject a menu that belongs to a different restaurant."""
     if not text:
         return False
-    title_m = re.search(r"<title[^>]*>(.*?)</title>", text, re.S | re.I)
-    title = _clean_text(title_m.group(1)) if title_m else ""
-    if title and name_matches(name, title):
+    if url_names_business(name, url):
         return True
-    # Slug in a first-party URL is a strong hint (yelp.com/menu/thien-an-sandwiches-houston).
-    slug = _slug(name)
-    if slug and slug in urllib.parse.urlparse(url).path.lower():
-        return True
-    return _page_mentions_business(text, name)
+    title = _page_title(text)
+    return bool(title and strict_name_matches(name, title))
 
 
 def _result_from_items(items: list[MenuItem], url: str, source: str | None = None,
@@ -897,11 +926,10 @@ if __name__ == "__main__":
         if args.write_html:
             from generator import generate_site
             for spec, row in zip(PROTOTYPES, rows):
-                menu = result_from_dict(row) if row["enriched"] else None
                 html, _ = generate_site(
                     spec["name"], spec["address"], spec["phone"], spec["category"],
-                    spec["rating"], spec["city"], use_ai=False, enrich_menu=False,
-                    menu=menu,
+                    spec["rating"], spec["city"], use_ai=False, enrich_menu=True,
+                    menu=row if row["enriched"] else None,
                 )
                 path = out / f"{_slug(spec['name'])}.html"
                 path.write_text(html)

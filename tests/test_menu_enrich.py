@@ -9,8 +9,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from menu_enrich import (
-    MenuItem, MenuResult, _confident, _result_from_items, parse_html_menu,
-    parse_jsonld_menu, parse_ocr_text, result_from_dict, source_for_url,
+    MenuItem, MenuResult, _accept_page, _confident, _result_from_items,
+    parse_html_menu, parse_jsonld_menu, parse_ocr_text, result_from_dict,
+    source_for_url, strict_name_matches, url_names_business,
 )
 from profiles import infer_cuisine
 
@@ -92,7 +93,36 @@ def test_source_labels_are_honest():
     assert source_for_url("https://www.doordash.com/store/x") == "doordash"
     assert source_for_url("https://www.ubereats.com/store/x") == "ubereats"
     assert source_for_url("https://www.roostcafeandbistro.com/yale-street-grill-77008/") == "listing"
+    assert source_for_url("https://yale-street-grill.res-pick.com/menu") == "listing"
     assert source_for_url("https://joes.example/menu") == "website"
+
+
+def test_cream_parlor_is_not_hanks():
+    assert not strict_name_matches("Cream Parlor", "Hank's Ice Cream Parlor Menu")
+    assert not url_names_business(
+        "Cream Parlor", "https://www.yelp.com/menu/hanks-ice-cream-parlor-houston")
+    assert url_names_business(
+        "Thien An Sandwiches",
+        "https://www.yelp.com/menu/thien-an-sandwiches-houston")
+    html = "<html><title>Hank's Ice Cream Parlor Menu</title><body>Banana Splits</body></html>"
+    assert not _accept_page(
+        "Cream Parlor", "https://www.yelp.com/menu/hanks-ice-cream-parlor-houston", html)
+    assert _accept_page(
+        "Yale Street Grill", "https://yale-street-grill.res-pick.com/menu", ROOST_HTML)
+
+
+def test_hours_table_is_not_a_menu():
+    html = """
+    <title>Yale Street Grill</title>
+    <table>
+      <tr><td>Monday</td><td>7:00 AM – 4:30 PM</td></tr>
+      <tr><td>Tuesday</td><td>7AM - 4:30PM</td></tr>
+      <tr><td>Wednesday</td><td>7AM - 4:30PM</td></tr>
+    </table>
+    """
+    items = parse_html_menu(html)
+    assert not _confident(items)
+    assert not any(i.name.lower() in {"monday", "tuesday"} for i in items)
 
 
 def test_too_few_items_is_not_a_real_menu():
