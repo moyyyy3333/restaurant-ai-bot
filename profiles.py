@@ -12,6 +12,10 @@ import zlib
 PROFILES = {
     "pho": {
         "tagline": "A bowl that tastes like home.",
+        "label": "phở restaurant",
+        "atmosphere": "Broth, herbs, and a table that turns over.",
+        "theme_cat": "restaurant", "family": "supper",
+        "offer_kicker": "The bowls",
         "items": [
             ("Phở đặc biệt", "Ask about today's broth", 14),
             ("Phở gà", "Chicken, when you want it lighter", 13),
@@ -22,16 +26,24 @@ PROFILES = {
     },
     "crepe": {
         "tagline": "Batter, butter, and whatever's in season.",
+        "label": "crêperie",
+        "atmosphere": "Folded to order — savory or sweet.",
+        "theme_cat": "restaurant", "family": "supper",
+        "offer_kicker": "On the griddle",
         "items": [
             ("Savory crepe", "Ham, cheese, or the day's mix", 13),
             ("Sweet crepe", "Sugar, fruit, or chocolate", 11),
             ("Galette", "Buckwheat, when we have it", 14),
-            ("Coffee", "With the crepe", 4),
+            ("Cidre or coffee", "With the crepe", 4),
             ("Seasonal special", "Ask the counter", 12),
         ],
     },
     "pizza": {
         "tagline": "A pie worth crossing town for.",
+        "label": "pizzeria",
+        "atmosphere": "A square pie, a cold drink, a booth.",
+        "theme_cat": "restaurant", "family": "supper",
+        "offer_kicker": "The pies",
         "items": [
             ("House pie", "Ask what's on tonight", 18),
             ("Pepperoni", "The one people reorder", 17),
@@ -42,6 +54,10 @@ PROFILES = {
     },
     "taco": {
         "tagline": "Tortillas, salsa, and a line out the door.",
+        "label": "taquería",
+        "atmosphere": "Tortillas on the plancha, salsa to taste.",
+        "theme_cat": "restaurant", "family": "supper",
+        "offer_kicker": "From the plancha",
         "items": [
             ("Street tacos", "Ask about today's meats", 4),
             ("Family platter", "Made for sharing", 22),
@@ -52,6 +68,10 @@ PROFILES = {
     },
     "ice_cream": {
         "tagline": "Scoops, sundaes, and a reason to linger.",
+        "label": "ice cream parlor",
+        "atmosphere": "A cold case, a long counter, a little ceremony.",
+        "theme_cat": "bakery", "family": "bakery",
+        "offer_kicker": "In the case",
         "items": [
             ("House scoop", "Rotating flavors", 6),
             ("Sundae", "Built to share", 9),
@@ -62,6 +82,10 @@ PROFILES = {
     },
     "coffee": {
         "tagline": "Coffee, and a place to sit.",
+        "label": "cafe",
+        "atmosphere": "A quiet counter, a good cup, a place to sit.",
+        "theme_cat": "cafe", "family": "cafe",
+        "offer_kicker": "On the board",
         "items": [
             ("Espresso", "Single or double", 4),
             ("Pour over", "Rotating beans", 5),
@@ -72,6 +96,10 @@ PROFILES = {
     },
     "bbq": {
         "tagline": "Smoke, sauce, and brown paper.",
+        "label": "barbecue",
+        "atmosphere": "Smoke, sauce, and brown paper.",
+        "theme_cat": "restaurant", "family": "supper",
+        "offer_kicker": "On the pit",
         "items": [
             ("Brisket", "By the half-pound", 16),
             ("Ribs", "Ask about the tray", 18),
@@ -82,6 +110,10 @@ PROFILES = {
     },
     "bakery": {
         "tagline": "Warm from the oven.",
+        "label": "bakery",
+        "atmosphere": "Warm from the oven, gone by afternoon.",
+        "theme_cat": "bakery", "family": "bakery",
+        "offer_kicker": "In the case",
         "items": [
             ("Morning breads", "Out of the oven by 7", 7),
             ("Pastry case", "Changes daily", 5),

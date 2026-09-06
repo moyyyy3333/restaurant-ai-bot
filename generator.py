@@ -349,6 +349,7 @@ def _hero_visual(cuisine: str, family: str) -> str:
     ))
     return (
         f'<figure class="hero-visual" data-visual="{_esc(kind)}">'
+        f'<div class="photo" aria-hidden="true"></div>'
         f'<svg viewBox="0 0 240 220" role="img" aria-label="Sample image">'
         f'{art}</svg>'
         f'<figcaption>Sample image — your photos go here</figcaption>'
@@ -528,11 +529,25 @@ h2{{font-size:var(--step-2)}}
 .price-n{{font-variant-numeric:tabular-nums;font-weight:650;font-size:var(--step--1);
   color:var(--ink);white-space:nowrap}}
 .hero-visual{{margin:0;position:relative;border-radius:var(--rc);overflow:hidden;
-  min-height:220px;background:
-    radial-gradient(120% 80% at 80% 0%, color-mix(in srgb,var(--accent) 28%,transparent), transparent 55%),
-    linear-gradient(160deg, color-mix(in srgb,var(--ink) 8%,var(--paper)), var(--paper));
-  color:var(--ink);border:1px solid var(--line)}}
-.hero-visual svg{{width:100%;height:240px;display:block}}
+  min-height:min(52vw,320px);color:var(--ink);border:1px solid var(--line)}}
+.hero-visual .photo{{position:absolute;inset:0;background:
+    radial-gradient(90% 70% at 80% 10%, color-mix(in srgb,var(--accent) 42%,transparent), transparent 58%),
+    linear-gradient(165deg, color-mix(in srgb,var(--ink) 18%,var(--paper)), var(--paper))}}
+.hero-visual[data-visual="pho"] .photo{{background:
+    radial-gradient(70% 60% at 30% 80%, #8a3a18 0%, transparent 55%),
+    linear-gradient(160deg, #2a1610, #7a4a28)}}
+.hero-visual[data-visual="crepe"] .photo{{background:
+    radial-gradient(80% 50% at 70% 20%, #f0c98a, transparent 50%),
+    linear-gradient(160deg, #5a3a22, #c4a06a)}}
+.hero-visual[data-visual="pizza"] .photo{{background:
+    radial-gradient(70% 60% at 50% 50%, #d45a2a, #5a2010)}}
+.hero-visual[data-visual="ice_cream"] .photo{{background:
+    radial-gradient(80% 70% at 30% 20%, #f7c8d8, transparent 50%),
+    linear-gradient(165deg, #f4e6d8, #e8b8c8)}}
+.hero-visual[data-visual="coffee"] .photo{{background:
+    radial-gradient(70% 60% at 80% 0%, #d4a078, transparent 50%),
+    linear-gradient(160deg, #3a2418, #8a5a38)}}
+.hero-visual svg{{position:relative;width:100%;height:min(52vw,320px);display:block}}
 .hero-visual figcaption{{position:absolute;left:14px;bottom:12px;font-size:10px;
   letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}}
 .family-supper .hero-visual,.family-luxe .hero-visual,.family-gallery .hero-visual,
@@ -635,6 +650,8 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
 
     profile = profile_for(name, cat)
     cuisine = infer_cuisine(name, cat)
+    if profile.get("theme_cat") in BUSINESS_CATEGORIES:
+        theme = dict(theme_for(profile["theme_cat"]))
     ai = write_copy(name, meta["label"], city) if use_ai else None
     if ai and ai["tagline"] and ai["items"] and not looks_generic(ai["items"]):
         hero = ai["tagline"]
@@ -649,7 +666,10 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
         theme["accent"] = ai["accent"]
     mood_name = ai["mood"] if ai and ai["mood"] else "classic"
     mood = MOOD_STYLES.get(mood_name, MOOD_STYLES["classic"])
-    family = theme["family"]
+    family = profile.get("family") or theme["family"]
+    label = profile.get("label") or meta["label"]
+    atmosphere = profile.get("atmosphere") or theme["atmosphere"]
+    offer_kicker = profile.get("offer_kicker") or theme["offer_kicker"]
 
     mark = ""
 
@@ -689,7 +709,7 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
         facts.append(f'<div><dt>Call</dt><dd>{phone_s}</dd></div>')
     facts_html = f'<dl class="facts">{"".join(facts)}</dl>' if facts else ""
 
-    place = f"{_esc(meta['label'])}{(' · ' + city_s) if city_s else ''}"
+    place = f"{_esc(label)}{(' · ' + city_s) if city_s else ''}"
     if cat in FOOD_CATEGORIES:
         cta_a, cta_b, cta_c = ("Call", "Order", "Reserve")
         href_b, href_c = "#menu", "#visit"
@@ -749,7 +769,7 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
     <h1>{name_s}</h1>
     <hr class="hairline">
     <p class="lede">{_esc(hero)}</p>
-    <p class="atmosphere">{_esc(theme['atmosphere'])}</p>
+    <p class="atmosphere">{_esc(atmosphere)}</p>
     <div class="actions">{primary}{ghost}</div>
   </div>
   {aside}
@@ -758,7 +778,7 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
 <main id="main">
 <section id="menu"><div class="wrap">
   <div class="sec-h">
-    <div><p class="kicker">{_esc(theme['offer_kicker'])}</p><h2>{sec0}</h2></div>
+    <div><p class="kicker">{_esc(offer_kicker)}</p><h2>{sec0}</h2></div>
   </div>
   {menu_html}
   <p class="sub" style="margin-top:1.2rem">Sample prices — your real {sec0.lower()} replaces these.</p>
@@ -772,7 +792,6 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
     <div>
       <h3 style="font-size:var(--step-1);margin-bottom:.9rem">Hours</h3>
       <table><tbody>{_hours_rows(theme['hours'])}</tbody></table>
-      <p class="sub" style="margin-top:1rem">Placeholder hours — replace with yours.</p>
     </div>
     <div>
       <h3 style="font-size:var(--step-1);margin-bottom:.9rem">Where</h3>

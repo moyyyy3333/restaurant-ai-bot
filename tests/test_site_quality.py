@@ -110,6 +110,8 @@ def test_preview_chrome_is_in_claim_and_footer_only():
     assert 'class="claimbar"' not in HTML
     assert "free unpublished sample" in HTML.lower()
     assert "sample layout — your real items" not in HTML.lower()
+    assert "placeholder hours" not in HTML.lower()
+    assert "placeholder details" not in HTML.lower()
 
 
 def test_claim_shows_build_and_care_split():
@@ -122,7 +124,7 @@ def test_name_aware_menus_are_not_universal():
     pho, _ = generate_site("Simply Phở", "2929 Milam St, Houston, TX",
                            "(713) 555-0101", "restaurant", 4.6, "houston", use_ai=False)
     crepe, _ = generate_site("Melange Creperie", "1 Main St, Houston, TX",
-                             "(713) 555-0102", "restaurant", 4.5, "houston", use_ai=False)
+                             "(713) 555-0102", "cafe", 4.5, "houston", use_ai=False)
     coffee, _ = generate_site("Revolucion Coffee", "2 Main St, Houston, TX",
                               "(713) 555-0103", "cafe", 4.7, "houston", use_ai=False)
     pizza, _ = generate_site("Via313", "3 Main St, Houston, TX",
@@ -131,15 +133,23 @@ def test_name_aware_menus_are_not_universal():
                              "(713) 555-0105", "cafe", 4.8, "houston", use_ai=False)
     assert 'data-cuisine="pho"' in pho and "Phở" in pho
     assert "House Specialty" not in pho and "Daily Soup" not in pho
+    assert 'data-family="supper"' in pho and 'data-family="supper"' in pizza
     assert 'data-cuisine="crepe"' in crepe and "crepe" in crepe.lower()
-    assert "espresso" not in crepe.lower() or "Coffee" in crepe
+    assert "espresso" not in crepe.lower()
     assert "neighborhood cup" not in crepe.lower()
+    assert "crêperie" in crepe.lower() or "creperie" in crepe.lower()
+    assert 'data-family="supper"' in crepe and 'class="board"' not in crepe
     assert 'data-cuisine="coffee"' in coffee and "Espresso" in coffee
+    assert 'data-family="cafe"' in coffee and 'class="board"' in coffee
     assert 'data-cuisine="pizza"' in pizza and "pie" in pizza.lower()
     assert "Family Platter" not in pizza and "Daily Soup" not in pizza
     assert 'data-cuisine="ice_cream"' in cream
     assert "Espresso" not in cream and "neighborhood cup" not in cream.lower()
-    assert "Sample image" in pho and "hero-visual" in pho
+    assert "quiet counter" not in cream.lower()
+    assert "ice cream parlor" in cream.lower()
+    assert 'data-family="bakery"' in cream and 'class="case"' in cream
+    assert 'data-family="cafe"' not in cream
+    assert "Sample image" in pho and "hero-visual" in pho and 'class="photo"' in pho
 
 
 def test_food_and_trade_ctas():
