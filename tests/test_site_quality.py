@@ -155,6 +155,19 @@ def test_name_aware_menus_are_not_universal():
     assert "Sample image" in pho and "hero-visual" in pho and 'class="photo"' in pho
 
 
+def test_generate_site_is_deterministic_per_name():
+    a, _ = generate_site("Simply Phở", "2929 Milam St", "(713) 555-0101",
+                         "restaurant", 4.6, "houston", use_ai=False)
+    b, _ = generate_site("Simply Phở", "2929 Milam St", "(713) 555-0101",
+                         "restaurant", 4.6, "houston", use_ai=False)
+    c, _ = generate_site("Via313", "3 Main St", "(713) 555-0104",
+                         "restaurant", 4.4, "houston", use_ai=False)
+    titles = lambda h: re.findall(r"<h3>(.*?)</h3>", h)
+    assert titles(a) == titles(b)
+    assert titles(a) != titles(c)
+    assert 'data-cuisine="pho"' in a and 'data-cuisine="pizza"' in c
+
+
 def test_food_and_trade_ctas():
     assert 'href="#visit">Reserve</a>' in HTML
     assert 'href="#menu">Order</a>' in HTML

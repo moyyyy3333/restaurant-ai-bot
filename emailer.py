@@ -117,6 +117,8 @@ def build_email(business_name: str, demo_url: str, owner_email: str,
     unsub = unsubscribe_url(owner_email)
     reply_to = reply_to.strip() or REPLY_TO
 
+    # Subject A (cafe tweak). Honest B kept for A/B later:
+    # f"A sample website for {business_name} (free, nothing published)"
     subject = _subject_for(word)
 
     text = f"""Hi — I build simple websites for local {words}{city_bit}.
@@ -125,8 +127,9 @@ I noticed {business_name} doesn't have a website yet — mostly a listing. I put
 
 {demo_url}
 
+Having a site is a pain — hosting, SSL, keeping hours current.
 ${PRICE_USD} one-time builds the site (we finish your menu, hours, and photos).
-Care ${CARE_MONTHLY_USD}/mo (or ${CARE_YEARLY_USD}/yr) keeps it live — hosting, SSL, monitoring, and small menu/hours tweaks.
+Care ${CARE_MONTHLY_USD}/mo takes that off your plate (or ${CARE_YEARLY_USD}/yr) — hosting, SSL, monitoring, and small menu/hours tweaks so it stays live.
 If it's not for you, ignore this — or use the opt-out link and I won't email again.
 
 {FROM_NAME}
@@ -151,9 +154,10 @@ BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1a1a1a;line-heig
     style="background:#1a1410;color:#e8b04b;padding:13px 28px;border-radius:6px;
     text-decoration:none;font-weight:600;display:inline-block">See your free sample</a></p>
 
+  <p style="margin:0 0 16px">Having a site is a pain — hosting, SSL, keeping hours current.</p>
   <p style="margin:0 0 16px"><b>${PRICE_USD}</b> one-time builds the site (we finish your menu, hours, and photos).</p>
-  <p style="margin:0 0 16px">Care <b>${CARE_MONTHLY_USD}/mo</b> (or <b>${CARE_YEARLY_USD}/yr</b>) keeps it live —
-  hosting, SSL, monitoring, and small menu/hours tweaks.</p>
+  <p style="margin:0 0 16px">Care <b>${CARE_MONTHLY_USD}/mo</b> takes that off your plate
+  (or <b>${CARE_YEARLY_USD}/yr</b>) — hosting, SSL, monitoring, and small menu/hours tweaks so it stays live.</p>
 
   <p style="margin:0 0 24px">If it's not for you, ignore this — or use the opt-out link and I won't email again.</p>
 
