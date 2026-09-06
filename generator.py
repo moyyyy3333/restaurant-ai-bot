@@ -389,7 +389,7 @@ def _price_span(price, real=False) -> str:
         return '<span class="price-n">Ask</span>'
     if n <= 0:
         return '<span class="price-n">Ask</span>'
-    if real and abs(n - round(n)) > 0.001:
+    if real:
         return f'<span class="price-n">${n:.2f}</span>'
     return f'<span class="price-n">${int(round(n))}</span>'
 
@@ -447,13 +447,14 @@ def _lookup_place(name: str, address: str) -> dict:
         return {}
 
 
-def _lookup_menu(name: str, address: str, website: str = "") -> dict | None:
+def _lookup_menu(name: str, address: str, website: str = "", bias: str = "") -> dict | None:
     """Real menu items from a public menu/order page. None if we cannot prove them."""
     if not name:
         return None
     try:
         from menu_enrich import enrich_menu
-        return enrich_menu(name, address or "", website=website or "") or None
+        return enrich_menu(name, address or "", website=website or "",
+                           bias=bias) or None
     except Exception:
         return None
 
@@ -801,7 +802,8 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
             "source_label": (menu_source or {}).get("label") or (menu_source or {}).get("source_label") or "From their menu",
         }
     elif fetch_menu:
-        sourced = _lookup_menu(name, address, extras.get("website") or "")
+        sourced = _lookup_menu(name, address, extras.get("website") or "",
+                                bias=cuisine)
     if sourced and sourced.get("items"):
         items = sourced["items"]
         menu_source = sourced

@@ -56,6 +56,19 @@ _ITEM_LINE_RE = re.compile(
     r"^\s*(.{3,60}?)\s+(?:US\s*)?\$\s*(\d{1,3}(?:\.\d{1,2})?)\s*$",
     re.I,
 )
+# Parlor / dessert signals — used to prefer scoops over cafe food.
+_ICE_RE = re.compile(
+    r"ice\s*cream|gelato|frozen\s*(?:yogurt|custard|dessert)|"
+    r"\bscoops?\b|\bsundaes?\b|\b(?:milk)?shakes?\b|\bmalts?\b|"
+    r"banana\s*split|waffle\s*cone|sugar\s*cone|soft\s*serve|"
+    r"\bsorbets?\b|\baffogato\b|\bdesserts?\b",
+    re.I,
+)
+_CAFE_FOOD_RE = re.compile(
+    r"\b(wraps?|salads?|bowls?|paninis?|tartines?|avocado|"
+    r"croissants?|smashed\s*potato|breakfast|yogurt with)\b",
+    re.I,
+)
 
 _UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36")
@@ -68,27 +81,46 @@ _MAX_BYTES = 400_000
 
 
 def enrich_menu(name: str, address: str = "", website: str = "",
-                extra_urls=(), timeout: float = 10.0) -> dict | None:
+                extra_urls=(), timeout: float = 10.0, bias: str = "") -> dict | None:
     """Return {items, source, source_url, source_label} or None.
 
     items are (title, desc, price_or_None). price is a number when the source
     printed one; we never fill a missing price.
+    bias: cuisine hint from the name/profile (e.g. ice_cream). When set, we
+    prefer matching sections and will not lead an ice cream parlor with wraps.
     """
-    key = (name or "").lower().strip(), (address or "").lower().strip(), (website or "").strip()
+    bias = (bias or _infer_bias(name)).strip().lower()
+    key = ((name or "").lower().strip(), (address or "").lower().strip(),
+           (website or "").strip(), bias)
     if key in _CACHE:
         cached = _CACHE[key]
         return dict(cached) if cached else None
 
     deadline = time.monotonic() + max(1.0, float(timeout))
     try:
-        result = _enrich_uncached(name, address, website, extra_urls, deadline)
+        result = _enrich_uncached(name, address, website, extra_urls, deadline, bias)
     except Exception:
         result = None
     _CACHE[key] = dict(result) if result else None
     return dict(result) if result else None
 
 
-def _enrich_uncached(name, address, website, extra_urls, deadline) -> dict | None:
+def _infer_bias(name: str) -> str:
+    """Cuisine bias from the business name. Empty if we cannot tell."""
+    try:
+        from profiles import infer_cuisine
+        cuisine = infer_cuisine(name or "")
+        if cuisine == "ice_cream":
+            return "ice_cream"
+    except Exception:
+        pass
+    if re.search(r"cream\s*parlor|ice\s*cream|gelato|frozen\s*custard|\bscoops?\b",
+                 name or "", re.I):
+        return "ice_cream"
+    return ""
+
+
+def _enrich_uncached(name, address, website, extra_urls, deadline, bias="") -> dict | None:
     seeds = []
     for raw in (website, *(extra_urls or ())):
         url = _norm_url(raw)
@@ -122,13 +154,13 @@ def _enrich_uncached(name, address, website, extra_urls, deadline) -> dict | Non
                 if _norm_url(href):
                     trusted.add(_norm_url(href))
     if name and time.monotonic() < deadline:
-        for url in _search_menu_urls(name, address, deadline):
+        for url in _search_menu_urls(name, address, deadline, bias=bias):
             candidates.append(url)
         for url in _partner_menu_urls(name):
             candidates.append(url)
 
     # Prefer first-party / order hosts, then /menu paths, then the seed page.
-    ranked = _rank_urls(candidates)
+    ranked = _rank_urls(candidates, bias=bias)
     for url in ranked:
         if time.monotonic() >= deadline:
             break
@@ -139,7 +171,7 @@ def _enrich_uncached(name, address, website, extra_urls, deadline) -> dict | Non
         if _norm_url(url) not in trusted and _norm_url(page["url"]) not in trusted:
             if not _page_names_business(name, page["html"]):
                 continue
-        items = parse_menu_html(page["html"], page["url"])
+        items = parse_menu_html(page["html"], page["url"], bias=bias)
         if items:
             return _result(items, page["url"])
 
@@ -158,24 +190,23 @@ def _enrich_uncached(name, address, website, extra_urls, deadline) -> dict | Non
     return None
 
 
-def parse_menu_html(html: str, url: str = "") -> list | None:
+def parse_menu_html(html: str, url: str = "", bias: str = "") -> list | None:
     """Parse items from a fetched menu/order page. None if not confident."""
     if not html or _is_auth_wall({"url": url, "html": html}):
         return None
     items = []
     items.extend(_json_ld_items(html))
-    if len(items) < _MIN_ITEMS:
-        items.extend(_known_markup_items(html))
+    items.extend(_known_markup_items(html))
     if len(items) < _MIN_ITEMS:
         items.extend(_next_data_items(html))
     if len(items) < _MIN_ITEMS:
         items.extend(_text_line_items(_visible_text(html)))
-    return _clean_items(items)
+    return _clean_items(items, bias=bias)
 
 
-def parse_menu_text(text: str) -> list | None:
+def parse_menu_text(text: str, bias: str = "") -> list | None:
     """Parse OCR / plain-text menu lines. None if not confident."""
-    return _clean_items(_text_line_items(text or ""))
+    return _clean_items(_text_line_items(text or ""), bias=bias)
 
 
 def _partner_menu_urls(name: str) -> list:
@@ -212,7 +243,7 @@ def _page_names_business(name: str, html: str) -> bool:
     return bool(want) and len(want & have) / len(want) >= 0.6
 
 
-def _search_menu_urls(name: str, address: str, deadline: float) -> list:
+def _search_menu_urls(name: str, address: str, deadline: float, bias: str = "") -> list:
     """Public web search for order-host / menu URLs. Empty if blocked."""
     remaining = deadline - time.monotonic()
     if remaining < 1.2 or not name:
@@ -225,6 +256,8 @@ def _search_menu_urls(name: str, address: str, deadline: float) -> list:
             city = ""
     # Keep queries boring — boolean operators trip DDG's bot wall.
     queries = [f"{name} {city} menu".strip()]
+    if bias == "ice_cream":
+        queries.insert(0, f"{name} {city} ice cream menu".strip())
     # SinglePlatform is the usual Google "See menu" host and parses as HTML.
     if deadline - time.monotonic() > 2.5:
         queries.append(f"{name} singleplatform")
@@ -301,7 +334,7 @@ def _source_kind(url: str) -> str:
     return "menu_page"
 
 
-def _rank_urls(urls) -> list:
+def _rank_urls(urls, bias: str = "") -> list:
     scored = []
     seen = set()
     for i, raw in enumerate(urls):
@@ -326,6 +359,8 @@ def _rank_urls(urls) -> list:
             score = 30
         if any(h in path for h in _MENU_PATH_HINTS):
             score += 15
+        if bias == "ice_cream" and _ICE_RE.search(url):
+            score += 40
         scored.append((-score, i, url))
     return [u for _, _, u in sorted(scored)]
 
@@ -471,11 +506,11 @@ def _json_ld_items(html: str) -> list:
     return out
 
 
-def _walk_ld(node) -> list:
+def _walk_ld(node, section: str = "") -> list:
     out = []
     if isinstance(node, list):
         for child in node:
-            out.extend(_walk_ld(child))
+            out.extend(_walk_ld(child, section))
         return out
     if not isinstance(node, dict):
         return out
@@ -483,16 +518,36 @@ def _walk_ld(node) -> list:
     if isinstance(types, list):
         types = " ".join(str(t) for t in types)
     types = str(types)
-    if "MenuItem" in types:
+    name = _plain(node.get("name") or "")
+    if any(t in types for t in ("MenuSection", "OfferCatalog")) and name:
+        if name.lower() not in {"menu", "main menu", "offer catalog"}:
+            section = name
+    handled_offered = False
+    offered = node.get("itemOffered")
+    if offered and ("Offer" in types or node.get("price") not in (None, "")):
+        children = offered if isinstance(offered, list) else [offered]
+        for child in children:
+            if not isinstance(child, dict):
+                continue
+            merged = dict(child)
+            if merged.get("offers") in (None, "", {}) and node.get("price") not in (None, ""):
+                merged["offers"] = {"price": node.get("price")}
+            item = _ld_item(merged)
+            if item:
+                out.append((item[0], item[1], item[2], section))
+                handled_offered = True
+    if "MenuItem" in types and not handled_offered:
         item = _ld_item(node)
         if item:
-            out.append(item)
+            out.append((item[0], item[1], item[2], section))
     for key in ("hasMenuItem", "hasMenuSection", "hasMenu", "itemListElement",
-                "menu", "menuAddOn", "acceptedOffer", "offers"):
+                "menu", "menuAddOn", "acceptedOffer", "offers", "hasOfferCatalog"):
         if key in node:
-            out.extend(_walk_ld(node[key]))
+            out.extend(_walk_ld(node[key], section))
     if "@graph" in node:
-        out.extend(_walk_ld(node["@graph"]))
+        out.extend(_walk_ld(node["@graph"], section))
+    if offered and not handled_offered:
+        out.extend(_walk_ld(offered, section))
     return out
 
 
@@ -507,6 +562,18 @@ def _ld_item(node: dict):
 
 def _known_markup_items(html: str) -> list:
     """Known, boring class pairs used by SinglePlatform, gotoeat, etc."""
+    parts = re.split(r"<h3[^>]*>(.*?)</h3>", html, flags=re.I | re.S)
+    if len(parts) == 1:
+        return _markup_items_in(parts[0], "")
+    out = _markup_items_in(parts[0], "")
+    for i in range(1, len(parts), 2):
+        section = _plain(parts[i])
+        body = parts[i + 1] if i + 1 < len(parts) else ""
+        out.extend(_markup_items_in(body, section))
+    return out
+
+
+def _markup_items_in(html: str, section: str) -> list:
     pairs = (
         (r'<h4 class="item-title">(.*?)</h4>(?:.*?<span class="price">(.*?)</span>)?', re.S | re.I),
         (r'<div class="menu-item-desc">(.*?)</div>.*?class="menu-item-price">(.*?)</div>', re.S | re.I),
@@ -525,7 +592,7 @@ def _known_markup_items(html: str) -> list:
                 pm = re.search(r"<p>(.*?)</p>", tail, re.S | re.I)
                 if pm:
                     desc = _plain(pm.group(1))
-                out.append((title, desc, price))
+                out.append((title, desc, price, section))
     return out
 
 
@@ -642,7 +709,29 @@ def _ocr_bytes(data: bytes, ctype: str) -> str:
 
 
 # ------------------------------------------------------------------ cleanup
-def _clean_items(rows) -> list | None:
+def _item_blob(row) -> str:
+    section = row[3] if len(row) > 3 else ""
+    return " ".join(str(x or "") for x in (row[0], row[1] if len(row) > 1 else "", section))
+
+
+def _is_dessert_item(row) -> bool:
+    return bool(_ICE_RE.search(_item_blob(row)))
+
+
+def _item_rank(row, bias: str) -> int:
+    price = row[2] if len(row) > 2 else None
+    score = 0
+    if price is not None:
+        score += 10
+    if bias == "ice_cream":
+        if _is_dessert_item(row):
+            score += 100
+        elif _CAFE_FOOD_RE.search(_item_blob(row)):
+            score -= 40
+    return score
+
+
+def _clean_items(rows, bias: str = "") -> list | None:
     seen = set()
     out = []
     for row in rows or []:
@@ -651,6 +740,7 @@ def _clean_items(rows) -> list | None:
         title = _plain(row[0])
         desc = _plain(row[1] if len(row) > 1 else "")
         price = _price_from(row[2] if len(row) > 2 else None)
+        section = _plain(row[3] if len(row) > 3 else "")
         if not title or _skip_title(title):
             continue
         if len(title) < 3 or len(title) > 60:
@@ -659,9 +749,19 @@ def _clean_items(rows) -> list | None:
         if key in seen:
             continue
         seen.add(key)
-        out.append((title, desc, price))
-        if len(out) >= 20:
+        out.append((title, desc, price, section))
+        if len(out) >= 40:
             break
+    ranked = sorted(enumerate(out), key=lambda iv: (-_item_rank(iv[1], bias), iv[0]))
+    out = [row for _, row in ranked]
+    if bias == "ice_cream":
+        dessert = [row for row in out if _is_dessert_item(row)]
+        # Parlor hero + cafe-only list is buyer whiplash. Fail this page
+        # unless the source actually printed scoops / sundaes / shakes.
+        if len(dessert) < _MIN_ITEMS:
+            return None
+        out = dessert
+    out = [(title, desc, price) for title, desc, price, _section in out]
     if len(out) < _MIN_ITEMS:
         return None
     return out
