@@ -5,8 +5,11 @@ Demo server.
   /stats                health + counts (former GET / JSON)
   /health               process health (always 200 if the function is up)
   /demo/<token>         serve a generated sample site (expires)
+  /ops                  token-gated operator board (Prospect Board layout)
+  /claim/start          Stripe Checkout (or stub) for $99 build + optional Care
   /unsubscribe?e=...    one-click opt-out (GET renders, POST confirms)
   /webhook/resend       inbound reply/bounce events -> lead status
+  /webhook/stripe       Checkout completed -> claimed (needs STRIPE_WEBHOOK_SECRET)
   /pipeline/run         token-guarded: full daily scan -> site -> email -> send
 
 Stdlib only — no Flask needed, so `python server.py` just works.
@@ -21,9 +24,13 @@ from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+import claim
 import db
-from config import DAILY_SEND_LIMIT, DEMO_BASE_URL, DEMO_EXPIRE_HOURS, PORT
+import ops
+from config import DAILY_SEND_LIMIT, DEFAULT_CITIES, DEMO_BASE_URL, DEMO_EXPIRE_HOURS, PORT
 from landing import preview_contact_email, render_home
+
+LEAD_STATUSES = ops.LEAD_STATUSES
 
 PIPELINE_TOKEN = os.getenv("PIPELINE_TOKEN", "")
 
@@ -150,16 +157,27 @@ class Handler(BaseHTTPRequestHandler):
         if parts[0] == "board":
             if not self._board_ok(u):
                 return self.send(403, page("Locked", "<h1>Locked</h1><p>Open the board from the bot with /help.</p>"))
-            try:
-                with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "board.html"), "rb") as f:
-                    return self.send(200, f.read(), robots=False)
-            except OSError:
-                return self.send(500, page("Board", "<h1>board.html missing</h1>"))
+            return self._send_repo_html("board.html", "Board", robots=False)
+
+        if parts[0] == "ops":
+            if not self._board_ok(u):
+                return self.send(403, page("Locked",
+                    "<h1>Locked</h1><p>Open <code>/ops?k=YOUR_PIPELINE_TOKEN</code> "
+                    "(same secret as the Prospect Board).</p>"))
+            return self._send_repo_html("ops.html", "Ops")
 
         if parts[0] == "api" and len(parts) > 1 and parts[1] == "board":
             if not self._board_ok(u):
                 return self.json_out(403, {"error": "locked"})
             return self.json_out(200, board_payload())
+
+        if parts[0] == "api" and len(parts) > 1 and parts[1] == "ops":
+            if not self._board_ok(u):
+                return self.json_out(403, {"error": "locked"})
+            return self.json_out(200, ops.ops_payload())
+
+        if parts[0] == "claim":
+            return self.claim_get(parts, u)
 
         if parts[0] == "stats":
             payload = {"ok": True, "service": "local-business-ai-bot", **db.db_status()}
@@ -263,10 +281,15 @@ class Handler(BaseHTTPRequestHandler):
                 return self.json_out(400, {"error": "bad json"})
             lead_id = int(body.get("id") or 0)
             fields = {}
-            if body.get("status") in ("new", "site_generated", "proposed", "replied", "sold", "dead"):
+            if body.get("status") in LEAD_STATUSES:
                 fields["status"] = body["status"]
-                if body["status"] == "replied": fields["replied"] = 1
-                if body["status"] == "sold": fields["sold"] = 1
+                if body["status"] == "replied":
+                    fields["replied"] = 1
+                if body["status"] == "sold":
+                    fields["sold"] = 1
+                if body["status"] == "claimed":
+                    fields["claimed"] = 1
+                    fields["claimed_at"] = db.now()
             if isinstance(body.get("notes"), str) and body["notes"].strip():
                 old_lead = db.get_lead(lead_id)
                 prev = (old_lead["notes"] or "") if old_lead else ""
@@ -275,6 +298,34 @@ class Handler(BaseHTTPRequestHandler):
                 return self.json_out(400, {"error": "nothing to update"})
             db.update_lead(lead_id, **fields)
             return self.json_out(200, {"ok": True})
+
+        if u.path == "/api/ops/meta":
+            if not self._board_ok(u):
+                return self.json_out(403, {"error": "locked"})
+            try:
+                body = json.loads(raw or b"{}")
+            except json.JSONDecodeError:
+                return self.json_out(400, {"error": "bad json"})
+            if "notes" in body and isinstance(body.get("notes"), str):
+                db.set_meta("overall_notes", body["notes"])
+            if body.get("wave"):
+                wave = str(body["wave"]).strip().lower()
+                if wave not in DEFAULT_CITIES:
+                    return self.json_out(400, {"error": "unknown_wave"})
+                db.set_meta("active_wave", wave)
+            return self.json_out(200, {"ok": True})
+
+        if u.path == "/api/claim/checkout":
+            if not self._board_ok(u):
+                return self.json_out(403, {"error": "locked"})
+            try:
+                body = json.loads(raw or b"{}")
+            except json.JSONDecodeError:
+                return self.json_out(400, {"error": "bad json"})
+            return self.start_claim(body)
+
+        if u.path == "/webhook/stripe":
+            return self.stripe_webhook(raw)
 
         if u.path == "/api/pipeline":
             if not self._board_ok(u):
@@ -308,9 +359,101 @@ class Handler(BaseHTTPRequestHandler):
                           "WHERE lower(email) = ?", (to.lower(),))
         return self.json_out(200, {"ok": True})
 
+    def _repo_path(self, name: str) -> str:
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), name)
+
+    def _send_repo_html(self, name: str, label: str, robots=True):
+        try:
+            with open(self._repo_path(name), "rb") as f:
+                return self.send(200, f.read(), robots=robots)
+        except OSError:
+            return self.send(500, page(label, f"<h1>{name} missing</h1>"))
+
     def _board_ok(self, u) -> bool:
+        if not BOARD_KEY:
+            return False
         key = (parse_qs(u.query).get("k") or [""])[0]
-        return bool(BOARD_KEY) and key == BOARD_KEY
+        if key == BOARD_KEY:
+            return True
+        hdr = (self.headers.get("X-Pipeline-Token") or "").strip()
+        return hdr == BOARD_KEY or (bool(PIPELINE_TOKEN) and hdr == PIPELINE_TOKEN)
+
+    def claim_get(self, parts, u):
+        q = parse_qs(u.query)
+        action = parts[1] if len(parts) > 1 else ""
+        if action == "start":
+            token = (q.get("t") or [""])[0]
+            care = claim.normalize_care((q.get("care") or ["none"])[0])
+            lead = db.get_lead_by_token(token) if token else None
+            if not lead:
+                return self.send(404, page("Claim", "<h1>Lead not found</h1><p>Need a valid demo token.</p>"))
+            result = claim.create_checkout(dict(lead), care)
+            if result.get("session_id"):
+                db.record_claim_pending(
+                    lead["id"], care, result["session_id"], result.get("amount_cents") or 0)
+            url = result.get("url") or claim.stub_checkout_url(token, care)
+            self.send_response(302)
+            self.send_header("Location", url)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        if action == "stub":
+            token = (q.get("t") or [""])[0]
+            care = claim.normalize_care((q.get("care") or ["none"])[0])
+            lead = db.get_lead_by_token(token) if token else None
+            return self.send(200, claim.render_stub(dict(lead) if lead else None, care), robots=False)
+        if action == "success":
+            return self.send(200, claim.render_success((q.get("session_id") or [""])[0]), robots=False)
+        if action == "cancel":
+            return self.send(200, claim.render_cancel((q.get("t") or [""])[0]), robots=False)
+        return self.send(404, page("Not found", "<h1>Not found</h1>"))
+
+    def start_claim(self, body: dict):
+        lead_id = int(body.get("lead_id") or body.get("id") or 0)
+        care = claim.normalize_care(body.get("care"))
+        lead = db.get_lead(lead_id) if lead_id else None
+        if not lead and body.get("t"):
+            lead = db.get_lead_by_token(str(body.get("t")))
+        if not lead:
+            return self.json_out(404, {"error": "lead_not_found", "pricing": claim.pricing()})
+        result = claim.create_checkout(dict(lead), care)
+        if result.get("session_id"):
+            db.record_claim_pending(
+                lead["id"], care, result["session_id"], result.get("amount_cents") or 0)
+        return self.json_out(200 if result.get("ok") else 502, result)
+
+    def stripe_webhook(self, raw: bytes):
+        sig = self.headers.get("Stripe-Signature") or ""
+        if not claim.STRIPE_WEBHOOK_SECRET:
+            return self.json_out(200, {
+                "ok": True, "stub": True,
+                "message": "STRIPE_WEBHOOK_SECRET unset — webhook accepted but not applied.",
+            })
+        if not claim.verify_webhook(raw, sig):
+            return self.json_out(400, {"error": "bad_signature"})
+        try:
+            ev = json.loads(raw or b"{}")
+        except json.JSONDecodeError:
+            return self.json_out(400, {"error": "bad json"})
+        etype = ev.get("type") or ""
+        session = (ev.get("data") or {}).get("object") or {}
+        if etype == "checkout.session.completed":
+            meta = session.get("metadata") or {}
+            lead_id = int(meta.get("lead_id") or 0)
+            if not lead_id and session.get("client_reference_id"):
+                try:
+                    lead_id = int(session["client_reference_id"])
+                except (TypeError, ValueError):
+                    lead_id = 0
+            care = claim.normalize_care(meta.get("care_plan"))
+            amount = int(session.get("amount_total") or claim.amount_cents(care))
+            if lead_id:
+                db.mark_claimed(
+                    lead_id, care_plan=care,
+                    session_id=session.get("id") or "",
+                    amount_cents=amount, status="paid")
+            return self.json_out(200, {"ok": True, "applied": bool(lead_id)})
+        return self.json_out(200, {"ok": True, "ignored": etype})
 
     def run_pipeline(self):
         """The full daily loop: scan -> build demo sites -> find emails -> send
@@ -394,7 +537,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     db.init_db()
     print(f"demo server on http://localhost:{PORT}")
-    print(f"  /  /stats  /health  /demo/<token>  /unsubscribe  /webhook/resend  /pipeline/run")
+    print(f"  /  /stats  /health  /demo/<token>  /ops  /claim/start  /unsubscribe  /webhook/resend  /pipeline/run")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
 
 
