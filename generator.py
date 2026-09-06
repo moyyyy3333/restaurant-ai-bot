@@ -16,7 +16,8 @@ import re
 import secrets
 from datetime import datetime
 
-from config import BUSINESS_CATEGORIES, PRICE_USD, theme_for
+from config import (BUSINESS_CATEGORIES, CARE_MONTHLY_USD, CARE_YEARLY_USD,
+                    PRICE_USD, theme_for)
 from profiles import FOOD_CATEGORIES, TRADE_CATEGORIES, infer_cuisine, looks_generic, profile_for
 from writer import write_copy
 
@@ -805,11 +806,12 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
   <p class="kicker">Make it real</p>
   <hr class="hairline">
   <h2>Want this live on your domain?</h2>
-  <p><strong>${PRICE_USD}</strong> one-time — we finish your {sec0.lower()}, hours, and photos.
-     No subscription.</p>
-  <p class="price">Reply to the email that brought you here to claim it.</p>
+  <p><strong>${PRICE_USD}</strong> one-time — we finish your {sec0.lower()}, hours, and photos.</p>
+  <p><strong>Care ${CARE_MONTHLY_USD}/mo</strong> (or <strong>${CARE_YEARLY_USD}/yr</strong>) —
+     hosting, SSL, monitoring, and small menu/hours tweaks so it stays live.</p>
+  <p class="price">${PRICE_USD} builds it. Care keeps it live. Reply to claim.</p>
   <p>This sample was built for {name_s} at no cost, and nothing is published.
-     Every email has a one-click opt-out.</p>
+     Reply to the email that brought you here. Every email has a one-click opt-out.</p>
 </div></section>
 </main>
 
