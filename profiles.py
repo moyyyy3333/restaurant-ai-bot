@@ -71,6 +71,7 @@ PROFILES = {
         "label": "ice cream parlor",
         "atmosphere": "A cold case, a long counter, a little ceremony.",
         "theme_cat": "bakery", "family": "bakery",
+        "reserve": False,
         "offer_kicker": "In the case",
         "items": [
             ("House scoop", "Rotating flavors", 6),
@@ -127,6 +128,7 @@ PROFILES = {
         "label": "bánh mì shop",
         "atmosphere": "A sandwich counter — bánh mì, a bowl if the pot is on.",
         "theme_cat": "restaurant", "family": "supper",
+        "reserve": False,
         "offer_kicker": "From the counter",
         "items": [
             ("Bánh mì", "Ask what's on today", 8),
@@ -169,6 +171,7 @@ PROFILES = {
         "label": "sandwich shop",
         "atmosphere": "Built to order — bread, a filling, out the door.",
         "theme_cat": "restaurant", "family": "supper",
+        "reserve": False,
         "offer_kicker": "On the board",
         "items": [
             ("House sandwich", "Ask what's on", 10),
