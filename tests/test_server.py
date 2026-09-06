@@ -164,6 +164,55 @@ class HandlerTests(unittest.TestCase):
             self.assertEqual(status, 200)
             self.assertIn(b"Taqueria Test", body)
             self.assertIn(b"<!DOCTYPE html>", body)
+            self.assertIn(b"hero-visual", body)
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+
+    def _seed_demo(self, name="Taqueria Test", category="restaurant",
+                   token="testtoken1", html="<html>OLD GENERIC</html>", expires=None):
+        db.ensure_schema()
+        bid = db.upsert_business(
+            google_place_id=f"test-place-{token}", name=name,
+            address="123 Main St", city="houston", category=category,
+            phone="7135550100", rating=4.5)
+        lid = db.create_lead(
+            bid, name=name, address="123 Main St", city="houston",
+            category=category, phone="7135550100", rating=4.5)
+        db.update_lead(lid, demo_token=token, status="site_generated",
+                       demo_expires_at=expires)
+        with db.conn() as c:
+            c.execute(
+                """INSERT INTO demo_sites
+                   (lead_id, business_id, token, html_path, html, created_at)
+                   VALUES (?,?,?,?,?,?)""",
+                (lid, bid, token, "/no/such/path.html", html, db.now()))
+        return lid
+
+    def test_demo_rebuilds_stale_stored_html(self):
+        self._seed_demo(name="Simply Phở", token="pho-token",
+                        html="<html>House Specialty OLD</html>")
+        httpd = self._serve()
+        try:
+            status, body, _ = self._get(httpd, "/demo/pho-token")
+            self.assertEqual(status, 200)
+            self.assertIn(b"Simply", body)
+            self.assertIn(b"hero-visual", body)
+            self.assertNotIn(b"House Specialty OLD", body)
+            self.assertIn(b"Ph", body)
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+
+    def test_expired_demo_regenerates_instead_of_410(self):
+        self._seed_demo(token="expired-token", expires="2000-01-01T00:00:00")
+        httpd = self._serve()
+        try:
+            status, body, _ = self._get(httpd, "/demo/expired-token")
+            self.assertEqual(status, 200)
+            self.assertNotEqual(status, 410)
+            self.assertIn(b"Taqueria Test", body)
+            self.assertIn(b"<!DOCTYPE html>", body)
         finally:
             httpd.shutdown()
             httpd.server_close()
