@@ -52,7 +52,7 @@ class HandlerTests(unittest.TestCase):
             self.assertNotIn("noindex", headers.get("x-robots-tag", ""))
             self.assertIn(b"<!DOCTYPE html>", body)
             self.assertIn(landing.HEADLINE.encode(), body)
-            self.assertNotIn(b"We’ll build you one", body)
+            self.assertNotIn("We’ll build you one".encode(), body)
             self.assertIn(b"Get free preview", body)
             self.assertIn(b'href="#preview"', body)
             self.assertIn(landing.SUB.encode(), body)
@@ -76,7 +76,7 @@ class HandlerTests(unittest.TestCase):
         httpd = self._serve()
         try:
             _, body, _ = self._get(httpd, "/")
-            self.assertIn(b"<h1>No website? We’ll build one.</h1>", body)
+            self.assertIn("<h1>No website? We’ll build one.</h1>".encode(), body)
             self.assertIn(b"Facebook, Instagram, or a Google listing", body)
             self.assertIn(b"$99 builds it. Care keeps it live.", body)
             self.assertIn(b"<strong>$99</strong> builds the site.", body)
