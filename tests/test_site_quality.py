@@ -58,6 +58,9 @@ def test_no_blocking_webfonts_or_frameworks():
 def test_honest_about_being_a_sample():
     low = HTML.lower()
     assert "sample" in low and "not affiliated" in low
+    assert 'data-menu-source="sample"' in HTML
+    assert "Sample prices" in HTML
+    assert "we do not invent dishes" in low
 
 def test_no_invented_prices():
     # Prices must never be fabricated for a business we do not know.
@@ -70,6 +73,7 @@ def test_generate_site_signature_unchanged():
         "name", "address", "phone", "category", "rating", "city",
         "lead_id", "business_id", "watermark", "use_ai",
         "hours", "place_types", "fetch_place",
+        "menu_items", "menu_source", "fetch_menu",
     ]
 
 
