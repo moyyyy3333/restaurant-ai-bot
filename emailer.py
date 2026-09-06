@@ -68,16 +68,15 @@ def unsubscribe_url(email: str) -> str:
 
 
 def _biz_word(category: str) -> str:
-    """Singular label for copy. Cafe → cafe; else restaurant for food leads."""
+    """Singular label for copy. Keep restaurant/cafe; default to business."""
     c = (category or "").strip().lower()
     if c == "cafe":
         return "cafe"
     if c in ("restaurant", "restaurants"):
         return "restaurant"
-    # Growth pack is restaurant-first; keep generic fallback for other categories.
     if c in ("business", "", "shop"):
-        return "restaurant"
-    return c.rstrip("s") or "restaurant"
+        return "business"
+    return c.rstrip("s") or "business"
 
 
 def build_sms(business_name: str, demo_url: str) -> str:
@@ -104,8 +103,10 @@ def build_email(business_name: str, demo_url: str, owner_email: str,
     # f"A sample website for {business_name} (free, nothing published)"
     if word == "cafe":
         subject = "Your cafe deserves a real website"
-    else:
+    elif word == "restaurant":
         subject = "Your restaurant deserves a real website"
+    else:
+        subject = "Your business deserves a real website"
 
     text = f"""Hi — I build simple websites for local {words}{city_bit}.
 

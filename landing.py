@@ -1,35 +1,39 @@
 """Marketing homepage for restaurant-ai-bot.
 
-Copy is Foundry Growth + Chief of Staff: short hero is the default
-(especially on mobile). Longer Growth lines show only when the layout
-has room. How-it-works beats stay verbatim.
+Foundry Growth locked copy (local businesses, not food-only).
 """
 
 import html
 from urllib.parse import quote
 
-from config import FROM_EMAIL, REPLY_TO
+from config import FROM_EMAIL, PRICE_USD, REPLY_TO
 
 # Resend's sandbox default is not a real inbox — never use it as a CTA.
 _PLACEHOLDER_FROM = "onboarding@resend.dev"
 
-HEADLINE_SHORT = "No website? We’ll build one."
-HEADLINE_LONG = "No website? We’ll build you one."
+HEADLINE = "No website? We’ll build one."
 SUB = (
-    "For restaurants and local businesses still stuck on Facebook or a Google "
-    "listing. We make a clean site you can send to customers tonight."
+    "For local businesses stuck on Facebook, Instagram, or a Google listing. "
+    "A clean site customers can use tonight."
 )
 CTA_SHORT = "Get free preview"
-CTA_LONG = "Get my free site preview"
 CTA_SECONDARY = "How it works"
-ONE_LINER = "We build websites for restaurants that don’t have one yet."
+ONE_LINER = f"${PRICE_USD} builds it. Care keeps it live."
+PRICE_STRIP = (
+    f"${PRICE_USD} builds the site. Care ($29/mo or $249/yr) keeps it online — "
+    "hosting, SSL, monitoring, small menu/hours tweaks. No surprise subscription "
+    "on the build."
+)
 EMPTY_SITES = (
-    "No sites yet. Point us at a restaurant without a website and we’ll draft one."
+    "No sites yet. Point us at a local business without a website and we’ll draft one."
 )
 HOW_IT_WORKS = (
-    ("We find you", "restaurants and shops without a real site"),
-    ("We build a preview", "name, menu/hours, photos, call/directions"),
+    ("We find you", "local shops without a real site"),
+    ("We build a preview", "name, hours, services/menu, photos, call/directions"),
     ("You approve", "go live or tweak; pay when you’re happy"),
+)
+PREVIEW_LEDE = (
+    "Point us at a local business without a website and we’ll draft one."
 )
 
 
@@ -48,7 +52,7 @@ def _cta_href(contact_email: str) -> str:
     if not contact_email:
         return "#preview"
     subject = quote("Free site preview")
-    body = quote("Restaurant name:\nCity:\nHow to reach you:\n")
+    body = quote("Business:\nCity:\nHow to reach you:\n")
     return f"mailto:{contact_email}?subject={subject}&body={body}"
 
 
@@ -100,9 +104,9 @@ def render_home(contact_email: str = "", sites=None) -> bytes:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{html.escape(HEADLINE_SHORT)}</title>
+<title>{html.escape(HEADLINE)}</title>
 <meta name="description" content="{html.escape(SUB)}">
-<meta property="og:title" content="{html.escape(HEADLINE_SHORT)}">
+<meta property="og:title" content="{html.escape(HEADLINE)}">
 <meta property="og:description" content="{html.escape(ONE_LINER)}">
 <style>
 :root {{
@@ -165,7 +169,6 @@ h1 {{
   line-height: 1.05; font-weight: 500; letter-spacing: -.03em;
   margin: 0 0 18px; max-width: 14ch;
 }}
-.extra {{ display: none; }}
 .sub {{
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   font-size: 1.05rem; color: var(--muted); max-width: 38rem;
@@ -194,6 +197,16 @@ h1 {{
   background: var(--paper-2); border: 1px solid var(--line);
   padding: 14px 16px; border-radius: 12px; margin: 22px 0 0; max-width: 40rem;
 }}
+.price-line {{
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 0.95rem; color: var(--muted); margin: 16px 0 0;
+}}
+.pricing {{
+  margin: 22px 0 0; padding: 18px 20px; background: var(--paper-2);
+  border: 1px solid var(--line); border-radius: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}}
+.pricing p {{ margin: 0; }}
 .how {{
   padding: 28px 0 56px;
 }}
@@ -252,7 +265,6 @@ footer {{
   .tag {{ display: block; }}
   .hero {{ padding: 72px 0 40px; }}
   h1 {{ max-width: 16ch; }}
-  .extra {{ display: inline; }}
   .beats {{ grid-template-columns: repeat(3, 1fr); gap: 18px; }}
   .card {{ padding: 36px 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }}
 }}
@@ -266,28 +278,32 @@ footer {{
 </header>
 <main>
   <section class="hero wrap">
-    <p class="kicker">Restaurants &amp; local shops</p>
-    <h1>No website? We’ll build <span class="extra">you </span>one.</h1>
+    <p class="kicker">Local businesses</p>
+    <h1>{html.escape(HEADLINE)}</h1>
     <p class="sub">{html.escape(SUB)}</p>
     <div class="ctas">
       <a class="btn primary" href="{href}" aria-label="{cta_aria}">{cta_label}</a>
       <a class="btn ghost" href="#how-it-works">{html.escape(CTA_SECONDARY)}</a>
     </div>
+    <p class="price-line">{html.escape(ONE_LINER)}</p>
     {empty_block}
   </section>
   <section class="how wrap" id="how-it-works">
     <h2>How it works</h2>
     <ol class="beats">{beats_html}</ol>
+    <aside class="pricing" aria-label="Pricing">
+      <p><strong>${PRICE_USD}</strong> builds the site. <strong>Care</strong> ($29/mo or $249/yr) keeps it online — hosting, SSL, monitoring, small menu/hours tweaks. No surprise subscription on the build.</p>
+    </aside>
   </section>
   <section class="preview wrap" id="preview">
     <div class="card">
       <div>
         <h2>Request a preview</h2>
-        <p class="lede">Point us at a restaurant without a website and we’ll draft one.</p>
+        <p class="lede">{html.escape(PREVIEW_LEDE)}</p>
       </div>
       <form action="{form_action}" method="{form_method}"{form_enctype}>
         <div class="field">
-          <label for="biz">Restaurant or shop</label>
+          <label for="biz">Business</label>
           <input id="biz" name="business" type="text" autocomplete="organization" required>
         </div>
         <div class="field">

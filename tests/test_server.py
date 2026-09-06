@@ -16,6 +16,7 @@ os.environ["TURSO_DATABASE_URL"] = str(_TMP)
 os.environ["TURSO_AUTH_TOKEN"] = "test-token"
 
 import db  # noqa: E402
+import emailer  # noqa: E402
 import landing  # noqa: E402
 import server  # noqa: E402
 from http.server import ThreadingHTTPServer  # noqa: E402
@@ -50,31 +51,37 @@ class HandlerTests(unittest.TestCase):
             self.assertIn("text/html", headers.get("content-type", ""))
             self.assertNotIn("noindex", headers.get("x-robots-tag", ""))
             self.assertIn(b"<!DOCTYPE html>", body)
-            self.assertIn("No website? We’ll build".encode(), body)
-            self.assertIn(b'class="extra">you </span>one.', body)
-            self.assertIn(b"Get ", body)
-            self.assertIn(b"free ", body)
-            self.assertIn(b"preview", body)
+            self.assertIn(landing.HEADLINE.encode(), body)
+            self.assertNotIn(b"We’ll build you one", body)
+            self.assertIn(b"Get free preview", body)
+            self.assertIn(b'href="#preview"', body)
             self.assertIn(landing.SUB.encode(), body)
             self.assertIn(landing.ONE_LINER.encode(), body)
+            self.assertIn(b"local shops without a real site", body)
+            self.assertIn(b"name, hours, services/menu, photos, call/directions", body)
             self.assertIn(b"We find you", body)
             self.assertIn(b"We build a preview", body)
             self.assertIn(b"You approve", body)
             self.assertIn(b'id="how-it-works"', body)
+            self.assertIn(landing.PREVIEW_LEDE.encode(), body)
+            self.assertIn(b'<label for="biz">Business</label>', body)
+            self.assertIn(b'<label for="city">City</label>', body)
+            self.assertIn(b'<label for="reach">How to reach you</label>', body)
             self.assertIn(landing.EMPTY_SITES.encode(), body)
         finally:
             httpd.shutdown()
             httpd.server_close()
 
-    def test_homepage_uses_long_copy_when_layout_has_room(self):
+    def test_homepage_uses_locked_local_business_copy(self):
         httpd = self._serve()
         try:
             _, body, _ = self._get(httpd, "/")
-            self.assertIn(b'class="extra">you </span>', body)
-            self.assertIn(b'class="extra">my </span>', body)
-            self.assertIn(b'class="extra">site </span>', body)
-            self.assertIn(b".extra { display: none; }", body)
-            self.assertIn(b".extra { display: inline; }", body)
+            self.assertIn(b"<h1>No website? We’ll build one.</h1>", body)
+            self.assertIn(b"Facebook, Instagram, or a Google listing", body)
+            self.assertIn(b"$99 builds it. Care keeps it live.", body)
+            self.assertIn(b"<strong>$99</strong> builds the site.", body)
+            self.assertIn(b"<strong>Care</strong> ($29/mo or $249/yr)", body)
+            self.assertNotIn(b"class=\"extra\"", body)
         finally:
             httpd.shutdown()
             httpd.server_close()
@@ -198,6 +205,12 @@ class HandlerTests(unittest.TestCase):
                                   lambda: "owner@example.com"):
                     _, body, _ = self._get(httpd, "/")
             self.assertIn(b"mailto:owner@example.com", body)
+            self.assertIn(b'href="#preview"', body)
+            note = body.split(b'<p class="note">', 1)[1].split(b"</p>", 1)[0]
+            self.assertIn(b"Opens your email app to request a free preview.", note)
+            self.assertIn(b"Nothing is posted to this server.", note)
+            self.assertNotIn(b"owner@example.com", note)
+            self.assertNotIn(b"@", note)
         finally:
             httpd.shutdown()
             httpd.server_close()
@@ -218,6 +231,21 @@ class ContactEmailTests(unittest.TestCase):
         with patch.object(landing, "REPLY_TO", ""), \
              patch.object(landing, "FROM_EMAIL", "hello@studio.test"):
             self.assertEqual(landing.preview_contact_email(), "hello@studio.test")
+
+
+class EmailerCopyTests(unittest.TestCase):
+    def test_default_subject_is_business(self):
+        subject, _, _ = emailer.build_email(
+            "Acme Shop", "http://example.test/demo/x", "a@b.com", "business")
+        self.assertEqual(subject, "Your business deserves a real website")
+
+    def test_keeps_restaurant_and_cafe_subjects(self):
+        restaurant, _, _ = emailer.build_email(
+            "Taqueria", "http://example.test/demo/x", "a@b.com", "restaurant")
+        cafe, _, _ = emailer.build_email(
+            "Bean Bar", "http://example.test/demo/x", "a@b.com", "cafe")
+        self.assertEqual(restaurant, "Your restaurant deserves a real website")
+        self.assertEqual(cafe, "Your cafe deserves a real website")
 
 
 if __name__ == "__main__":
