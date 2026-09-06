@@ -379,10 +379,19 @@ def _hours_rows(hours) -> str:
     return "".join(rows)
 
 
-def _price_span(price) -> str:
-    if not price:
+def _price_span(price, real=False) -> str:
+    """Sample prices stay whole dollars. Real sourced prices keep cents."""
+    if price in (None, "", 0):
         return '<span class="price-n">Ask</span>'
-    return f'<span class="price-n">${int(price)}</span>'
+    try:
+        n = float(price)
+    except (TypeError, ValueError):
+        return '<span class="price-n">Ask</span>'
+    if n <= 0:
+        return '<span class="price-n">Ask</span>'
+    if real and abs(n - round(n)) > 0.001:
+        return f'<span class="price-n">${n:.2f}</span>'
+    return f'<span class="price-n">${int(round(n))}</span>'
 
 
 def _triples(items):
@@ -395,34 +404,34 @@ def _triples(items):
     return out
 
 
-def _offer_html(family: str, items) -> str:
+def _offer_html(family: str, items, real=False) -> str:
     rows = _triples(items)
     if family == "bakery":
         return "".join(
             f'<article class="case-card"><div class="item-h"><h3>{_esc(t)}</h3>'
-            f'{_price_span(p)}</div><p>{_esc(d)}</p></article>'
+            f'{_price_span(p, real)}</div><p>{_esc(d)}</p></article>'
             for t, d, p in rows)
     if family in {"chair", "trade", "floor"}:
         out = []
         for i, (t, d, p) in enumerate(rows, 1):
             out.append(
                 f'<li class="num-item"><span class="n" aria-hidden="true">{i:02d}</span>'
-                f'<div><div class="item-h"><h3>{_esc(t)}</h3>{_price_span(p)}</div>'
+                f'<div><div class="item-h"><h3>{_esc(t)}</h3>{_price_span(p, real)}</div>'
                 f'<p>{_esc(d)}</p></div></li>')
         return "".join(out)
     if family == "cafe":
         return "".join(
             f'<li class="board-row"><h3>{_esc(t)}</h3><span class="rule" aria-hidden="true"></span>'
-            f'{_price_span(p)}<p>{_esc(d)}</p></li>'
+            f'{_price_span(p, real)}<p>{_esc(d)}</p></li>'
             for t, d, p in rows)
     if family in {"practice", "clinic", "gallery", "library"}:
         return "".join(
-            f'<li class="rule-item"><div class="item-h"><h3>{_esc(t)}</h3>{_price_span(p)}</div>'
+            f'<li class="rule-item"><div class="item-h"><h3>{_esc(t)}</h3>{_price_span(p, real)}</div>'
             f'<p>{_esc(d)}</p></li>'
             for t, d, p in rows)
     return "".join(
         f'''<li class="item">
-      <div class="item-h"><h3>{_esc(t)}</h3><span class="dots" aria-hidden="true"></span>{_price_span(p)}</div>
+      <div class="item-h"><h3>{_esc(t)}</h3><span class="dots" aria-hidden="true"></span>{_price_span(p, real)}</div>
       <p>{_esc(d)}</p>
     </li>''' for t, d, p in rows)
 
@@ -436,6 +445,17 @@ def _lookup_place(name: str, address: str) -> dict:
         return google_enrich(name, address or "", timeout=4, check_liveness=False) or {}
     except Exception:
         return {}
+
+
+def _lookup_menu(name: str, address: str, website: str = "") -> dict | None:
+    """Real menu items from a public menu/order page. None if we cannot prove them."""
+    if not name:
+        return None
+    try:
+        from menu_enrich import enrich_menu
+        return enrich_menu(name, address or "", website=website or "") or None
+    except Exception:
+        return None
 
 
 def _offer_wrap(family: str, inner: str) -> str:
@@ -601,6 +621,8 @@ h2{{font-size:var(--step-2)}}
 .kicker{{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);
   font-weight:650;margin-bottom:.45rem}}
 .sub{{color:var(--muted);font-size:12.5px;letter-spacing:.01em;max-width:36ch}}
+.menu-source{{max-width:52ch}}
+.menu-source a{{color:var(--accent);text-underline-offset:3px}}
 .menu{{list-style:none;display:grid;gap:1.7rem}}
 @media(min-width:760px){{.menu{{grid-template-columns:1fr 1fr;column-gap:4rem}}}}
 .item-h{{display:flex;align-items:baseline;gap:.65rem}}
@@ -719,11 +741,15 @@ footer{{border-top:1px solid var(--line);padding-block:1.7rem;margin-top:1.2rem;
 
 def generate_site(name, address="", phone="", category="restaurant", rating=None,
                   city="", lead_id=None, business_id=None, watermark=True, use_ai=True,
-                  hours=None, place_types=None, fetch_place=False):
+                  hours=None, place_types=None, fetch_place=False,
+                  menu_items=None, menu_source=None, fetch_menu=None):
     """Returns (html_string, token).
 
     hours: list of (day, time) from Google Places, or None to look up when
     fetch_place=True. Unknown hours are omitted — never filled from a theme.
+    menu_items / menu_source: real dishes already extracted. When fetch_menu
+    (defaults to fetch_place) is on, we try menu_enrich — fail closed to the
+    labeled sample. Never invent items and present them as theirs.
     """
     token = secrets.token_urlsafe(9)
     cat = category if category in BUSINESS_CATEGORIES else "restaurant"
@@ -762,6 +788,23 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
     else:
         hero = meta["hero"]
         items = SAMPLE.get(cat, SAMPLE["restaurant"])
+    # Real menu wins the list only. Tagline/atmosphere stay name-aware.
+    # Fail closed: no items → keep the labeled sample above.
+    if fetch_menu is None:
+        fetch_menu = fetch_place
+    sourced = None
+    if menu_items:
+        sourced = {
+            "items": menu_items,
+            "source": (menu_source or {}).get("source") or "menu_page",
+            "source_url": (menu_source or {}).get("url") or (menu_source or {}).get("source_url") or "",
+            "source_label": (menu_source or {}).get("label") or (menu_source or {}).get("source_label") or "From their menu",
+        }
+    elif fetch_menu:
+        sourced = _lookup_menu(name, address, extras.get("website") or "")
+    if sourced and sourced.get("items"):
+        items = sourced["items"]
+        menu_source = sourced
     if ai and ai["accent"]:
         theme["accent"] = ai["accent"]
     mood_name = ai["mood"] if ai and ai["mood"] else "classic"
@@ -782,7 +825,23 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
     desc = _esc(hero)[:150]
     sec0 = _esc(meta["sections"][0])
     year = datetime.now().year
-    menu_html = _offer_wrap(family, _offer_html(family, items))
+    real_menu = bool(sourced and sourced.get("items"))
+    menu_html = _offer_wrap(family, _offer_html(family, items, real=real_menu))
+    if real_menu:
+        src_label = _esc(sourced.get("source_label") or "From their menu")
+        src_url = sourced.get("source_url") or ""
+        src_link = ""
+        if src_url:
+            host = src_url.split("/")[2] if "://" in src_url else src_url
+            src_link = (f' <a href="{_esc(src_url)}" rel="nofollow noopener" '
+                        f'target="_blank">{_esc(host)}</a>')
+        menu_note = (f'<p class="sub menu-source" style="margin-top:1.2rem">'
+                     f'{src_label}{src_link} — not sample prices.</p>')
+        menu_attr = f'data-menu-source="{_esc(sourced.get("source") or "menu_page")}"'
+    else:
+        menu_note = (f'<p class="sub" style="margin-top:1.2rem">'
+                     f'Sample prices — your real {sec0.lower()} replaces these.</p>')
+        menu_attr = 'data-menu-source="sample"'
 
     ld = {
         "@context": "https://schema.org", "@type": "LocalBusiness",
@@ -876,12 +935,12 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
 </div></header>
 
 <main id="main">
-<section id="menu"><div class="wrap">
+<section id="menu" {menu_attr}><div class="wrap">
   <div class="sec-h">
     <div><p class="kicker">{_esc(offer_kicker)}</p><h2>{sec0}</h2></div>
   </div>
   {menu_html}
-  <p class="sub" style="margin-top:1.2rem">Sample prices — your real {sec0.lower()} replaces these.</p>
+  {menu_note}
 </div></section>
 
 <section id="visit"><div class="wrap">
@@ -919,6 +978,8 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
   <p class="note">This is a free unpublished sample. Sample content is marked as such.
   Business name, address, phone, rating, and hours (when shown) come from public
   Google Places data. Hours are left off when we do not have them — we do not invent them.
+  Menu items marked as from their menu or order page were copied from a public
+  page we could fetch. If we could not, we keep a labeled sample — we do not invent dishes.
   Not affiliated with or endorsed by {name_s}.</p>
   <footer>
     <span>© {year} {name_s}</span>

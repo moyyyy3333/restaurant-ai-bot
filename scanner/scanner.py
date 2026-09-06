@@ -239,7 +239,7 @@ _ENRICH_CACHE: dict = {}
 _PLACE_FIELD_MASK = (
     "places.websiteUri,places.nationalPhoneNumber,places.rating,"
     "places.displayName,places.regularOpeningHours,places.primaryType,"
-    "places.types,places.primaryTypeDisplayName"
+    "places.types,places.primaryTypeDisplayName,places.googleMapsLinks"
 )
 
 
@@ -296,12 +296,14 @@ def google_enrich(name: str, address: str, timeout: int = 20,
             status = "unknown"
     hours = hours_from_descriptions(
         ((p.get("regularOpeningHours") or {}).get("weekdayDescriptions")) or [])
+    maps = p.get("googleMapsLinks") or {}
     result = {"phone": p.get("nationalPhoneNumber", "") or "",
               "website": website,
               "website_status": status,
               "rating": p.get("rating"),
               "hours": hours,
-              "types": types_from_place(p)}
+              "types": types_from_place(p),
+              "maps_links": maps}
     _ENRICH_CACHE[cache_key] = result
     return dict(result)
 
