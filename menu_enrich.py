@@ -32,7 +32,7 @@ ORDER_HOSTS = (
     "doordash.com", "ubereats.com", "grubhub.com", "postmates.com",
     "chownow.com", "thanx.com", "slicelife.com",
     "menufy.com", "clover.com", "owner.com",
-    "singleplatform.com", "gotoeat.net",
+    "singleplatform.com", "gotoeat.net", "seamless.com",
 )
 
 SOCIAL_HOSTS = ("instagram.com", "facebook.com", "m.facebook.com", "fb.com")
@@ -68,7 +68,7 @@ _MAX_BYTES = 400_000
 
 
 def enrich_menu(name: str, address: str = "", website: str = "",
-                extra_urls=(), timeout: float = 6.0) -> dict | None:
+                extra_urls=(), timeout: float = 10.0) -> dict | None:
     """Return {items, source, source_url, source_label} or None.
 
     items are (title, desc, price_or_None). price is a number when the source
@@ -99,8 +99,6 @@ def _enrich_uncached(name, address, website, extra_urls, deadline) -> dict | Non
         url = _norm_url(website)
         if url:
             seeds.append(url)
-    if not seeds:
-        return None
 
     pages = []
     seen = set()
@@ -116,10 +114,18 @@ def _enrich_uncached(name, address, website, extra_urls, deadline) -> dict | Non
         pages.append(page)
 
     candidates = list(seeds)
+    trusted = {u for u in (_norm_url(s) for s in seeds) if u}
     for page in pages:
         for href, text in page["links"]:
             if _looks_like_menu_or_order(href, text):
                 candidates.append(href)
+                if _norm_url(href):
+                    trusted.add(_norm_url(href))
+    if name and time.monotonic() < deadline:
+        for url in _search_menu_urls(name, address, deadline):
+            candidates.append(url)
+        for url in _partner_menu_urls(name):
+            candidates.append(url)
 
     # Prefer first-party / order hosts, then /menu paths, then the seed page.
     ranked = _rank_urls(candidates)
@@ -129,6 +135,10 @@ def _enrich_uncached(name, address, website, extra_urls, deadline) -> dict | Non
         page = _fetch(url, deadline)
         if not page or _is_auth_wall(page):
             continue
+        # Search hits must name this business. Places-linked pages already matched.
+        if _norm_url(url) not in trusted and _norm_url(page["url"]) not in trusted:
+            if not _page_names_business(name, page["html"]):
+                continue
         items = parse_menu_html(page["html"], page["url"])
         if items:
             return _result(items, page["url"])
@@ -166,6 +176,87 @@ def parse_menu_html(html: str, url: str = "") -> list | None:
 def parse_menu_text(text: str) -> list | None:
     """Parse OCR / plain-text menu lines. None if not confident."""
     return _clean_items(_text_line_items(text or ""))
+
+
+def _partner_menu_urls(name: str) -> list:
+    """Conventional SinglePlatform slug. Only used if the page names this business."""
+    slug = re.sub(r"[^a-z0-9]+", "-", (name or "").lower()).strip("-")
+    if len(slug) < 4:
+        return []
+    return [f"https://places.singleplatform.com/{slug}/menu"]
+
+
+def _page_names_business(name: str, html: str) -> bool:
+    """Does this page appear to be about `name`? Used to reject wrong search hits."""
+    if not name or not html:
+        return False
+    title = ""
+    m = re.search(r"<title[^>]*>(.*?)</title>", html, re.I | re.S)
+    if m:
+        title = _plain(m.group(1))
+    og = re.search(
+        r'<meta[^>]+(?:property|name)=["\']og:title["\'][^>]+content=["\']([^"\']+)["\']',
+        html, re.I)
+    if og:
+        title = (title + " " + _plain(htmlmod.unescape(og.group(1)))).strip()
+    blob = (title + " " + _visible_text(html)[:400]).strip()
+    try:
+        from scanner.scanner import name_matches
+        if name_matches(name, title or blob):
+            return True
+    except Exception:
+        pass
+    want = {w for w in re.findall(r"[a-z0-9]+", (name or "").lower())
+            if w not in {"the", "and", "a", "of", "restaurant", "cafe", "llc"}}
+    have = set(re.findall(r"[a-z0-9]+", blob.lower()))
+    return bool(want) and len(want & have) / len(want) >= 0.6
+
+
+def _search_menu_urls(name: str, address: str, deadline: float) -> list:
+    """Public web search for order-host / menu URLs. Empty if blocked."""
+    remaining = deadline - time.monotonic()
+    if remaining < 1.2 or not name:
+        return []
+    city = ""
+    parts = [p.strip() for p in (address or "").split(",") if p.strip()]
+    if len(parts) >= 2:
+        city = parts[-2] if re.search(r"\b[A-Z]{2}\b|\d{5}", parts[-1]) else parts[-1]
+        if len(city) > 40:
+            city = ""
+    # Keep queries boring — boolean operators trip DDG's bot wall.
+    queries = [f"{name} {city} menu".strip()]
+    # SinglePlatform is the usual Google "See menu" host and parses as HTML.
+    if deadline - time.monotonic() > 2.5:
+        queries.append(f"{name} singleplatform")
+    found = []
+    for q in queries:
+        if deadline - time.monotonic() < 1.0:
+            break
+        url = "https://html.duckduckgo.com/html/?" + urllib.parse.urlencode({"q": q})
+        page = _fetch(url, deadline)
+        if not page or not page.get("html"):
+            continue
+        # DDG wraps targets as ?uddg=<urlencoded>
+        for m in re.finditer(r"[?&]uddg=([^&\"']+)", page["html"]):
+            target = _norm_url(urllib.parse.unquote(m.group(1)))
+            if target and _looks_like_menu_or_order(target, "menu", from_search=True):
+                found.append(target)
+        for href, text in page.get("links") or []:
+            if _looks_like_menu_or_order(href, text or "menu", from_search=True):
+                found.append(href)
+    # Keep order, drop DDG/self, cap at 5.
+    out, seen = [], set()
+    for href in found:
+        host = _hostname(href)
+        if _host_is(host, ("duckduckgo.com", "duck.com")):
+            continue
+        if href in seen:
+            continue
+        seen.add(href)
+        out.append(href)
+        if len(out) >= 5:
+            break
+    return out
 
 
 def _places_website(name: str, address: str, deadline: float) -> str:
@@ -223,10 +314,10 @@ def _rank_urls(urls) -> list:
         score = 0
         if _host_is(host, ("toasttab.com", "toast.com", "square.site",
                            "squareup.com", "square.online", "chownow.com",
-                           "thanx.com")):
+                           "thanx.com", "singleplatform.com", "gotoeat.net")):
             score = 100
         elif _host_is(host, ORDER_HOSTS):
-            score = 80
+            score = 70
         elif any(h in path for h in _MENU_PATH_HINTS):
             score = 60
         elif _host_is(host, SOCIAL_HOSTS):
@@ -239,11 +330,14 @@ def _rank_urls(urls) -> list:
     return [u for _, _, u in sorted(scored)]
 
 
-def _looks_like_menu_or_order(href: str, text: str) -> bool:
+def _looks_like_menu_or_order(href: str, text: str, from_search: bool = False) -> bool:
     host = _hostname(href)
     path = (urllib.parse.urlparse(href).path or "").lower()
     if _host_is(host, ORDER_HOSTS):
         return True
+    # Search hits: only known order/menu hosts. Random /menu scrapers are not "their" menu.
+    if from_search:
+        return False
     if any(h in path for h in _MENU_PATH_HINTS):
         return True
     if _MENU_LINK_WORDS.search(text or "") and href.startswith("http"):

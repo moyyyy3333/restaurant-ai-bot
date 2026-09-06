@@ -10,7 +10,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from generator import generate_site
 from menu_enrich import (enrich_menu, parse_menu_html, parse_menu_text,
-                         _looks_like_menu_or_order, _rank_urls, _CACHE)
+                         _looks_like_menu_or_order, _page_names_business,
+                         _partner_menu_urls, _rank_urls, _CACHE)
 
 GOTOEAT = """
 <section>
@@ -147,13 +148,20 @@ def test_discover_order_and_menu_links():
     assert _looks_like_menu_or_order("https://place.square.site/", "")
     assert _looks_like_menu_or_order("https://shop.example.com/menu", "Menu")
     assert not _looks_like_menu_or_order("https://shop.example.com/about", "About")
+    # Search must not treat a scraper /menu as theirs.
+    assert not _looks_like_menu_or_order(
+        "https://yale-street-grill.res-pick.com/menu", "menu", from_search=True)
+    assert _looks_like_menu_or_order(
+        "https://places.singleplatform.com/cream-parlor/menu", "", from_search=True)
     ranked = _rank_urls([
         "https://facebook.com/joes",
         "https://joes.example.com/",
         "https://order.toasttab.com/joes",
         "https://joes.example.com/menu",
+        "https://www.ubereats.com/store/joes",
+        "https://places.singleplatform.com/joes/menu",
     ])
-    assert "toasttab.com" in ranked[0]
+    assert "toasttab.com" in ranked[0] or "singleplatform.com" in ranked[0]
     # Same host: /menu beats the homepage so we don't stop on a teaser list.
     ranked = _rank_urls([
         "https://thienansandwiches.gotoeat.net/",
@@ -247,6 +255,54 @@ def test_generate_site_keeps_sample_when_enrich_fails():
     assert "From their order page" not in html
     assert "From their menu" not in html
     assert not __import__("re").search(r"\$\d+\.\d{2}", html)
+
+
+def test_page_must_name_the_business():
+    assert _page_names_business("Thien An Sandwiches",
+                                "<title>Thien An Sandwiches | Houston</title>")
+    assert not _page_names_business("Thien An Sandwiches",
+                                    "<title>Torchy's Tacos Austin</title>")
+
+
+def test_search_discovers_order_host_when_no_website():
+    _CACHE.clear()
+    menu = {
+        "url": "https://thienansandwiches.gotoeat.net/menu",
+        "html": "<title>Thien An Sandwiches menu</title>" + GOTOEAT,
+        "links": [],
+        "images": [],
+        "ctype": "text/html",
+    }
+    with patch("menu_enrich._search_menu_urls",
+               return_value=["https://thienansandwiches.gotoeat.net/menu"]), \
+         patch("menu_enrich._fetch", return_value=menu), \
+         patch("menu_enrich._places_website", return_value=""):
+        got = enrich_menu("Thien An Sandwiches", "2611 San Jacinto St, Houston, TX")
+    assert got is not None
+    assert any(t == "Banh Mi Ga" for t, *_ in got["items"])
+    assert got["source"] == "menu_page"
+
+
+def test_partner_slug_is_conventional_singleplatform():
+    assert _partner_menu_urls("Thien An Sandwiches") == [
+        "https://places.singleplatform.com/thien-an-sandwiches/menu"]
+    assert _partner_menu_urls("X") == []
+
+
+def test_search_rejects_a_different_restaurant():
+    _CACHE.clear()
+    wrong = {
+        "url": "https://order.toasttab.com/torchys",
+        "html": "<title>Torchy's Tacos</title>" + GOTOEAT,
+        "links": [],
+        "images": [],
+        "ctype": "text/html",
+    }
+    with patch("menu_enrich._search_menu_urls",
+               return_value=["https://order.toasttab.com/torchys"]), \
+         patch("menu_enrich._fetch", return_value=wrong), \
+         patch("menu_enrich._places_website", return_value=""):
+        assert enrich_menu("Thien An Sandwiches") is None
 
 
 def test_never_marks_sample_as_real():
