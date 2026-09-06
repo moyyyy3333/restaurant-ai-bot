@@ -81,12 +81,30 @@ REPLY_TO = os.getenv("REPLY_TO", "").strip()
 SENDER_POSTAL_ADDRESS = os.getenv("SENDER_POSTAL_ADDRESS", "").strip()
 UNSUBSCRIBE_BASE = os.getenv("UNSUBSCRIBE_BASE", DEMO_BASE_URL).rstrip("/")
 PRICE_USD = int(os.getenv("PRICE_USD", "99"))
+BUILD_PRICE_USD = int(os.getenv("BUILD_PRICE_USD", "99"))
 CARE_MONTHLY_USD = int(os.getenv("CARE_MONTHLY_USD", "29"))
 CARE_YEARLY_USD = int(os.getenv("CARE_YEARLY_USD", "249"))
+
+# Stripe — all optional. /ops and /claim/* render without live keys.
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "").strip()
+STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "").strip()
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "").strip()
+STRIPE_PRICE_BUILD = os.getenv("STRIPE_PRICE_BUILD", "").strip()
+STRIPE_PRICE_CARE_MONTHLY = os.getenv("STRIPE_PRICE_CARE_MONTHLY", "").strip()
+STRIPE_PRICE_CARE_YEARLY = os.getenv("STRIPE_PRICE_CARE_YEARLY", "").strip()
 
 # How many proposal emails the automated daily pipeline (/pipeline/run) may
 # send in one run. Manual /propose in Telegram is not affected by this.
 DAILY_SEND_LIMIT = int(os.getenv("DAILY_SEND_LIMIT", "15"))
+
+# Ops board: one vertical per weekday (Mon–Fri). Weekend reuses Friday.
+OPS_WEEKLY_ROTATION = (
+    ("restaurant", "Restaurants"),
+    ("plumber", "Plumbing"),
+    ("roofer", "Roofing"),
+    ("electrician", "Electrical"),
+    ("salon", "Salon"),
+)
 
 # ---------------------------------------------------------------- markets
 # lat/lng = approximate downtown. Each area maps to its own (lat, lng), geocoded

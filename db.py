@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS leads (
     category         TEXT,
     rating           REAL,
     website_status   TEXT DEFAULT 'none',
-    status           TEXT DEFAULT 'new',   -- new | site_generated | proposed | replied | sold | dead
+    status           TEXT DEFAULT 'new',   -- new | site_generated | proposed | replied | claimed | sold | dead
     demo_token       TEXT,
     demo_created_at  TEXT,
     demo_expires_at  TEXT,
@@ -121,6 +121,9 @@ CREATE TABLE IF NOT EXISTS leads (
     email_sent_at    TEXT,
     replied          INTEGER DEFAULT 0,
     sold             INTEGER DEFAULT 0,
+    claimed          INTEGER DEFAULT 0,
+    claimed_at       TEXT,
+    care_plan        TEXT,                 -- none | monthly | yearly
     notes            TEXT,
     created_at       TEXT,
     FOREIGN KEY (business_id) REFERENCES businesses(id)
@@ -167,6 +170,23 @@ CREATE TABLE IF NOT EXISTS bot_auth (
     reply_to_email TEXT
 );
 
+CREATE TABLE IF NOT EXISTS claims (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    lead_id            INTEGER,
+    kind               TEXT,            -- build | build_plus_care
+    amount_cents       INTEGER,
+    care_plan          TEXT,            -- none | monthly | yearly
+    stripe_session_id  TEXT,
+    status             TEXT,            -- stub | pending | paid | failed
+    created_at         TEXT
+);
+
+CREATE TABLE IF NOT EXISTS ops_meta (
+    key        TEXT PRIMARY KEY,
+    value      TEXT,
+    updated_at TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
 CREATE INDEX IF NOT EXISTS idx_leads_city   ON leads(city);
 CREATE INDEX IF NOT EXISTS idx_demo_token   ON demo_sites(token);
@@ -191,15 +211,20 @@ def turso_configured() -> bool:
     return bool(TURSO_DATABASE_URL and TURSO_AUTH_TOKEN)
 
 
+def _ensure_column(c, table: str, name: str, decl: str):
+    cols = {r["name"] for r in c.execute(f"PRAGMA table_info({table})")}
+    if name not in cols:
+        c.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
+
+
 def init_db():
     with conn() as c:
         c.executescript(SCHEMA)
-        cols = {r["name"] for r in c.execute("PRAGMA table_info(bot_auth)")}
-        if "reply_to_email" not in cols:
-            c.execute("ALTER TABLE bot_auth ADD COLUMN reply_to_email TEXT")
-        demo_cols = {r["name"] for r in c.execute("PRAGMA table_info(demo_sites)")}
-        if "html" not in demo_cols:
-            c.execute("ALTER TABLE demo_sites ADD COLUMN html TEXT")
+        _ensure_column(c, "bot_auth", "reply_to_email", "TEXT")
+        _ensure_column(c, "demo_sites", "html", "TEXT")
+        _ensure_column(c, "leads", "claimed", "INTEGER DEFAULT 0")
+        _ensure_column(c, "leads", "claimed_at", "TEXT")
+        _ensure_column(c, "leads", "care_plan", "TEXT")
 
 
 def ensure_schema():
@@ -441,6 +466,57 @@ def get_reply_to(user_id: int) -> str:
     return (row["reply_to_email"] or "") if row else ""
 
 
+# ------------------------------------------------------------------ ops meta
+def get_meta(key: str, default: str = "") -> str:
+    ensure_schema()
+    with conn() as c:
+        r = c.execute("SELECT value FROM ops_meta WHERE key = ?", (key,)).fetchone()
+        return (r["value"] if r and r["value"] is not None else default)
+
+
+def set_meta(key: str, value: str):
+    ensure_schema()
+    with conn() as c:
+        c.execute(
+            "INSERT INTO ops_meta (key, value, updated_at) VALUES (?,?,?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value, "
+            "updated_at = excluded.updated_at",
+            (key, value, now()))
+
+
+def mark_claimed(lead_id: int, care_plan: str = "none", session_id: str = "",
+                 amount_cents: int = 0, status: str = "paid"):
+    """Flip a lead to claimed and record a claims row (Stripe or stub)."""
+    plan = care_plan if care_plan in ("monthly", "yearly") else "none"
+    update_lead(lead_id, status="claimed", claimed=1, claimed_at=now(), care_plan=plan)
+    kind = "build_plus_care" if plan in ("monthly", "yearly") else "build"
+    with conn() as c:
+        c.execute(
+            """INSERT INTO claims
+               (lead_id, kind, amount_cents, care_plan, stripe_session_id, status, created_at)
+               VALUES (?,?,?,?,?,?,?)""",
+            (lead_id, kind, amount_cents, plan, session_id or "", status, now()))
+
+
+def record_claim_pending(lead_id: int, care_plan: str, session_id: str, amount_cents: int):
+    plan = care_plan if care_plan in ("monthly", "yearly") else "none"
+    kind = "build_plus_care" if plan in ("monthly", "yearly") else "build"
+    with conn() as c:
+        c.execute(
+            """INSERT INTO claims
+               (lead_id, kind, amount_cents, care_plan, stripe_session_id, status, created_at)
+               VALUES (?,?,?,?,?,?,?)""",
+            (lead_id, kind, amount_cents, plan, session_id or "", "pending", now()))
+
+
+def get_claim_by_session(session_id: str):
+    if not session_id:
+        return None
+    with conn() as c:
+        return c.execute("SELECT * FROM claims WHERE stripe_session_id = ?",
+                         (session_id,)).fetchone()
+
+
 # ----------------------------------------------------------------------- stats
 def get_stats() -> dict:
     ensure_schema()
@@ -450,16 +526,35 @@ def get_stats() -> dict:
             "SELECT city, COUNT(*) n FROM leads GROUP BY city ORDER BY n DESC")}
         by_cat = {r["category"] or "?": r["n"] for r in c.execute(
             "SELECT category, COUNT(*) n FROM leads GROUP BY category ORDER BY n DESC")}
+        by_ws = {r["website_status"] or "none": r["n"] for r in c.execute(
+            "SELECT website_status, COUNT(*) n FROM leads GROUP BY website_status")}
+        claimed_n = one(
+            "SELECT COUNT(*) FROM leads WHERE COALESCE(claimed,0) = 1 OR status = 'claimed'")
+        care_n = one(
+            "SELECT COUNT(*) FROM leads WHERE care_plan IN ('monthly','yearly')")
+        demos_n = one(
+            "SELECT COUNT(*) FROM leads WHERE demo_token IS NOT NULL AND demo_token != ''")
         return {
             "businesses": one("SELECT COUNT(*) FROM businesses"),
             "leads": one("SELECT COUNT(*) FROM leads"),
             "sites": one("SELECT COUNT(*) FROM demo_sites"),
             "emailed": one("SELECT COUNT(*) FROM leads WHERE emailed = 1"),
             "replied": one("SELECT COUNT(*) FROM leads WHERE replied = 1"),
+            "claimed": claimed_n,
             "sold": one("SELECT COUNT(*) FROM leads WHERE sold = 1"),
+            "care": care_n,
             "suppressed": one("SELECT COUNT(*) FROM suppression"),
             "by_city": by_city,
             "by_category": by_cat,
+            "by_website_status": by_ws,
+            "funnel": {
+                "leads": one("SELECT COUNT(*) FROM leads WHERE status != 'dead'"),
+                "demos": demos_n,
+                "emailed": one("SELECT COUNT(*) FROM leads WHERE emailed = 1"),
+                "claimed": claimed_n,
+                "sold": one("SELECT COUNT(*) FROM leads WHERE sold = 1"),
+                "care": care_n,
+            },
         }
 
 

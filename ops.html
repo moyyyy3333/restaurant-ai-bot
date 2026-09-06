@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Local Web Studio — Ops Board</title>
+<style>
+:root {
+  --bg: #f3efe6;
+  --ink: #1c1916;
+  --mut: #6f6a62;
+  --line: #e4ddd0;
+  --card: #fffdf8;
+  --acc: #c45c2a;
+  --acc-soft: #f4e4d8;
+  --wave: #3d7ea6;
+  --wave-soft: #e4eef4;
+  --ok: #2b6b45;
+  --ok-soft: #e5f3ea;
+  --warn: #9a6a1c;
+  --shadow: 0 8px 24px rgba(40, 30, 10, .05);
+  --mono: ui-monospace, Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+}
+.wrap { max-width: 1080px; margin: 0 auto; padding: 28px 22px 88px; }
+header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; gap: 16px; }
+.brand { display: flex; align-items: center; gap: 12px; font-weight: 700; letter-spacing: .01em; }
+.logo {
+  width: 36px; height: 36px; background: #111; color: #fff; border-radius: 6px;
+  display: grid; place-items: center; font: 700 12px/1 var(--mono); letter-spacing: .04em;
+}
+.date { font: 12px var(--mono); color: var(--mut); text-align: right; }
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px 22px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.card h2 {
+  margin: 0 0 14px;
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--mut);
+  font-weight: 700;
+}
+.focus {
+  background: #1c1916;
+  color: #fff;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.focus .bar {
+  padding: 10px 22px;
+  font: 700 11px/1 var(--mono);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: #e8a27a;
+  border-bottom: 1px solid #2c2824;
+}
+.focus .body { padding: 20px 22px 22px; }
+.focus h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: -.02em; }
+.focus p { margin: 0; color: #c8c0b6; }
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.step {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 14px 16px;
+  background: #fff;
+}
+.step .n {
+  width: 22px; height: 22px; border-radius: 50%; background: var(--acc); color: #fff;
+  display: grid; place-items: center; font: 700 11px/1 var(--mono); margin-bottom: 10px;
+}
+.step b { display: block; }
+.step small { color: var(--mut); display: block; margin-top: 4px; }
+.step .mins { float: right; font: 11px var(--mono); color: var(--mut); }
+.week { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.day {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 12px 14px;
+  background: #fff;
+  min-height: 92px;
+}
+.day.on { border-color: var(--acc); background: #fffaf6; box-shadow: 0 0 0 1px var(--acc); }
+.day .d { font: 700 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--mut); }
+.day.on .d { color: var(--acc); }
+.day .lab { font-weight: 700; margin-top: 8px; }
+.day .cnt { font: 12px var(--mono); color: var(--mut); margin-top: 4px; }
+.badge {
+  display: inline-block; margin-top: 8px; font: 700 9px var(--mono); letter-spacing: .12em;
+  text-transform: uppercase; color: var(--acc); background: var(--acc-soft);
+  padding: 2px 7px; border-radius: 999px;
+}
+.waves { display: flex; flex-wrap: wrap; gap: 8px; }
+.wave {
+  border: 1px solid var(--line); background: #fff; border-radius: 999px;
+  padding: 7px 14px; font-size: 14px; cursor: pointer; color: var(--ink);
+}
+.wave i { font-style: normal; color: var(--mut); margin-left: 6px; }
+.wave.on {
+  background: var(--wave-soft); border-color: var(--wave); color: #1a3d52; font-weight: 600;
+}
+.wave.on::before {
+  content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--wave); margin-right: 8px; box-shadow: 0 0 0 3px #fff inset, 0 0 0 3px var(--wave);
+  vertical-align: middle; position: relative; top: -1px;
+}
+.funnel { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.funnel span {
+  background: #fff; border: 1px solid var(--line); border-radius: 8px;
+  padding: 6px 10px; font: 12px var(--mono);
+}
+.funnel b { color: var(--acc); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th {
+  text-align: left; font: 11px var(--mono); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--mut); padding: 8px 6px; border-bottom: 1px solid var(--line);
+}
+td { padding: 10px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+select, input, textarea, button { font: inherit; }
+select {
+  border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; background: #fff;
+}
+.st {
+  font: 11px var(--mono); padding: 2px 8px; border-radius: 999px; background: #eee;
+}
+.st.proposed, .st.emailed { background: #fff1e8; color: var(--acc); }
+.st.replied { background: var(--ok-soft); color: var(--ok); }
+.st.claimed { background: var(--wave-soft); color: #1a3d52; }
+.st.sold { background: var(--ok); color: #fff; }
+.st.dead { background: #ddd; color: #666; }
+.st.site_generated { background: #eef3f8; color: #345; }
+a { color: var(--acc); }
+.btn {
+  background: var(--acc); color: #fff; border: 0; border-radius: 8px;
+  padding: 9px 14px; font-weight: 600; cursor: pointer; text-decoration: none;
+  display: inline-block;
+}
+.btn.sec { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+.btn[disabled] { opacity: .5; }
+.muted { color: var(--mut); }
+.mono { font-family: var(--mono); font-size: 12px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.rq { display: flex; justify-content: space-between; gap: 16px; padding: 10px 12px; border-radius: 8px; }
+.rq.next { background: var(--acc-soft); }
+.rq .ptr { font: 700 10px var(--mono); letter-spacing: .12em; color: var(--acc); margin-right: 8px; }
+.log {
+  font: 12px var(--mono); color: #444; white-space: pre-wrap; max-height: 240px;
+  overflow: auto; background: #faf8f3; border: 1px solid var(--line);
+  border-radius: 8px; padding: 10px;
+}
+textarea {
+  width: 100%; min-height: 110px; border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px 12px; background: #fff; resize: vertical;
+}
+.notice { padding: 12px 14px; border-radius: 10px; margin-bottom: 12px; font-size: 14px; }
+.notice.warn { background: #fff7e8; border: 1px solid #e8d2a0; color: #6d5416; }
+.notice.ok { background: var(--ok-soft); border: 1px solid #b7d8c2; }
+.notice.stub { background: var(--wave-soft); border: 1px solid #b7c9d6; }
+footer { text-align: center; color: var(--mut); font-size: 12px; margin-top: 28px; line-height: 1.6; }
+@media (max-width: 760px) {
+  .steps, .week { grid-template-columns: 1fr; }
+  .hide-m { display: none; }
+  header { align-items: flex-start; }
+  .focus h1 { font-size: 22px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><div class="logo">LW</div> Local Web Studio — Ops Board</div>
+    <div class="date" id="date"></div>
+  </header>
+
+  <div class="focus">
+    <div class="bar">Today's focus</div>
+    <div class="body">
+      <h1 id="focus">Loading…</h1>
+      <p id="focusSub"></p>
+    </div>
+  </div>
+
+  <div class="card" id="sendCard" style="display:none"></div>
+  <div class="card" id="stripeCard"></div>
+
+  <div class="card">
+    <h2>Daily rhythm — your ~45-min block</h2>
+    <div class="steps" id="rhythm"></div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn" id="refreshBtn" type="button">Refresh from database</button>
+      <span class="muted mono" id="refreshed"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Weekly rotation — one industry per day</h2>
+    <div class="week" id="week"></div>
+  </div>
+
+  <div class="card">
+    <h2>Territory waves — Houston → Miami → Austin</h2>
+    <div class="waves" id="waves"></div>
+  </div>
+
+  <div class="card">
+    <h2 id="pipeTitle">Active pipeline</h2>
+    <div class="funnel" id="funnel"></div>
+    <div class="row" style="margin-bottom:10px">
+      <select id="fStatus">
+        <option value="">All statuses</option>
+        <option value="new">Lead</option>
+        <option value="site_generated">Demo</option>
+        <option value="proposed">Emailed</option>
+        <option value="replied">Replied</option>
+        <option value="claimed">Claimed</option>
+        <option value="sold">Sold</option>
+        <option value="dead">Dead</option>
+      </select>
+      <select id="fCity"><option value="">All cities</option></select>
+      <span class="muted mono" id="count"></span>
+    </div>
+    <div style="overflow:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Business</th>
+            <th>Phone</th>
+            <th class="hide-m">Reviews</th>
+            <th>Status</th>
+            <th>Demo</th>
+            <th>Claim</th>
+            <th class="hide-m">Notes</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Pipeline notes &amp; log</h2>
+    <div class="row">
+      <select id="noteLead" style="min-width:220px"></select>
+    </div>
+    <textarea id="noteText" placeholder="Note for this lead — saved to the database (PIPELINE: / RESEARCH: / IDEA: prefixes are optional)."></textarea>
+    <div class="row" style="margin-top:8px">
+      <button class="btn sec" id="saveNote" type="button">Save note</button>
+      <span class="muted mono" id="noteOut"></span>
+    </div>
+    <div class="log" id="log" style="margin-top:12px">—</div>
+  </div>
+
+  <div class="card">
+    <h2 id="rqTitle">Research queue</h2>
+    <div id="industries"></div>
+    <div id="needEmail" class="muted" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Overall notes &amp; ideas</h2>
+    <textarea id="overall" placeholder="Big-picture notes — auto-saved to Turso."></textarea>
+    <div class="muted mono" id="overallOut" style="margin-top:8px"></div>
+  </div>
+
+  <footer>
+    Live counts come from Turso (leads, demos, emailed, claimed, sold, by city / category / website_status).<br>
+    This page refreshes every 20 seconds — no Claude paste loop.<br>
+    Claim checkout: $99 one-time build · Care $29/mo or $249/yr. Open with <span class="mono">/ops?k=PIPELINE_TOKEN</span>.
+  </footer>
+</div>
+<script>
+const K = new URLSearchParams(location.search).get("k") || "";
+const api = (p, opt) => {
+  const join = p.includes("?") ? "&" : "?";
+  return fetch(p + join + "k=" + encodeURIComponent(K), opt);
+};
+let D = null;
+let notesReady = false;
+let saveTimer = null;
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+function wsCounts() {
+  const w = D.website_status || {};
+  return ["none", "social_only", "unknown", "has_site"]
+    .filter(k => w[k])
+    .map(k => `${k.replace("_", " ")} ${w[k]}`)
+    .join(" · ");
+}
+function render() {
+  const t = D.today;
+  document.getElementById("date").textContent =
+    (t.weekend ? "Catch-up — " : "Today — ") +
+    new Date(t.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric", year: "numeric" });
+  document.getElementById("focus").textContent = `${t.category_label} · ${t.city_label}`;
+  document.getElementById("focusSub").textContent = t.blurb;
+
+  const sc = document.getElementById("sendCard");
+  if (D.sending && !D.sending.ok) {
+    sc.style.display = "";
+    sc.innerHTML = `<div class="notice warn"><b>Outreach paused.</b> ${esc(D.sending.why)}<br><span class="mono">sender: ${esc(D.sending.from)}</span></div>`;
+  } else if (D.sending) {
+    sc.style.display = "";
+    sc.innerHTML = `<div class="notice ok"><b>Outreach live.</b> Sending as <span class="mono">${esc(D.sending.from)}</span></div>`;
+  }
+
+  const price = D.claim.pricing;
+  const stripe = document.getElementById("stripeCard");
+  stripe.innerHTML = D.claim.stub
+    ? `<div class="notice stub"><b>Stripe claim stub.</b> Build <b>$${price.build.amount_usd}</b> · Care <b>$${price.care_monthly.amount_usd}/mo</b> or <b>$${price.care_yearly.amount_usd}/yr</b>. Keys unset — checkout opens a placeholder. Same amounts go live when <span class="mono">STRIPE_SECRET_KEY</span> is set.</div>`
+    : `<div class="notice ok"><b>Stripe live.</b> Checkout will charge $${price.build.amount_usd} and optional Care.</div>`;
+
+  document.getElementById("rhythm").innerHTML = D.rhythm.map(s =>
+    `<div class="step"><span class="mins">~${s.mins} min</span><div class="n">${s.n}</div><b>${esc(s.title)}</b><small>${esc(s.detail)} · ${esc(s.hint)}</small></div>`
+  ).join("");
+  document.getElementById("refreshed").textContent = "updated " + (D.refreshed_at || "").replace("T", " ");
+
+  document.getElementById("week").innerHTML = D.rotation.map(d =>
+    `<div class="day${d.today ? " on" : ""}"><div class="d">${d.day}</div><div class="lab">${esc(d.label)}</div><div class="cnt">${d.count} leads</div>${d.today ? '<div class="badge">Today</div>' : ""}</div>`
+  ).join("");
+
+  document.getElementById("waves").innerHTML = D.waves.map(w =>
+    `<button type="button" class="wave${w.active ? " on" : ""}" data-city="${esc(w.city)}">${esc(w.label)}<i>${w.count}</i></button>`
+  ).join("");
+  document.querySelectorAll(".wave").forEach(b => b.onclick = async () => {
+    await api("/api/ops/meta", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ wave: b.dataset.city }) });
+    load();
+  });
+
+  const f = D.funnel || {};
+  document.getElementById("funnel").innerHTML = [
+    ["Leads", f.leads], ["Demos", f.demos], ["Emailed", f.emailed],
+    ["Claimed", f.claimed], ["Sold", f.sold], ["Care", f.care]
+  ].map(([k, v]) => `<span>${k} <b>${v ?? 0}</b></span>`).join("") +
+    (wsCounts() ? `<span>website ${esc(wsCounts())}</span>` : "");
+
+  document.getElementById("pipeTitle").textContent =
+    `Active pipeline — ${t.category_label} · ${t.city_label}`;
+
+  const fc = document.getElementById("fCity");
+  if (fc.options.length === 1) D.waves.forEach(w => fc.add(new Option(w.label, w.city)));
+  const fs = document.getElementById("fStatus").value, fcv = fc.value;
+  const rows = D.leads.filter(l => (!fs || l.status === fs) && (!fcv || l.city === fcv));
+  document.getElementById("count").textContent = rows.length + " shown";
+  const statuses = D.statuses || ["new", "site_generated", "proposed", "replied", "claimed", "sold", "dead"];
+  document.getElementById("rows").innerHTML = rows.map(l => {
+    const stars = l.rating ? `★ ${l.rating}` : "—";
+    const rc = l.review_count ? ` (${l.review_count})` : "";
+    const note = (l.notes || "").split("\n").pop() || "";
+    const care = l.care_plan && l.care_plan !== "none" ? l.care_plan : "none";
+    const claimCell = l.claim_url
+      ? `<div class="row"><select class="careSel" data-id="${l.id}" data-token="${esc(l.demo_token || "")}">
+           <option value="none"${care === "none" ? " selected" : ""}>Build $99</option>
+           <option value="monthly"${care === "monthly" ? " selected" : ""}>+ Care $29/mo</option>
+           <option value="yearly"${care === "yearly" ? " selected" : ""}>+ Care $249/yr</option>
+         </select><a class="btn claimA" data-id="${l.id}" href="${esc(l.claim_url)}" target="_blank" rel="noopener">${l.claimed ? "Re-open" : "Checkout"}</a></div>`
+      : `<span class="muted">need demo</span>`;
+    return `<tr>
+      <td><b>${esc(l.name)}</b><br><span class="muted mono">#${l.id} · ${esc(l.city)} · ${esc(l.category)}</span></td>
+      <td class="mono">${esc(l.phone || "—")}</td>
+      <td class="hide-m mono">${stars}${rc}</td>
+      <td><select data-id="${l.id}" class="stSel">${statuses.map(s => `<option value="${s}" ${s === l.status ? "selected" : ""}>${s}</option>`).join("")}</select></td>
+      <td>${l.demo_url ? `<a href="${esc(l.demo_url)}" target="_blank" rel="noopener">open</a>` : '<span class="muted">—</span>'}</td>
+      <td>${claimCell}</td>
+      <td class="hide-m muted">${esc(note.slice(0, 80))}</td>
+    </tr>`;
+  }).join("");
+
+  document.querySelectorAll(".stSel").forEach(s => s.onchange = async e => {
+    await fetch("/api/lead?k=" + encodeURIComponent(K), {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: +e.target.dataset.id, status: e.target.value })
+    });
+    load();
+  });
+  document.querySelectorAll(".careSel").forEach(s => s.onchange = ev => {
+    const a = ev.target.parentElement.querySelector(".claimA");
+    if (a) a.href = "/claim/start?t=" + encodeURIComponent(ev.target.dataset.token) + "&care=" + encodeURIComponent(ev.target.value);
+  });
+
+  const industries = D.research.industries || [];
+  document.getElementById("rqTitle").textContent = `Research queue — wave (${t.city_label})`;
+  document.getElementById("industries").innerHTML = industries.map(x =>
+    `<div class="rq${x.next ? " next" : ""}"><div>${x.next ? '<span class="ptr">NEXT</span>' : ""}<b>${esc(x.label)}</b></div><span class="muted">${esc(x.status)}</span></div>`
+  ).join("");
+  const miss = D.research.need_email || [];
+  document.getElementById("needEmail").innerHTML = miss.length
+    ? "<div style='margin-bottom:6px'>Leads missing email</div>" + miss.map(l =>
+        `<div>${esc(l.name)} <span class="muted">· ${esc(l.city)} · ${esc(l.phone || "no phone")}</span></div>`
+      ).join("")
+    : "Every active lead has an email.";
+
+  const nl = document.getElementById("noteLead");
+  const cur = nl.value;
+  nl.innerHTML = D.leads.map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join("");
+  if (cur) nl.value = cur;
+  document.getElementById("log").textContent = D.log.length
+    ? D.log.map(x => `${x.when}  ${x.what}`).join("\n") : "No activity yet.";
+
+  const ov = document.getElementById("overall");
+  if (!notesReady) { ov.value = D.notes || ""; notesReady = true; }
+}
+
+async function load() {
+  const r = await api("/api/ops");
+  if (r.status === 403) {
+    document.body.innerHTML = '<p style="padding:48px;font-family:sans-serif">Locked. Open <code>/ops?k=YOUR_PIPELINE_TOKEN</code> (same secret as <code>/board?k=</code>).</p>';
+    return;
+  }
+  D = await r.json();
+  render();
+}
+
+document.getElementById("fStatus").onchange = render;
+document.getElementById("fCity").onchange = render;
+document.getElementById("refreshBtn").onclick = load;
+document.getElementById("saveNote").onclick = async () => {
+  const id = +document.getElementById("noteLead").value;
+  const t = document.getElementById("noteText").value;
+  const r = await fetch("/api/lead?k=" + encodeURIComponent(K), {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ id, notes: t })
+  });
+  document.getElementById("noteOut").textContent = r.ok ? "saved to database" : "failed";
+  document.getElementById("noteText").value = "";
+  load();
+};
+document.getElementById("overall").addEventListener("input", () => {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    const body = document.getElementById("overall").value;
+    const r = await api("/api/ops/meta", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ notes: body })
+    });
+    document.getElementById("overallOut").textContent = r.ok ? "saved " + new Date().toLocaleTimeString() : "save failed";
+  }, 700);
+});
+
+load();
+setInterval(load, 20000);
+</script>
+</body>
+</html>
