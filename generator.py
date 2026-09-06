@@ -18,6 +18,7 @@ from datetime import datetime
 
 from config import (BUSINESS_CATEGORIES, CARE_MONTHLY_USD, CARE_YEARLY_USD,
                     PRICE_USD, theme_for)
+from menu_enrich import MenuResult, enrich_menu as discover_menu, result_from_dict
 from profiles import FOOD_CATEGORIES, TRADE_CATEGORIES, infer_cuisine, looks_generic, profile_for
 from writer import write_copy
 
@@ -236,10 +237,20 @@ def _hours_rows(hours) -> str:
     return "".join(rows)
 
 
-def _price_span(price) -> str:
+def _price_span(price, sourced=False) -> str:
     if not price:
         return '<span class="price-n">Ask</span>'
-    return f'<span class="price-n">${int(price)}</span>'
+    try:
+        n = float(price)
+    except (TypeError, ValueError):
+        return '<span class="price-n">Ask</span>'
+    if n <= 0:
+        return '<span class="price-n">Ask</span>'
+    # Sourced menus may publish cents. Sample prices stay whole dollars so a
+    # fabricated $12.99 cannot be mistaken for a real listing.
+    if sourced and abs(n - round(n)) >= 0.01:
+        return f'<span class="price-n">${n:.2f}</span>'
+    return f'<span class="price-n">${int(round(n))}</span>'
 
 
 def _triples(items):
@@ -252,34 +263,35 @@ def _triples(items):
     return out
 
 
-def _offer_html(family: str, items) -> str:
+def _offer_html(family: str, items, sourced=False) -> str:
     rows = _triples(items)
+    mark = ' data-sourced="1"' if sourced else ""
     if family == "bakery":
         return "".join(
-            f'<article class="case-card"><div class="item-h"><h3>{_esc(t)}</h3>'
-            f'{_price_span(p)}</div><p>{_esc(d)}</p></article>'
+            f'<article class="case-card"{mark}><div class="item-h"><h3>{_esc(t)}</h3>'
+            f'{_price_span(p, sourced)}</div><p>{_esc(d)}</p></article>'
             for t, d, p in rows)
     if family in {"chair", "trade", "floor"}:
         out = []
         for i, (t, d, p) in enumerate(rows, 1):
             out.append(
-                f'<li class="num-item"><span class="n" aria-hidden="true">{i:02d}</span>'
-                f'<div><div class="item-h"><h3>{_esc(t)}</h3>{_price_span(p)}</div>'
+                f'<li class="num-item"{mark}><span class="n" aria-hidden="true">{i:02d}</span>'
+                f'<div><div class="item-h"><h3>{_esc(t)}</h3>{_price_span(p, sourced)}</div>'
                 f'<p>{_esc(d)}</p></div></li>')
         return "".join(out)
     if family == "cafe":
         return "".join(
-            f'<li class="board-row"><h3>{_esc(t)}</h3><span class="rule" aria-hidden="true"></span>'
-            f'{_price_span(p)}<p>{_esc(d)}</p></li>'
+            f'<li class="board-row"{mark}><h3>{_esc(t)}</h3><span class="rule" aria-hidden="true"></span>'
+            f'{_price_span(p, sourced)}<p>{_esc(d)}</p></li>'
             for t, d, p in rows)
     if family in {"practice", "clinic", "gallery", "library"}:
         return "".join(
-            f'<li class="rule-item"><div class="item-h"><h3>{_esc(t)}</h3>{_price_span(p)}</div>'
+            f'<li class="rule-item"{mark}><div class="item-h"><h3>{_esc(t)}</h3>{_price_span(p, sourced)}</div>'
             f'<p>{_esc(d)}</p></li>'
             for t, d, p in rows)
     return "".join(
-        f'''<li class="item">
-      <div class="item-h"><h3>{_esc(t)}</h3><span class="dots" aria-hidden="true"></span>{_price_span(p)}</div>
+        f'''<li class="item"{mark}>
+      <div class="item-h"><h3>{_esc(t)}</h3><span class="dots" aria-hidden="true"></span>{_price_span(p, sourced)}</div>
       <p>{_esc(d)}</p>
     </li>''' for t, d, p in rows)
 
@@ -357,16 +369,17 @@ def _hero_visual(cuisine: str, family: str) -> str:
     )
 
 
-def _offer_wrap(family: str, inner: str) -> str:
+def _offer_wrap(family: str, inner: str, source: str = "sample") -> str:
+    attr = f' data-menu-source="{_esc(source)}"'
     if family == "bakery":
-        return f'<div class="case">{inner}</div>'
+        return f'<div class="case"{attr}>{inner}</div>'
     if family in {"chair", "trade", "floor"}:
-        return f'<ol class="nums">{inner}</ol>'
+        return f'<ol class="nums"{attr}>{inner}</ol>'
     if family == "cafe":
-        return f'<ul class="board">{inner}</ul>'
+        return f'<ul class="board"{attr}>{inner}</ul>'
     if family in {"practice", "clinic", "gallery", "library"}:
-        return f'<ul class="rules">{inner}</ul>'
-    return f'<ul class="menu">{inner}</ul>'
+        return f'<ul class="rules"{attr}>{inner}</ul>'
+    return f'<ul class="menu"{attr}>{inner}</ul>'
 
 
 def _css(theme: dict, mood: dict) -> str:
@@ -636,9 +649,25 @@ footer{{border-top:1px solid var(--line);padding-block:1.7rem;margin-top:1.2rem;
 """
 
 
+def _as_menu_result(menu) -> MenuResult | None:
+    if menu is None:
+        return None
+    if isinstance(menu, MenuResult):
+        return menu if menu.items else None
+    if isinstance(menu, dict):
+        return result_from_dict(menu)
+    return None
+
+
 def generate_site(name, address="", phone="", category="restaurant", rating=None,
-                  city="", lead_id=None, business_id=None, watermark=True, use_ai=True):
-    """Returns (html_string, token)."""
+                  city="", lead_id=None, business_id=None, watermark=True, use_ai=True,
+                  enrich_menu=False, menu=None, website=""):
+    """Returns (html_string, token).
+
+    enrich_menu: look up a public menu and use it when confident. Failures
+    keep the labeled-sample list — never invent dishes as “real”.
+    menu: a MenuResult or dict from a previous enrich, skips the network.
+    """
     token = secrets.token_urlsafe(9)
     cat = category if category in BUSINESS_CATEGORIES else "restaurant"
     meta = BUSINESS_CATEGORIES[cat]
@@ -652,8 +681,14 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
     cuisine = infer_cuisine(name, cat)
     if profile.get("theme_cat") in BUSINESS_CATEGORIES:
         theme = dict(theme_for(profile["theme_cat"]))
+    sourced = _as_menu_result(menu)
+    if sourced is None and enrich_menu and cat in FOOD_CATEGORIES:
+        sourced = discover_menu(name, address, website=website or "", city=city)
     ai = write_copy(name, meta["label"], city) if use_ai else None
-    if ai and ai["tagline"] and ai["items"] and not looks_generic(ai["items"]):
+    if sourced and sourced.items:
+        hero = profile.get("tagline") or meta["hero"]
+        items = [it.as_tuple() for it in sourced.items]
+    elif ai and ai["tagline"] and ai["items"] and not looks_generic(ai["items"]):
         hero = ai["tagline"]
         items = ai["items"]
     elif profile.get("items"):
@@ -682,7 +717,16 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
     desc = _esc(hero)[:150]
     sec0 = _esc(meta["sections"][0])
     year = datetime.now().year
-    menu_html = _offer_wrap(family, _offer_html(family, items))
+    menu_source = sourced.source if sourced else "sample"
+    menu_html = _offer_wrap(family, _offer_html(family, items, sourced=bool(sourced)),
+                            source=menu_source)
+    if sourced:
+        menu_note = (
+            f'Listed {sec0.lower()} {sourced.source_label} — prices as published, may change. '
+            f'We do not invent dishes.'
+        )
+    else:
+        menu_note = f'Sample prices — your real {sec0.lower()} replaces these.'
 
     ld = {
         "@context": "https://schema.org", "@type": "LocalBusiness",
@@ -751,7 +795,7 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
 <title>{name_s}{(' · ' + city_s) if city_s else ''}</title>
 <script type="application/ld+json">{ld_json}</script>
 <style>{_css(theme, mood)}</style></head>
-<body class="family-{family} mood-{mood_name}" data-family="{family}" data-category="{cat}" data-cuisine="{cuisine}">
+<body class="family-{family} mood-{mood_name}" data-family="{family}" data-category="{cat}" data-cuisine="{cuisine}" data-menu-source="{menu_source}">
 <a class="skip" href="#main">Skip to content</a>
 {mark}
 <nav aria-label="Primary"><div class="wrap">
@@ -781,7 +825,7 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
     <div><p class="kicker">{_esc(offer_kicker)}</p><h2>{sec0}</h2></div>
   </div>
   {menu_html}
-  <p class="sub" style="margin-top:1.2rem">Sample prices — your real {sec0.lower()} replaces these.</p>
+  <p class="sub" style="margin-top:1.2rem">{menu_note}</p>
 </div></section>
 
 <section id="visit"><div class="wrap">
@@ -818,6 +862,7 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
 <div class="wrap">
   <p class="note">This is a free unpublished sample. Sample content is marked as such.
   Business name, address, phone and rating come from public Google Places data.
+  Menu items marked as sourced come from a public listing or menu photo — we do not invent them.
   Not affiliated with or endorsed by {name_s}.</p>
   <footer>
     <span>© {year} {name_s}</span>

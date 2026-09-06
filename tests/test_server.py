@@ -14,6 +14,7 @@ from unittest.mock import patch
 _TMP = Path(tempfile.mkdtemp()) / "test.db"
 os.environ["TURSO_DATABASE_URL"] = str(_TMP)
 os.environ["TURSO_AUTH_TOKEN"] = "test-token"
+os.environ["MENU_ENRICH"] = "0"
 
 import db  # noqa: E402
 import landing  # noqa: E402

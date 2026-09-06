@@ -204,6 +204,7 @@ class Handler(BaseHTTPRequestHandler):
             lead_id=lead["id"],
             business_id=lead["business_id"],
             use_ai=False,
+            enrich_menu=True,
         )
         try:
             db.save_demo_html(token, html_str)
@@ -328,7 +329,8 @@ class Handler(BaseHTTPRequestHandler):
             html_str, token = generate_site(
                 name=lead["name"], address=lead["address"] or "", phone=lead["phone"] or "",
                 category=lead["category"] or "restaurant", rating=lead["rating"],
-                city=lead["city"] or "", lead_id=lead["id"], business_id=lead["business_id"])
+                city=lead["city"] or "", lead_id=lead["id"], business_id=lead["business_id"],
+                enrich_menu=True)
             db.create_demo_site(lead["id"], lead["business_id"], html_str, token,
                                 template_used=lead["category"])
             db.update_lead(lead["id"], status="site_generated", demo_token=token,

@@ -68,6 +68,7 @@ def test_generate_site_signature_unchanged():
     assert params == [
         "name", "address", "phone", "category", "rating", "city",
         "lead_id", "business_id", "watermark", "use_ai",
+        "enrich_menu", "menu", "website",
     ]
 
 
@@ -181,6 +182,56 @@ def test_food_and_trade_ctas():
     assert 'href="#visit">Book</a>' in salon
     assert 'href="#claim">Get a quote</a>' in plumber
     assert "House Specialty" not in plumber and "Daily Soup" not in plumber
+
+
+def test_injected_real_menu_is_marked_sourced():
+    from menu_enrich import MenuResult, MenuItem
+    menu = MenuResult(
+        items=[
+            MenuItem("Bánh Mì Thịt Nướng", "Grilled pork sandwich", 7.50),
+            MenuItem("Bánh Mì Đặc Biệt", "Pâté, jambon, sausage", 7.75),
+            MenuItem("Gỏi cuốn", "Fresh spring rolls", 6.50),
+        ],
+        source="yelp",
+        source_url="https://www.yelp.com/menu/thien-an-sandwiches-houston",
+    )
+    html, _ = generate_site(
+        "Thien An Sandwiches", "2611 San Jacinto St, Houston, TX 77004",
+        "(713) 522-7007", "restaurant", 4.5, "houston", use_ai=False, menu=menu)
+    assert 'data-menu-source="yelp"' in html
+    assert "from Yelp" in html
+    assert "Bánh Mì Thịt Nướng" in html
+    assert "$7.50" in html and "$7.75" in html
+    assert "Sample prices — your real" not in html
+    assert "we do not invent dishes" in html.lower()
+    assert "Seasonal plates" not in html
+
+
+def test_failed_enrich_keeps_labeled_samples():
+    from unittest.mock import patch
+    with patch("generator.discover_menu", return_value=None):
+        html, _ = generate_site(
+            "No Such Cafe 9x7q2", "1 Fake St, Houston, TX",
+            "(713) 555-0100", "cafe", 4.0, "houston", use_ai=False,
+            enrich_menu=True)
+    assert 'data-menu-source="sample"' in html
+    assert "Sample prices — your real" in html
+    assert "$1.00" not in html  # no invented cents
+
+
+def test_sandwich_and_grill_fallbacks_are_name_aware():
+    thien, _ = generate_site("Thien An Sandwiches", "2611 San Jacinto St",
+                             "(713) 522-7007", "restaurant", 4.5, "houston",
+                             use_ai=False)
+    yale, _ = generate_site("Yale Street Grill", "2100 Yale St",
+                            "(713) 861-3113", "restaurant", 4.3, "houston",
+                            use_ai=False)
+    assert 'data-cuisine="banh_mi"' in thien
+    assert "Bánh mì" in thien
+    assert "Seasonal plates" not in thien
+    assert 'data-cuisine="breakfast"' in yale
+    assert "Breakfast plate" in yale
+    assert "Tonight's roast" not in yale
 
 
 def test_every_local_category_has_its_own_sample():
