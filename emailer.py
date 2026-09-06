@@ -23,9 +23,15 @@ import urllib.parse
 import urllib.request
 
 import db
-from config import (FROM_EMAIL, FROM_NAME, PRICE_USD, RESEND_API_KEY, REPLY_TO,
-                    SENDER_POSTAL_ADDRESS, UNSUBSCRIBE_BASE, TWILIO_ACCOUNT_SID,
-                    TWILIO_AUTH_TOKEN, TWILIO_FROM)
+from config import (CARE_MONTHLY_USD, CARE_YEARLY_USD, FROM_EMAIL, FROM_NAME,
+                    PRICE_USD, RESEND_API_KEY, REPLY_TO, SENDER_POSTAL_ADDRESS,
+                    UNSUBSCRIBE_BASE, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN,
+                    TWILIO_FROM)
+
+_TRADE_WORDS = {
+    "auto", "plumber", "electrician", "roofer", "locksmith", "barber", "salon",
+    "gym", "hardware", "dry_cleaning",
+}
 
 RESEND_URL = "https://api.resend.com/emails"
 TWILIO_URL = "https://api.twilio.com/2010-04-01/Accounts"
@@ -68,16 +74,27 @@ def unsubscribe_url(email: str) -> str:
 
 
 def _biz_word(category: str) -> str:
-    """Singular label for copy. Cafe → cafe; else restaurant for food leads."""
+    """Singular label for copy. Local businesses, not food-only."""
     c = (category or "").strip().lower()
     if c == "cafe":
         return "cafe"
-    if c in ("restaurant", "restaurants"):
+    if c in ("restaurant", "restaurants", "bakery"):
         return "restaurant"
-    # Growth pack is restaurant-first; keep generic fallback for other categories.
-    if c in ("business", "", "shop"):
-        return "restaurant"
-    return c.rstrip("s") or "restaurant"
+    if c in _TRADE_WORDS or c == "shop":
+        return "shop"
+    if c in ("business", ""):
+        return "business"
+    return c.rstrip("s") or "business"
+
+
+def _subject_for(word: str) -> str:
+    if word == "cafe":
+        return "Your cafe deserves a real website"
+    if word == "restaurant":
+        return "Your restaurant deserves a real website"
+    if word == "shop":
+        return "Your shop deserves a real website"
+    return "Your business deserves a real website"
 
 
 def build_sms(business_name: str, demo_url: str) -> str:
@@ -93,19 +110,16 @@ def build_email(business_name: str, demo_url: str, owner_email: str,
     """Returns (subject, html_body, text_body). Growth pack 2026-09-05."""
     e = lambda s: html.escape(str(s or ""))
     name = e(business_name)
-    word = _biz_word(category)          # restaurant | cafe | …
-    words = word + "s"                  # restaurants | cafes
+    word = _biz_word(category)          # restaurant | cafe | shop | business
+    words = {"business": "businesses", "shop": "shops"}.get(word, word + "s")
     city_bit = f" in {city.title()}" if city else ""
     city_bit_html = f" in {e(city.title())}" if city else ""
     unsub = unsubscribe_url(owner_email)
     reply_to = reply_to.strip() or REPLY_TO
 
-    # Subject A (default). Honest B kept as comment for A/B later:
+    # Subject A (cafe tweak). Honest B kept for A/B later:
     # f"A sample website for {business_name} (free, nothing published)"
-    if word == "cafe":
-        subject = "Your cafe deserves a real website"
-    else:
-        subject = "Your restaurant deserves a real website"
+    subject = _subject_for(word)
 
     text = f"""Hi — I build simple websites for local {words}{city_bit}.
 
@@ -113,7 +127,9 @@ I noticed {business_name} doesn't have a website yet — mostly a listing. I put
 
 {demo_url}
 
-If you like it, I'll put your real menu, hours, and photos on it and set it up on your own domain for a one-time ${PRICE_USD}. No subscription.
+Having a site is a pain — hosting, SSL, keeping hours current.
+${PRICE_USD} one-time builds the site (we finish your menu, hours, and photos).
+Care ${CARE_MONTHLY_USD}/mo takes that off your plate (or ${CARE_YEARLY_USD}/yr) — hosting, SSL, monitoring, and small menu/hours tweaks so it stays live.
 If it's not for you, ignore this — or use the opt-out link and I won't email again.
 
 {FROM_NAME}
@@ -138,8 +154,10 @@ BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1a1a1a;line-heig
     style="background:#1a1410;color:#e8b04b;padding:13px 28px;border-radius:6px;
     text-decoration:none;font-weight:600;display:inline-block">See your free sample</a></p>
 
-  <p style="margin:0 0 16px">If you like it, I'll put your real menu, hours, and photos on it and
-  set it up on your own domain for a one-time <b>${PRICE_USD}</b>. No subscription.</p>
+  <p style="margin:0 0 16px">Having a site is a pain — hosting, SSL, keeping hours current.</p>
+  <p style="margin:0 0 16px"><b>${PRICE_USD}</b> one-time builds the site (we finish your menu, hours, and photos).</p>
+  <p style="margin:0 0 16px">Care <b>${CARE_MONTHLY_USD}/mo</b> takes that off your plate
+  (or <b>${CARE_YEARLY_USD}/yr</b>) — hosting, SSL, monitoring, and small menu/hours tweaks so it stays live.</p>
 
   <p style="margin:0 0 24px">If it's not for you, ignore this — or use the opt-out link and I won't email again.</p>
 

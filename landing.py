@@ -16,18 +16,23 @@ _PLACEHOLDER_FROM = "onboarding@resend.dev"
 HEADLINE_SHORT = "No website? We’ll build one."
 HEADLINE_LONG = "No website? We’ll build you one."
 SUB = (
-    "For restaurants and local businesses still stuck on Facebook or a Google "
-    "listing. We make a clean site you can send to customers tonight."
+    "For local businesses stuck on Facebook, Instagram, or a Google "
+    "listing. Clean site customers can use tonight."
 )
 CTA_SHORT = "Get free preview"
 CTA_LONG = "Get my free site preview"
 CTA_SECONDARY = "How it works"
-ONE_LINER = "We build websites for restaurants that don’t have one yet."
+ONE_LINER = "We build websites for local businesses that don’t have one yet."
+PRICE_ONE_LINER = "$99 gets the site. Care keeps it live."
+PRICE_LINE = (
+    "$99 builds the site. Care ($29/mo or $249/yr) keeps it online with hosting, "
+    "SSL, and small updates. No surprise subscription on the build."
+)
 EMPTY_SITES = (
-    "No sites yet. Point us at a restaurant without a website and we’ll draft one."
+    "No sites yet. Point us at a shop without a website and we’ll draft one."
 )
 HOW_IT_WORKS = (
-    ("We find you", "restaurants and shops without a real site"),
+    ("We find you", "local businesses without a real site"),
     ("We build a preview", "name, menu/hours, photos, call/directions"),
     ("You approve", "go live or tweak; pay when you’re happy"),
 )
@@ -48,7 +53,7 @@ def _cta_href(contact_email: str) -> str:
     if not contact_email:
         return "#preview"
     subject = quote("Free site preview")
-    body = quote("Restaurant name:\nCity:\nHow to reach you:\n")
+    body = quote("Business name:\nCity:\nHow to reach you:\n")
     return f"mailto:{contact_email}?subject={subject}&body={body}"
 
 
@@ -171,6 +176,11 @@ h1 {{
   font-size: 1.05rem; color: var(--muted); max-width: 38rem;
   margin: 0 0 28px;
 }}
+.price-line {{
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 14px; color: var(--muted); max-width: 42rem; margin: 16px 0 0;
+}}
+.price-full {{ display: none; }}
 .ctas {{
   display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
 }}
@@ -253,6 +263,7 @@ footer {{
   .hero {{ padding: 72px 0 40px; }}
   h1 {{ max-width: 16ch; }}
   .extra {{ display: inline; }}
+  .price-full {{ display: block; }}
   .beats {{ grid-template-columns: repeat(3, 1fr); gap: 18px; }}
   .card {{ padding: 36px 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }}
 }}
@@ -266,13 +277,15 @@ footer {{
 </header>
 <main>
   <section class="hero wrap">
-    <p class="kicker">Restaurants &amp; local shops</p>
+    <p class="kicker">Local businesses</p>
     <h1>No website? We’ll build <span class="extra">you </span>one.</h1>
     <p class="sub">{html.escape(SUB)}</p>
     <div class="ctas">
       <a class="btn primary" href="{href}" aria-label="{cta_aria}">{cta_label}</a>
       <a class="btn ghost" href="#how-it-works">{html.escape(CTA_SECONDARY)}</a>
     </div>
+    <p class="price-line">{html.escape(PRICE_ONE_LINER)}</p>
+    <p class="price-line price-full">{html.escape(PRICE_LINE)}</p>
     {empty_block}
   </section>
   <section class="how wrap" id="how-it-works">
@@ -283,11 +296,11 @@ footer {{
     <div class="card">
       <div>
         <h2>Request a preview</h2>
-        <p class="lede">Point us at a restaurant without a website and we’ll draft one.</p>
+        <p class="lede">Point us at a shop without a website and we’ll draft one.</p>
       </div>
       <form action="{form_action}" method="{form_method}"{form_enctype}>
         <div class="field">
-          <label for="biz">Restaurant or shop</label>
+          <label for="biz">Business or shop</label>
           <input id="biz" name="business" type="text" autocomplete="organization" required>
         </div>
         <div class="field">

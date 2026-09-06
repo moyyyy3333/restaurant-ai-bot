@@ -17,7 +17,7 @@ schema setup happens in ensure_schema() on the first request.
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
@@ -190,40 +190,9 @@ class Handler(BaseHTTPRequestHandler):
 
         return self.send(404, page("Not found", "<h1>Not found</h1>"))
 
-    def serve_demo(self, token: str):
-        lead = db.get_lead_by_token(token)
-        demo = db.get_demo(token)
-        if not demo or not lead:
-            return self.send(404, page("Expired", "<h1>This sample isn't available</h1>"
-                                       "<p>The link may have expired.</p>"))
-        # expiry check
-        exp = lead["demo_expires_at"]
-        if exp:
-            try:
-                if datetime.fromisoformat(exp) < datetime.now():
-                    return self.send(410, page("Expired", f"""
-                        <h1>This sample has expired</h1>
-                        <p>Samples stay up for {DEMO_EXPIRE_HOURS} hours. Reply to the email
-                        that brought you here and it can be restored.</p>"""))
-            except ValueError:
-                pass
-        html_inline = None
-        try:
-            html_inline = demo["html"]
-        except (KeyError, ValueError):
-            html_inline = None
-        if html_inline:
-            db.bump_demo_views(token)
-            body = html_inline.encode() if isinstance(html_inline, str) else html_inline
-            return self.send(200, body)
-
-        path = demo["html_path"]
-        if path and os.path.exists(path):
-            db.bump_demo_views(token)
-            with open(path, "rb") as f:
-                return self.send(200, f.read())
-
-        # Vercel (and any host without the original disk) — rebuild from lead data.
+    def rebuild_demo(self, lead, token: str) -> str:
+        """Always rebuild from the current generator so design upgrades land
+        on existing /demo/{token} links. Extends expiry on open."""
         from generator import generate_site
         html_str, _ = generate_site(
             name=lead["name"] or "Business",
@@ -240,8 +209,25 @@ class Handler(BaseHTTPRequestHandler):
             db.save_demo_html(token, html_str)
         except Exception as e:
             print(f"  could not persist regenerated demo: {e}")
+        try:
+            db.update_lead(
+                lead["id"],
+                demo_expires_at=(datetime.now() + timedelta(hours=DEMO_EXPIRE_HOURS)).isoformat(),
+            )
+        except Exception as e:
+            print(f"  could not extend demo expiry: {e}")
         db.bump_demo_views(token)
-        return self.send(200, html_str.encode())
+        return html_str
+
+    def serve_demo(self, token: str):
+        lead = db.get_lead_by_token(token)
+        demo = db.get_demo(token)
+        if not demo or not lead:
+            return self.send(404, page("Expired", "<h1>This sample isn't available</h1>"
+                                       "<p>The link may have expired.</p>"))
+        # Rebuild on every open: stored HTML would freeze the old template, and
+        # an expired token should come back instead of a 410 dead-end.
+        return self.send(200, self.rebuild_demo(lead, token).encode())
 
     # --------------------------------------------------------------------- POST
     def do_POST(self):
