@@ -10,7 +10,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import BUSINESS_CATEGORIES, CATEGORY_THEMES, theme_for
-from generator import SAMPLE, generate_site
+from generator import SAMPLE, generate_site, human_address
 from profiles import infer_cuisine
 
 HTML, TOKEN = generate_site("Taqueria La Esquina", "1234 Navigation Blvd, Houston, TX",
@@ -261,6 +261,63 @@ def test_food_and_trade_ctas():
     assert 'href="#visit">Book</a>' in salon
     assert 'href="#claim">Get a quote</a>' in plumber
     assert "House Specialty" not in plumber and "Daily Soup" not in plumber
+
+
+def test_human_address_drops_county_and_country():
+    verbose = (
+        "Yale Street Grill, 2100, Yale Street, Houston Heights, Houston, "
+        "Harris County, Texas, 77008, United States"
+    )
+    assert human_address(verbose, name="Yale Street Grill", city="houston") == (
+        "2100 Yale Street, Houston, TX 77008"
+    )
+    assert human_address(
+        "2100 Yale St, Houston, TX 77008, USA", city="houston"
+    ) == "2100 Yale St, Houston, TX 77008"
+    # Already short — leave it alone.
+    assert human_address("1234 Navigation Blvd, Houston, TX") == (
+        "1234 Navigation Blvd, Houston, TX"
+    )
+    assert human_address("") == ""
+
+
+def test_verbose_address_is_trimmed_on_the_page():
+    raw = (
+        "Cream Parlor, 8216, Biscayne Boulevard, Miami, Miami-Dade County, "
+        "Florida, 33138, United States"
+    )
+    html, _ = generate_site(
+        "Cream Parlor", raw, "(305) 555-0110", "cafe", 4.8, "miami", use_ai=False)
+    shown = "8216 Biscayne Boulevard, Miami, FL 33138"
+    assert shown in html
+    where = re.search(r"<h3[^>]*>Where</h3>\s*<p>(.*?)</p>", html, re.S).group(1)
+    assert where == shown
+    assert "County" not in where and "United States" not in where
+    facts = re.search(r"<dt>Find us</dt><dd>(.*?)</dd>", html).group(1)
+    assert facts == shown
+    # Map still geocodes the original OSM string.
+    assert "Miami-Dade County" in html and "maps.google.com/maps?q=" in html
+
+
+def test_cta_reserve_follows_vibe():
+    """Counters: Order + Call. Sit-down / wine bar: keep Reserve."""
+    cream, _ = generate_site("Cream Parlor", "4 Main St, Miami, FL",
+                             "(305) 555-0110", "cafe", 4.8, "miami", use_ai=False)
+    thien, _ = generate_site("Thien An Sandwiches", "2611 San Jacinto St, Houston, TX",
+                             "(713) 555-0108", "restaurant", 4.5, "houston", use_ai=False)
+    deli, _ = generate_site("Joe's Sandwiches", "5 Main St, Houston, TX",
+                            "(713) 555-0111", "restaurant", 4.3, "houston", use_ai=False)
+    yale, _ = generate_site("Yale Street Grill", "2100 Yale Street, Houston, TX",
+                            "(713) 861-3113", "restaurant", 4.4, "houston", use_ai=False)
+    apo, _ = generate_site("Apothecary Cafe & Wine Bar", "4800 Burnet Road, Austin, TX",
+                           "(512) 555-0109", "cafe", 4.6, "austin", use_ai=False)
+    for page in (cream, thien, deli):
+        assert "Reserve" not in page
+        assert 'href="#menu">Order</a>' in page
+        assert ">Call</a>" in page
+    assert 'href="#visit">Reserve</a>' in yale
+    assert 'href="#visit">Reserve</a>' in apo
+    assert 'href="#visit">Reserve</a>' in HTML
 
 
 def test_every_local_category_has_its_own_sample():

@@ -230,6 +230,148 @@ def _esc(value) -> str:
     return html.escape(str(value or ""))
 
 
+# OSM/Nominatim display_name trails with county + state name + zip + country.
+# Humans want street + city + state/zip. Maps still get the original string.
+_COUNTRY_PART = re.compile(
+    r"^(united states( of america)?|u\.s\.a\.?|usa|u\.s\.|us|canada|mexico)$",
+    re.I,
+)
+_COUNTY_PART = re.compile(
+    r"\b(county|parish|borough|census area|municipality)\b",
+    re.I,
+)
+_ZIP_PART = re.compile(r"^\d{5}(?:-\d{4})?$")
+_HOUSE_NO = re.compile(r"^\d+[A-Za-z]?$")
+_STREETISH = re.compile(
+    r"\d.+\s+\w+|\b(st|street|ave|avenue|blvd|boulevard|rd|road|dr|drive|"
+    r"ln|lane|way|pkwy|parkway|hwy|highway|ct|court|pl|place|ter|terrace)\b",
+    re.I,
+)
+_US_STATES = {
+    "alabama": "AL", "alaska": "AK", "arizona": "AZ", "arkansas": "AR",
+    "california": "CA", "colorado": "CO", "connecticut": "CT", "delaware": "DE",
+    "florida": "FL", "georgia": "GA", "hawaii": "HI", "idaho": "ID",
+    "illinois": "IL", "indiana": "IN", "iowa": "IA", "kansas": "KS",
+    "kentucky": "KY", "louisiana": "LA", "maine": "ME", "maryland": "MD",
+    "massachusetts": "MA", "michigan": "MI", "minnesota": "MN",
+    "mississippi": "MS", "missouri": "MO", "montana": "MT", "nebraska": "NE",
+    "nevada": "NV", "new hampshire": "NH", "new jersey": "NJ",
+    "new mexico": "NM", "new york": "NY", "north carolina": "NC",
+    "north dakota": "ND", "ohio": "OH", "oklahoma": "OK", "oregon": "OR",
+    "pennsylvania": "PA", "rhode island": "RI", "south carolina": "SC",
+    "south dakota": "SD", "tennessee": "TN", "texas": "TX", "utah": "UT",
+    "vermont": "VT", "virginia": "VA", "washington": "WA",
+    "west virginia": "WV", "wisconsin": "WI", "wyoming": "WY",
+    "district of columbia": "DC",
+}
+_STATE_ABBR = set(_US_STATES.values())
+_STATE_ZIP = re.compile(
+    r"^([A-Za-z. ]+?)\s+(\d{5}(?:-\d{4})?)$"
+)
+
+
+def _norm_addr_token(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", (value or "").lower())
+
+
+def _state_abbr(part: str) -> str:
+    token = (part or "").strip()
+    if len(token) == 2 and token.upper() in _STATE_ABBR:
+        return token.upper()
+    return _US_STATES.get(token.lower(), "")
+
+
+def _state_and_zip(part: str):
+    m = _STATE_ZIP.match((part or "").strip())
+    if not m:
+        return "", ""
+    abbr = _state_abbr(m.group(1))
+    if not abbr:
+        return "", ""
+    return abbr, m.group(2)
+
+
+def _looks_like_street(text: str) -> bool:
+    return bool(_STREETISH.search(text or ""))
+
+
+def human_address(address: str, name: str = "", city: str = "") -> str:
+    """Shorten OSM/Places display strings for people.
+
+    '2100, Yale Street, Houston Heights, Houston, Harris County, Texas,
+    77008, United States' → '2100 Yale Street, Houston, TX 77008'.
+    Already-short strings ('1234 Navigation Blvd, Houston, TX') stay put.
+    """
+    raw = (address or "").strip()
+    if not raw:
+        return ""
+    parts = [p.strip() for p in raw.split(",") if p.strip()]
+    if not parts:
+        return raw
+    if name and _norm_addr_token(parts[0]) == _norm_addr_token(name):
+        parts = parts[1:]
+    if len(parts) >= 2 and _HOUSE_NO.match(parts[0]) and not _HOUSE_NO.match(parts[1]):
+        parts = [f"{parts[0]} {parts[1]}"] + parts[2:]
+
+    used = set()
+    state = ""
+    zipcode = ""
+    for i in range(len(parts) - 1, -1, -1):
+        part = parts[i]
+        if _COUNTRY_PART.match(part) or _COUNTY_PART.search(part):
+            used.add(i)
+            continue
+        pair_state, pair_zip = _state_and_zip(part)
+        if pair_state and not state:
+            state, zipcode = pair_state, pair_zip or zipcode
+            used.add(i)
+            continue
+        if _ZIP_PART.match(part) and not zipcode:
+            zipcode = part
+            used.add(i)
+            continue
+        abbr = _state_abbr(part)
+        if abbr and not state:
+            state = abbr
+            used.add(i)
+            continue
+
+    remaining = [p for i, p in enumerate(parts) if i not in used]
+    if not remaining and not (state or zipcode):
+        return raw
+
+    street = remaining[0] if remaining else ""
+    city_part = ""
+    want_city = (city or "").strip()
+    if want_city:
+        want = _norm_addr_token(want_city)
+        fuzzy = ""
+        for part in remaining[1:]:
+            token = _norm_addr_token(part)
+            if token == want:
+                city_part = part
+                break
+            if not fuzzy and want and (want in token or token in want):
+                fuzzy = part
+        if not city_part:
+            city_part = fuzzy
+    if not city_part and len(remaining) >= 2:
+        city_part = remaining[-1]
+        if city_part.lower() == street.lower():
+            city_part = ""
+
+    bits = [b for b in (street, city_part) if b]
+    tail = " ".join(x for x in (state, zipcode) if x)
+    if tail:
+        bits.append(tail)
+    parsed = ", ".join(bits)
+    if not parsed or not re.search(r"[A-Za-z]", parsed):
+        return raw
+    if _looks_like_street(raw) and street and not _looks_like_street(street):
+        return raw
+    return parsed
+
+
 def _hours_rows(hours) -> str:
     rows = []
     for day, time in hours:
@@ -588,7 +730,8 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
     meta = BUSINESS_CATEGORIES[cat]
     theme = dict(theme_for(cat))
 
-    name_s, addr_s, phone_s = _esc(name), _esc(address), _esc(phone)
+    shown_address = human_address(address, name=name, city=city)
+    name_s, addr_s, phone_s = _esc(name), _esc(shown_address), _esc(phone)
     tel = "".join(ch for ch in str(phone or "") if ch.isdigit())
     city_s = _esc(city.title()) if city else ""
 
@@ -645,8 +788,8 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
         "@context": "https://schema.org", "@type": "LocalBusiness",
         "name": str(name), "description": str(hero),
     }
-    if address:
-        ld["address"] = str(address)
+    if shown_address:
+        ld["address"] = shown_address
     if phone:
         ld["telephone"] = str(phone)
     if rating:
@@ -668,8 +811,12 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
 
     place = f"{_esc(label)}{(' · ' + city_s) if city_s else ''}"
     if cat in FOOD_CATEGORIES:
-        cta_a, cta_b, cta_c = ("Call", "Order", "Reserve")
-        href_b, href_c = "#menu", "#visit"
+        cta_a, cta_b, href_b = "Call", "Order", "#menu"
+        # Counters (ice cream, bánh mì, sandwiches) take orders — no table to reserve.
+        if profile.get("reserve", True):
+            cta_c, href_c = "Reserve", "#visit"
+        else:
+            cta_c, href_c = "", ""
     elif cat in TRADE_CATEGORIES:
         cta_a, cta_b, cta_c = ("Call", "Book", "Get a quote")
         href_b, href_c = "#visit", "#claim"
@@ -678,10 +825,9 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
         href_b, href_c = "#menu", "#visit"
     primary = (f'<a class="btn on-dark" href="tel:{tel}">{_esc(cta_a)}</a>'
                if tel else f'<a class="btn on-dark" href="#claim">{_esc(cta_a)}</a>')
-    ghost = (
-        f'<a class="btn on-dark ghost" href="{href_b}">{_esc(cta_b)}</a>'
-        f'<a class="btn on-dark ghost" href="{href_c}">{_esc(cta_c)}</a>'
-    )
+    ghost = f'<a class="btn on-dark ghost" href="{href_b}">{_esc(cta_b)}</a>'
+    if cta_c:
+        ghost += f'<a class="btn on-dark ghost" href="{href_c}">{_esc(cta_c)}</a>'
     nav_call = (f'<a class="btn" href="tel:{tel}">Call</a>' if tel
                 else '<a class="btn" href="#claim">Get yours</a>')
     # Honest omission: no fake photo frames or "sample image" chrome.
