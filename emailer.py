@@ -127,7 +127,6 @@ I noticed {business_name} doesn't have a website yet — mostly a listing. I put
 
 ${PRICE_USD} one-time builds the site (we finish your menu, hours, and photos).
 Care ${CARE_MONTHLY_USD}/mo (or ${CARE_YEARLY_USD}/yr) keeps it live — hosting, SSL, monitoring, and small menu/hours tweaks.
-${PRICE_USD} builds it. Care keeps it live.
 If it's not for you, ignore this — or use the opt-out link and I won't email again.
 
 {FROM_NAME}
@@ -155,7 +154,6 @@ BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#1a1a1a;line-heig
   <p style="margin:0 0 16px"><b>${PRICE_USD}</b> one-time builds the site (we finish your menu, hours, and photos).</p>
   <p style="margin:0 0 16px">Care <b>${CARE_MONTHLY_USD}/mo</b> (or <b>${CARE_YEARLY_USD}/yr</b>) keeps it live —
   hosting, SSL, monitoring, and small menu/hours tweaks.</p>
-  <p style="margin:0 0 16px">${PRICE_USD} builds it. Care keeps it live.</p>
 
   <p style="margin:0 0 24px">If it's not for you, ignore this — or use the opt-out link and I won't email again.</p>
 

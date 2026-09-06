@@ -23,11 +23,8 @@ CTA_SHORT = "Get free preview"
 CTA_LONG = "Get my free site preview"
 CTA_SECONDARY = "How it works"
 ONE_LINER = "We build websites for local businesses that don’t have one yet."
-PRICE_LINE = (
-    "$99 builds the site. Care ($29/mo or $249/yr) keeps it online with hosting, "
-    "SSL, and small updates. No surprise subscription on the build."
-)
-PRICE_ONE_LINER = "$99 gets the site. Care keeps it live."
+PRICE_LINE = "$99 one-time builds the site. We finish your menu, hours, and photos."
+PRICE_ONE_LINER = "Care $29/mo (or $249/yr) keeps it live — hosting, SSL, and small updates."
 EMPTY_SITES = (
     "No sites yet. Point us at a shop without a website and we’ll draft one."
 )
@@ -282,7 +279,8 @@ footer {{
       <a class="btn primary" href="{href}" aria-label="{cta_aria}">{cta_label}</a>
       <a class="btn ghost" href="#how-it-works">{html.escape(CTA_SECONDARY)}</a>
     </div>
-    <p class="price-line">{html.escape(PRICE_ONE_LINER)} {html.escape(PRICE_LINE)}</p>
+    <p class="price-line">{html.escape(PRICE_LINE)}</p>
+    <p class="price-line">{html.escape(PRICE_ONE_LINER)}</p>
     {empty_block}
   </section>
   <section class="how wrap" id="how-it-works">
