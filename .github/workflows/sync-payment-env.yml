@@ -15,7 +15,7 @@ jobs:
           SALES_SMS_NUMBER: ${{ vars.SALES_SMS_NUMBER }}
         run: |
           curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/env-vars" \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/env-vars?limit=100" \
             -o current.json
 
           python3 - <<'PY'
@@ -25,6 +25,11 @@ jobs:
           with open("current.json") as f:
               data = json.load(f)
           vars_ = [{"key": e["envVar"]["key"], "value": e["envVar"]["value"]} for e in data]
+          # The PUT replaces the whole set, so a truncated read would delete the rest.
+          if len(vars_) >= 100:
+              raise SystemExit("refusing to PUT: env-vars read looks paginated/truncated")
+          if not any(v["key"] == "PYTHON_VERSION" for v in vars_):
+              raise SystemExit("refusing to PUT: PYTHON_VERSION missing from read")
           # Empty inputs leave whatever Render already has untouched.
           updates = {k: v for k in required if (v := os.environ.get(k, "").strip())}
           seen = set()
@@ -35,6 +40,7 @@ jobs:
           vars_ += [{"key": k, "value": v} for k, v in updates.items() if k not in seen]
           with open("updated.json", "w") as f:
               json.dump(vars_, f)
+          print("keys on Render:", " ".join(sorted(v["key"] for v in vars_)))
           print("updated from GitHub:", sorted(updates) or "none")
           have = {v["key"] for v in vars_ if v["value"].strip()}
           for k in required:

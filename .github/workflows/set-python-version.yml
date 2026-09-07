@@ -9,7 +9,7 @@ jobs:
       - name: Set PYTHON_VERSION env var on Render
         run: |
           curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/env-vars" \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/env-vars?limit=100" \
             -o current.json
 
           python3 - <<'PY'
