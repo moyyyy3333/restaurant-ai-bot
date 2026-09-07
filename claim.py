@@ -343,6 +343,7 @@ def render_success(session_id: str = "", claim_record: dict | None = None) -> by
     return _shell("You're in", f"""
       <div class="k">Payment received</div>
       <h1>Your site is moving toward launch.</h1>
+      <p>Your ${BUILD_PRICE_USD} website build payment was received.</p>
       <p>Next, confirm your hours, contact details, menu, photos, and domain.
       We review those details and target going live within 48 hours.</p>
       <p>If you added Care, hosting, SSL, monitoring, and small updates are

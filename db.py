@@ -646,10 +646,17 @@ def mark_care_paid(
         return False
     update_lead(lead_id, care_status="active")
     with conn() as c:
-        c.execute(
-            "UPDATE claims SET status='paid', updated_at=? WHERE lead_id=? "
-            "AND care_plan IN ('monthly','yearly')",
-            (now(), lead_id))
+        if subscription_id:
+            c.execute(
+                "UPDATE claims SET status='paid', updated_at=? "
+                "WHERE lead_id=? AND stripe_subscription_id=?",
+                (now(), lead_id, subscription_id))
+        elif customer_id:
+            c.execute(
+                "UPDATE claims SET status='paid', updated_at=? "
+                "WHERE lead_id=? AND stripe_customer_id=? "
+                "AND status != 'expired'",
+                (now(), lead_id, customer_id))
     return True
 
 
