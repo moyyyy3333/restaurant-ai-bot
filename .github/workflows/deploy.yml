@@ -4,19 +4,37 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: render-production
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Render deploy and wait for it to go live
         run: |
-          response=$(curl --fail-with-body --silent --show-error \
-            --retry 4 --retry-all-errors --retry-delay 4 \
-            -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
-            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-            -H "Content-Type: application/json" \
-            -d '{}')
-          deploy_id=$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['id'])" "$response")
+          deploy_id=""
+          for attempt in $(seq 1 5); do
+            response=$(curl --fail-with-body --silent --show-error \
+              --retry 4 --retry-all-errors --retry-delay 4 \
+              -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
+              -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+              -H "Content-Type: application/json" \
+              -d '{}')
+            deploy_id=$(python3 -c \
+              "import json,sys; data=json.loads(sys.argv[1] or '{}'); print(data.get('id',''))" \
+              "$response")
+            if [ -n "$deploy_id" ]; then
+              break
+            fi
+            echo "Render returned no deploy id (attempt $attempt/5); retrying..."
+            sleep 15
+          done
+          if [ -z "$deploy_id" ]; then
+            echo "::error::Render did not return a deploy id"
+            exit 1
+          fi
           echo "Deploy $deploy_id triggered, waiting for it to finish..."
 
           for i in $(seq 1 60); do

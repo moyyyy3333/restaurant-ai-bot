@@ -17,6 +17,8 @@ class DeploymentConfigTests(unittest.TestCase):
     def test_deploy_retries_render_api_and_checks_health(self):
         workflow = (ROOT / ".github/workflows/deploy.yml").read_text()
         self.assertIn("--retry-all-errors", workflow)
+        self.assertIn("group: render-production", workflow)
+        self.assertIn("Render did not return a deploy id", workflow)
         self.assertIn("/health", workflow)
         self.assertIn("python3 run.py", (ROOT / "Procfile").read_text())
 
