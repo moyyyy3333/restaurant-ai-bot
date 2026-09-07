@@ -21,7 +21,8 @@ import urllib.request
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import db
-from config import (BUSINESS_CATEGORIES, CHAIN_NAMES, CITIES, DEFAULT_CATEGORIES, DEFAULT_CITIES,
+from config import is_chain as config_is_chain
+from config import (BUSINESS_CATEGORIES, CITIES, DEFAULT_CATEGORIES, DEFAULT_CITIES,
                     GOOGLE_PLACES_API_KEY, GOOGLE_PLACES_DAILY_BUDGET,
                     LOCATIONIQ_API_KEY, LOCATIONIQ_DAILY_BUDGET,
                     category_for_types, get_city)
@@ -386,7 +387,7 @@ def scan_area(area_name: str, city: str = "houston", category: str = "restaurant
         name = (p.get("name") or "").strip()
         if not name:
             continue
-        if name.lower() in CHAIN_NAMES:
+        if config_is_chain(name):
             continue
 
         phone = next((extratags[t] for t in PHONE_TAGS if extratags.get(t)), "")

@@ -205,6 +205,17 @@ CITIES = {
                      "Harlem": (40.8079, -73.9455), "Flushing": (40.7654, -73.8174),
                      "Bay Ridge": (40.6320, -74.0232), "Washington Heights": (40.8402, -73.9402),
                  }},
+    "treasure-coast": {"name": "Treasure Coast", "state": "FL",
+                       "lat": 27.2730, "lng": -80.3582,
+                       "areas": {
+                           "Port St. Lucie": (27.2730, -80.3582),
+                           "Fort Pierce": (27.4467, -80.3256),
+                           "Stuart": (27.1973, -80.2528),
+                           "Vero Beach": (27.6386, -80.3973),
+                           "Jensen Beach": (27.2542, -80.2295),
+                           "Palm City": (27.1670, -80.2664),
+                           "Sebastian": (27.8164, -80.4706),
+                       }},
     "chicago": {"name": "Chicago", "state": "IL", "lat": 41.8781, "lng": -87.6298,
                 "areas": {
                     "Pilsen": (41.8570, -87.6619), "Logan Square": (41.9284, -87.7068),
@@ -219,13 +230,49 @@ DEFAULT_CITIES = ["houston", "miami", "austin"]
 # Chains and franchises the scanner should skip — they already have
 # corporate sites and don't need a local demo.
 CHAIN_NAMES = {
+    # Food
     "starbucks", "pizza hut", "ihop", "mcdonald", "burger king",
-    "wendys", "chick-fil-a", "taco bell", "subway", "dominos",
-    "papa john", "dunkin", "kfc", "popeyes", "chick-fil",
-    "panera", "chipotle", "taco bell", "pizza hut", "kfc",
-    "burger king", "mcdonalds", "wendy", "dominos", "subway",
-    "papa johns", "dunkin donuts", "chick fil a",
+    "wendys", "wendy's", "chick-fil-a", "taco bell", "subway", "dominos",
+    "domino's", "papa johns", "papa john", "panera", "dunkin", "kfc",
+    "mcdonalds", "chipotle", "popeyes", "little caesar", "jimmy john",
+    "firehouse subs", "panda express", "olive garden", "applebee",
+    "chili's", "denny's", "waffle house", "dairy queen", "sonic drive",
+    "arby's", "jersey mike", "wingstop", "five guys", "moe's southwest",
+    "qdoba", "tropical smoothie", "smoothie king", "dutch bros", "jamba",
+    "baskin", "cold stone", "marco's pizza", "sbarro", "quiznos",
+    "cracker barrel", "burgerfi", "checkers", "hardee", "whataburger",
+    "in-n-out", "shake shack", "raising cane", "zaxby", "bojangles",
+    "el pollo loco", "pollo tropical", "outback", "red lobster",
+    "buffalo wild wings", "hooters", "tgi friday", "texas roadhouse",
+    # Pharmacy / convenience / grocery
+    "cvs", "walgreens", "rite aid", "7-eleven", "circle k", "wawa",
+    "dollar general", "family dollar", "dollar tree", "publix", "kroger",
+    "safeway", "aldi", "trader joe", "whole foods", "winn-dixie",
+    # Auto
+    "autozone", "o'reilly auto", "advance auto", "jiffy lube", "valvoline",
+    "midas", "meineke", "firestone", "discount tire", "pep boys",
+    "tires plus", "mavis", "take 5 oil",
+    # Personal care / fitness
+    "great clips", "supercuts", "sport clips", "fantastic sams",
+    "planet fitness", "la fitness", "orangetheory", "anytime fitness",
+    "crunch fitness", "gold's gym", "24 hour fitness", "ymca",
+    # Retail / services
+    "home depot", "lowe's", "ace hardware", "tractor supply", "petco",
+    "petsmart", "gnc", "verizon", "t-mobile", "at&t store", "cricket wireless",
+    "metro by t-mobile", "boost mobile", "h&r block", "jackson hewitt",
+    "ups store", "fedex office", "sherwin-williams", "batteries plus",
 }
+
+
+def is_chain(name: str) -> bool:
+    """True if this looks like a franchise/corporate location.
+
+    Substring, not equality: real listings read "Subway #4471",
+    "CVS Pharmacy", "McDonald's of Kendall". Exact matching missed all of
+    those and let chains into the lead list.
+    """
+    low = (name or "").lower()
+    return any(chain in low for chain in CHAIN_NAMES)
 
 # ---------------------------------------------------------------- categories
 # `types` are Google Places (New) primary types. `label` is human copy used in
@@ -308,6 +355,15 @@ BUSINESS_CATEGORIES = {
     "hardware": {"types": ["hardware"], "label": "hardware store",
                  "hero": "If it's for the job, it's here.",
                  "sections": ["Departments", "Hours", "Visit"]},
+    "pool": {"types": ["pool_cleaning", "swimming_pool_service"], "label": "pool service",
+             "hero": "Clear water, every week.",
+             "sections": ["Services", "Schedule", "Estimate"]},
+    "hvac": {"types": ["hvac", "air_conditioning"], "label": "AC and heating company",
+             "hero": "Cold air when it counts.",
+             "sections": ["Services", "Hours", "Estimate"]},
+    "lawn": {"types": ["gardener", "landscaping"], "label": "lawn and landscaping service",
+             "hero": "A yard the block notices.",
+             "sections": ["Services", "Schedule", "Estimate"]},
     "books": {"types": ["books"], "label": "bookstore",
               "hero": "Shelves worth getting lost in.",
               "sections": ["Sections", "Hours", "Visit"]},

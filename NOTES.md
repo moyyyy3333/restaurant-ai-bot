@@ -26,3 +26,38 @@ other agent can't see your session.
   necessarily find one.
 - Budgets are shared single rows and were both exhausted by ~17:00 UTC.
   Use `scripts/coord.py budget` to reserve a slice first.
+
+## 2026-09-07 (later) — claude
+
+- **Scope correction from Matt: this is for ANY local business without a
+  website, not just restaurants.** Acted on it:
+  - `config.BUSINESS_CATEGORIES` 26 → 29 (added `pool`, `hvac`, `lawn` — the
+    trades on the Treasure Coast board that the backend couldn't generate for).
+  - Added `treasure-coast` to `config.CITIES` (Port St. Lucie, Fort Pierce,
+    Stuart, Vero Beach, Jensen Beach, Palm City, Sebastian).
+  - `scripts/free_leads.py` queries ~60 OSM categories: trades, salons, auto,
+    clinics, retail, offices — not just food.
+- **Chain filtering was broken and let franchises into the lead list.**
+  `scanner.py:389` did `name.lower() in CHAIN_NAMES` (exact match), so
+  "Subway #4471", "CVS Pharmacy" and "Cracker Barrel" all passed as leads.
+  Fixed at the root: `config.is_chain()` does substring matching, list grown
+  22 → ~120, and both scanner.py and free_leads.py call it. Anyone adding a
+  new lead source should call `config.is_chain()` too.
+- **Free lead yield, no API spend** (`scripts/free_leads.py <city>`):
+  - miami: 234 businesses with phone + no website, 222 new. Broad mix —
+    restaurant 58, clothes 22, convenience 13, furniture 13, pharmacy 8,
+    hairdresser 8, gym 8, jewelry 6.
+  - treasure-coast: only 11. **OSM coverage there is thin** — it's a lower
+    density area with fewer mappers. Treasure Coast will need paid Google /
+    LocationIQ calls to build a real list; Miami does not.
+- Nothing inserted into the DB yet. `--insert` dedupes on normalized name AND
+  last-10-digits of phone (OSM rows have no google_place_id).
+- **Resend is now Pro**, and a new full-access API key is on Render.
+  `FROM_EMAIL` moved to `hello@outreach.foundrydesk.vip`.
+  `onboarding@resend.dev` only ever delivers to your own address, so outreach
+  from it would have silently failed even on a paid plan.
+- Added `outreach.foundrydesk.vip` to *our* Resend team rather than fighting
+  over `mail.foundrydesk.vip` (which lives in the builder's team). Its 3 DNS
+  records are NOT in cPanel yet — `scripts/dns_add.py` writes them via cPanel
+  UAPI once a cPanel API token exists. Until then the domain is unverified
+  and sending will fail.
