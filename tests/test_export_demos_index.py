@@ -28,7 +28,8 @@ class ExportDemosIndexTests(unittest.TestCase):
         self.assertTrue(PROD_HOST.endswith("restaurant-ai-bot-two.vercel.app"))
 
     def test_committed_index_is_real_tokens_only(self):
-        rows = list(csv.DictReader((ROOT / "demos-index.csv").open(encoding="utf-8")))
+        with (ROOT / "demos-index.csv").open(encoding="utf-8") as fh:
+            rows = list(csv.DictReader(fh))
         seed = json.loads((ROOT / "scripts" / "demo_index_seed.json").read_text(encoding="utf-8"))
         self.assertEqual([r["token"] for r in rows], [r["token"] for r in seed])
         tokens = [r["token"] for r in rows]
@@ -69,7 +70,8 @@ class ExportDemosIndexTests(unittest.TestCase):
             md_path = Path(tmp) / "demos-index.md"
             write_csv(csv_path, rows)
             write_md(md_path, rows, "turso", 401)
-            out = list(csv.DictReader(csv_path.open(encoding="utf-8")))
+            with csv_path.open(encoding="utf-8") as fh:
+                out = list(csv.DictReader(fh))
             self.assertEqual(out[0]["name"], "Alpha Grill")
             md = md_path.read_text(encoding="utf-8")
             self.assertIn("Rows in this file: **2**", md)
