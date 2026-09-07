@@ -460,82 +460,10 @@ class Handler(BaseHTTPRequestHandler):
         return self.json_out(200, {"ok": True, "ignored": etype})
 
     def run_pipeline(self):
-        """The full daily loop: scan -> build demo sites -> find emails -> send
-        proposals, capped at DAILY_SEND_LIMIT sends. Each stage is independent
-        so a slow/failed scan still lets today's backlog get emailed."""
-        from datetime import timedelta
-        from emailer import send_proposal, send_sms, build_sms
-        from generator import generate_site
-        from scanner.email_finder import find_email
-        from scanner.scanner import daily_scan_sample, check_website
-
-        found = daily_scan_sample(budget=12)
-
-        made = []
-        for lead in db.leads_needing_site(limit=DAILY_SEND_LIMIT):
-            html_str, token = generate_site(
-                name=lead["name"], address=lead["address"] or "", phone=lead["phone"] or "",
-                category=lead["category"] or "restaurant", rating=lead["rating"],
-                city=lead["city"] or "", lead_id=lead["id"], business_id=lead["business_id"],
-                fetch_place=True)
-            db.create_demo_site(lead["id"], lead["business_id"], html_str, token,
-                                template_used=lead["category"])
-            db.update_lead(lead["id"], status="site_generated", demo_token=token,
-                           demo_created_at=datetime.now().isoformat(),
-                           demo_expires_at=(datetime.now() +
-                                            timedelta(hours=DEMO_EXPIRE_HOURS)).isoformat())
-            made.append({"lead": lead["id"], "name": lead["name"], "token": token})
-
-        enriched = []
-        for lead in db.leads_missing_email(limit=DAILY_SEND_LIMIT * 2):
-            email = find_email(lead["name"], lead["biz_website"], lead["website_status"])
-            if email:
-                db.set_email(lead["id"], lead["business_id"], email)
-                enriched.append({"lead": lead["id"], "email": email})
-
-        sent = []
-        skipped_unknown = []
-        for lead in db.leads_needing_email(limit=DAILY_SEND_LIMIT):
-            if len(sent) >= DAILY_SEND_LIMIT:
-                break
-            if db.is_suppressed(lead["email"]):
-                continue
-            # Truthfulness gate: only pitch a business we have CONFIRMED has no
-            # real website. "unknown" means the check could not answer, and the
-            # lead waits rather than getting a false "you have no website" email.
-            status, real_site = check_website(lead["name"], lead["address"] or "")
-            if status == "has_site":
-                db.update_lead(lead["id"], website_status="has_site", status="dead")
-                continue
-            if status == "unknown":
-                db.update_lead(lead["id"], website_status="unknown")
-                skipped_unknown.append({"lead": lead["id"], "name": lead["name"]})
-                continue
-            db.update_lead(lead["id"], website_status=status)
-            url = f"{DEMO_BASE_URL}/demo/{lead['demo_token']}"
-            if lead["email"]:
-                result = send_proposal(
-                    business_name=str(lead["name"]), demo_url=url, owner_email=lead["email"],
-                    category=lead["category"] or "business", city=lead["city"] or "",
-                    lead_id=lead["id"])
-                if result:
-                    db.update_lead(lead["id"], emailed=1, email_sent_at=datetime.now().isoformat(),
-                                   status="proposed")
-                    sent.append({"lead": lead["id"], "email": lead["email"]})
-            elif lead["phone"]:
-                # No email — send SMS with demo link instead.
-                body = build_sms(str(lead["name"]), url)
-                if send_sms(lead["phone"], body):
-                    db.update_lead(lead["id"], emailed=1, email_sent_at=datetime.now().isoformat(),
-                                   status="proposed")
-                    sent.append({"lead": lead["id"], "phone": lead["phone"]})
-
-        return self.json_out(200, {
-            "scanned_new": found, "sites_generated": len(made),
-            "emails_found": len(enriched), "proposals_sent": len(sent),
-            "skipped_unverified": len(skipped_unknown),
-            "sites": made, "sent": sent, "unverified": skipped_unknown,
-        })
+        """Run the daily pipeline; DAILY_SEND_LIMIT=0 reports without sending."""
+        from pipeline import run_daily
+        report = run_daily(send_limit=DAILY_SEND_LIMIT)
+        return self.json_out(200 if report["ok"] else 500, report)
 
 
 def main():

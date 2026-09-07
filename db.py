@@ -10,7 +10,7 @@ keep the rest of the codebase (bot.py, server.py, ...) untouched.
 
 import os
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 
 import libsql_experimental as libsql
 
@@ -331,7 +331,8 @@ def leads_needing_email(limit: int = 25):
     with conn() as c:
         return c.execute(
             "SELECT * FROM leads WHERE emailed = 0 AND demo_token IS NOT NULL "
-            "AND email IS NOT NULL AND email != '' LIMIT ?", (limit,)).fetchall()
+            "AND ((email IS NOT NULL AND email != '') "
+            "OR (phone IS NOT NULL AND phone != '')) LIMIT ?", (limit,)).fetchall()
 
 
 def leads_missing_email(limit: int = 25):
@@ -481,6 +482,25 @@ def set_meta(key: str, value: str):
             "ON CONFLICT(key) DO UPDATE SET value = excluded.value, "
             "updated_at = excluded.updated_at",
             (key, value, now()))
+
+
+def consume_daily_budget(name: str, daily_limit: int, amount: int = 1) -> bool:
+    """Reserve API calls in UTC-backed meta storage; False means stop calling."""
+    if daily_limit <= 0 or amount <= 0:
+        return False
+    ensure_schema()
+    key = f"budget:{name}:{datetime.now(timezone.utc).date().isoformat()}"
+    with conn() as c:
+        row = c.execute("SELECT value FROM ops_meta WHERE key = ?", (key,)).fetchone()
+        used = int(row["value"] or 0) if row else 0
+        if used + amount > daily_limit:
+            return False
+        c.execute(
+            "INSERT INTO ops_meta (key, value, updated_at) VALUES (?,?,?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value, "
+            "updated_at = excluded.updated_at",
+            (key, str(used + amount), now()))
+    return True
 
 
 def mark_claimed(lead_id: int, care_plan: str = "none", session_id: str = "",

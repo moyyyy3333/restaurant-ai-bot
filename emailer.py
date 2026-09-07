@@ -26,7 +26,7 @@ import db
 from config import (CARE_MONTHLY_USD, CARE_YEARLY_USD, FROM_EMAIL, FROM_NAME,
                     PRICE_USD, RESEND_API_KEY, REPLY_TO, SENDER_POSTAL_ADDRESS,
                     UNSUBSCRIBE_BASE, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN,
-                    TWILIO_FROM)
+                    TWILIO_DAILY_BUDGET, TWILIO_FROM)
 
 _TRADE_WORDS = {
     "auto", "plumber", "electrician", "roofer", "locksmith", "barber", "salon",
@@ -42,6 +42,9 @@ def send_sms(phone: str, body: str) -> bool:
     if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN or not TWILIO_FROM:
         return False
     if not phone:
+        return False
+    if not db.consume_daily_budget("twilio", TWILIO_DAILY_BUDGET):
+        print("  ! Twilio daily budget exhausted")
         return False
     payload = {
         "To": phone,

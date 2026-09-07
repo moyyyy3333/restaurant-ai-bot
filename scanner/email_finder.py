@@ -10,12 +10,19 @@ Places APIs (LocationIQ, Google) never return a business's email — privacy
 policy on their end, not a gap here.
 """
 
+import json
 import re
 import urllib.error
 import urllib.parse
 import urllib.request
 
-from config import APOLLO_API_KEY, HUNTER_API_KEY
+import db
+from config import (
+    APOLLO_API_KEY,
+    APOLLO_DAILY_BUDGET,
+    HUNTER_API_KEY,
+    HUNTER_DAILY_BUDGET,
+)
 
 EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
 
@@ -73,13 +80,21 @@ def find_email(business_name: str, website: str, website_status: str) -> str:
 
     # Source 2: Hunter.io domain search
     domain = _extract_domain(website) or _extract_domain(business_name)
-    if domain and HUNTER_API_KEY:
+    if (
+        domain
+        and HUNTER_API_KEY
+        and db.consume_daily_budget("hunter", HUNTER_DAILY_BUDGET)
+    ):
         email = _hunter_search(domain)
         if email:
             return email
 
     # Source 3: Apollo.io enrichment
-    if domain and APOLLO_API_KEY:
+    if (
+        domain
+        and APOLLO_API_KEY
+        and db.consume_daily_budget("apollo", APOLLO_DAILY_BUDGET)
+    ):
         email = _apollo_search(domain)
         if email:
             return email

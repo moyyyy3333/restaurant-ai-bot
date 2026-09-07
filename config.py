@@ -102,6 +102,17 @@ STRIPE_PRICE_CARE_YEARLY = os.getenv("STRIPE_PRICE_CARE_YEARLY", "").strip()
 # How many proposal emails the automated daily pipeline (/pipeline/run) may
 # send in one run. Manual /propose in Telegram is not affected by this.
 DAILY_SEND_LIMIT = int(os.getenv("DAILY_SEND_LIMIT", "15"))
+PIPELINE_WORK_LIMIT = int(os.getenv("PIPELINE_WORK_LIMIT", "25"))
+PIPELINE_SCAN_BUDGET = int(os.getenv("PIPELINE_SCAN_BUDGET", "12"))
+
+# Hard daily ceilings for metered providers. Counters live in ops_meta, so all
+# Render processes share them when Turso is configured.
+LOCATIONIQ_DAILY_BUDGET = int(os.getenv("LOCATIONIQ_DAILY_BUDGET", "30"))
+GOOGLE_PLACES_DAILY_BUDGET = int(os.getenv("GOOGLE_PLACES_DAILY_BUDGET", "50"))
+HUNTER_DAILY_BUDGET = int(os.getenv("HUNTER_DAILY_BUDGET", "8"))
+APOLLO_DAILY_BUDGET = int(os.getenv("APOLLO_DAILY_BUDGET", "8"))
+LLM_DAILY_BUDGET = int(os.getenv("LLM_DAILY_BUDGET", "20"))
+TWILIO_DAILY_BUDGET = int(os.getenv("TWILIO_DAILY_BUDGET", "20"))
 
 
 def validate_production_urls(environ=None) -> None:

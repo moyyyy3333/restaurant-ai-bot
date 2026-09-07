@@ -22,8 +22,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import db
 from config import (BUSINESS_CATEGORIES, CHAIN_NAMES, CITIES, DEFAULT_CATEGORIES, DEFAULT_CITIES,
-                    GOOGLE_PLACES_API_KEY, LOCATIONIQ_API_KEY, category_for_types,
-                    get_city)
+                    GOOGLE_PLACES_API_KEY, GOOGLE_PLACES_DAILY_BUDGET,
+                    LOCATIONIQ_API_KEY, LOCATIONIQ_DAILY_BUDGET,
+                    category_for_types, get_city)
 
 NEARBY_URL = "https://us1.locationiq.com/v1/nearby"
 LOOKUP_URL = "https://us1.locationiq.com/v1/lookup"
@@ -45,6 +46,9 @@ OWN_SITE_HOSTS = ("thanx.com", "dishsociety.com", "toutsuitehtx.com")
 
 
 def _get(url: str, params: dict) -> list:
+    if not db.consume_daily_budget("locationiq", LOCATIONIQ_DAILY_BUDGET):
+        print("    ! LocationIQ daily budget exhausted")
+        return []
     full_url = f"{url}?{urllib.parse.urlencode(params)}"
     req = urllib.request.Request(full_url, headers={"Accept": "application/json"})
     try:
@@ -258,6 +262,9 @@ def google_enrich(name: str, address: str, timeout: int = 20,
     cached = _ENRICH_CACHE.get(cache_key)
     if cached is not None:
         return dict(cached)
+    if not db.consume_daily_budget("google_places", GOOGLE_PLACES_DAILY_BUDGET):
+        print("    ! Google Places daily budget exhausted")
+        return {}
     body = json.dumps({
         "textQuery": f"{name}, {address}",
         "maxResultCount": 1,

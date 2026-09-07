@@ -13,11 +13,18 @@ or unconfigured.
 
 import json
 import re
+import shutil
 import subprocess
 import urllib.error
 import urllib.request
 
-from config import ANTHROPIC_API_KEY, DEEPSEEK_API_KEY, OPENAI_API_KEY
+import db
+from config import (
+    ANTHROPIC_API_KEY,
+    DEEPSEEK_API_KEY,
+    LLM_DAILY_BUDGET,
+    OPENAI_API_KEY,
+)
 
 TIMEOUT_S = 25
 
@@ -105,15 +112,26 @@ def write_copy(name: str, label: str, city: str = "") -> dict | None:
     prompt = _build_prompt(name, label, city)
 
     if ANTHROPIC_API_KEY:
+        if not db.consume_daily_budget("llm", LLM_DAILY_BUDGET):
+            return None
         raw = _call_anthropic(prompt)
     elif OPENAI_API_KEY:
+        if not db.consume_daily_budget("llm", LLM_DAILY_BUDGET):
+            return None
         raw = _call_openai_compatible(
             "https://api.openai.com/v1/chat/completions", OPENAI_API_KEY, "gpt-4o-mini", prompt)
     elif DEEPSEEK_API_KEY:
+        if not db.consume_daily_budget("llm", LLM_DAILY_BUDGET):
+            return None
         raw = _call_openai_compatible(
             "https://api.deepseek.com/chat/completions", DEEPSEEK_API_KEY, "deepseek-chat", prompt)
     else:
-        raw = _call_hermes(prompt)
+        raw = (
+            _call_hermes(prompt)
+            if shutil.which("hermes")
+            and db.consume_daily_budget("llm", LLM_DAILY_BUDGET)
+            else None
+        )
 
     if not raw:
         return None
