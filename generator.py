@@ -440,23 +440,31 @@ def _lookup_place(name: str, address: str) -> dict:
     """Real hours/types from Google Places. Empty if unknown — never invent."""
     if not name:
         return {}
+    t0 = datetime.now()
     try:
         from scanner.scanner import google_enrich
-        return google_enrich(name, address or "", timeout=4, check_liveness=False) or {}
+        info = google_enrich(name, address or "", timeout=4, check_liveness=False) or {}
     except Exception:
-        return {}
+        info = {}
+    ms = (datetime.now() - t0).total_seconds() * 1000
+    print(f"  generate place lookup {ms:.0f}ms name={name!r} hours={bool(info.get('hours'))}")
+    return info
 
 
 def _lookup_menu(name: str, address: str, website: str = "", bias: str = "") -> dict | None:
     """Real menu items from a public menu/order page. None if we cannot prove them."""
     if not name:
         return None
+    t0 = datetime.now()
     try:
         from menu_enrich import enrich_menu
-        return enrich_menu(name, address or "", website=website or "",
-                           bias=bias) or None
+        sourced = enrich_menu(name, address or "", website=website or "",
+                              bias=bias) or None
     except Exception:
-        return None
+        sourced = None
+    ms = (datetime.now() - t0).total_seconds() * 1000
+    print(f"  generate menu enrich {ms:.0f}ms name={name!r} items={len((sourced or {}).get('items') or [])}")
+    return sourced
 
 
 def _offer_wrap(family: str, inner: str) -> str:
@@ -821,8 +829,19 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
     map_html = ""
     if address:
         map_q = html.escape(str(address), quote=True)
-        map_html = (f'<iframe class="map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" '
-                    f'src="https://maps.google.com/maps?q={map_q}&output=embed"></iframe>')
+        map_src = f"https://maps.google.com/maps?q={map_q}&output=embed"
+        # Keep the Maps URL in data-src so first paint is not waiting on the
+        # embed. A tiny idle callback fills src after the page is interactive.
+        map_html = (
+            f'<iframe class="map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" '
+            f'title="Map" src="about:blank" data-src="{map_src}"></iframe>'
+            f'<script>'
+            f'(function(){{function go(){{var i=document.querySelector("iframe.map");'
+            f'if(i&&i.dataset.src)i.src=i.dataset.src}}'
+            f'if("requestIdleCallback"in window)requestIdleCallback(go,{{timeout:2500}});'
+            f'else setTimeout(go,1)}})()'
+            f'</script>'
+        )
 
     desc = _esc(hero)[:150]
     sec0 = _esc(meta["sections"][0])

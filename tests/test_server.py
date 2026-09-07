@@ -19,6 +19,7 @@ import db  # noqa: E402
 import config  # noqa: E402
 import landing  # noqa: E402
 import server  # noqa: E402
+from generator import generate_site  # noqa: E402
 from http.server import ThreadingHTTPServer  # noqa: E402
 
 
@@ -179,12 +180,16 @@ class HandlerTests(unittest.TestCase):
                 (lid, bid, token, "/no/such/path.html", db.now()))
         httpd = self._serve()
         try:
-            status, body, _ = self._get(httpd, f"/demo/{token}")
+            status, body, headers = self._get(httpd, f"/demo/{token}")
             self.assertEqual(status, 200)
             self.assertIn(b"Taqueria Test", body)
             self.assertIn(b"<!DOCTYPE html>", body)
             self.assertNotIn(b"Sample image", body)
             self.assertNotIn(b"your photos go here", body)
+            self.assertEqual(headers.get("x-demo-cache"), "miss")
+            self.assertIn("s-maxage=", headers.get("cache-control", ""))
+            self.assertIn("stale-while-revalidate", headers.get("cache-control", ""))
+            self.assertIn("server-timing", headers)
         finally:
             httpd.shutdown()
             httpd.server_close()
@@ -214,12 +219,13 @@ class HandlerTests(unittest.TestCase):
                         html="<html>House Specialty OLD</html>")
         httpd = self._serve()
         try:
-            status, body, _ = self._get(httpd, "/demo/pho-token")
+            status, body, headers = self._get(httpd, "/demo/pho-token")
             self.assertEqual(status, 200)
             self.assertIn(b"Simply", body)
             self.assertNotIn(b"Sample image", body)
             self.assertNotIn(b"House Specialty OLD", body)
             self.assertIn(b"Ph", body)
+            self.assertEqual(headers.get("x-demo-cache"), "miss")
         finally:
             httpd.shutdown()
             httpd.server_close()
@@ -233,6 +239,49 @@ class HandlerTests(unittest.TestCase):
             self.assertNotEqual(status, 410)
             self.assertIn(b"Taqueria Test", body)
             self.assertIn(b"<!DOCTYPE html>", body)
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+
+    def test_demo_serves_stored_html_without_rebuild(self):
+        html, _ = generate_site(
+            "Taqueria Test", "123 Main St", "(713) 555-0100",
+            "restaurant", 4.5, "houston", use_ai=False)
+        self._seed_demo(html=html, token="cached-token")
+        httpd = self._serve()
+        try:
+            with patch.object(server.Handler, "rebuild_demo",
+                              side_effect=AssertionError("must not rebuild")):
+                status, body, headers = self._get(httpd, "/demo/cached-token")
+            self.assertEqual(status, 200)
+            self.assertEqual(headers.get("x-demo-cache"), "hit")
+            self.assertIn("s-maxage=120", headers.get("cache-control", ""))
+            self.assertIn("stale-while-revalidate", headers.get("cache-control", ""))
+            self.assertEqual(headers.get("cdn-cache-control"), server.DEMO_CACHE_CONTROL)
+            self.assertEqual(headers.get("vercel-cdn-cache-control"),
+                             server.DEMO_CACHE_CONTROL)
+            self.assertIn("db;dur=", headers.get("server-timing", ""))
+            self.assertIn(b"Taqueria Test", body)
+            self.assertIn(b"data-menu-source", body)
+            self.assertIn(b"preview-claim", body)
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+
+    def test_demo_rebuild_skips_places_and_menu_enrich(self):
+        self._seed_demo(html="<html>OLD GENERIC</html>", token="no-enrich")
+        httpd = self._serve()
+        try:
+            with patch("generator._lookup_place") as place, \
+                 patch("generator._lookup_menu") as menu:
+                status, body, headers = self._get(httpd, "/demo/no-enrich")
+            self.assertEqual(status, 200)
+            self.assertEqual(headers.get("x-demo-cache"), "miss")
+            place.assert_not_called()
+            menu.assert_not_called()
+            self.assertIn(b"Taqueria Test", body)
+            self.assertIn(b"data-menu-source", body)
+            self.assertIn(b"Sample prices", body)
         finally:
             httpd.shutdown()
             httpd.server_close()
@@ -270,6 +319,18 @@ class HandlerTests(unittest.TestCase):
         finally:
             httpd.shutdown()
             httpd.server_close()
+
+
+class ServableDemoHtmlTests(unittest.TestCase):
+    def test_rejects_stubs_and_accepts_generated_sites(self):
+        self.assertFalse(server.servable_demo_html(None))
+        self.assertFalse(server.servable_demo_html("<html>House Specialty OLD</html>"))
+        self.assertFalse(server.servable_demo_html("<!DOCTYPE html><html></html>"))
+        html, _ = generate_site(
+            "Thien An Sandwiches", "2611 San Jacinto St", "(713) 522-7007",
+            "restaurant", 4.5, "houston", use_ai=False)
+        self.assertTrue(server.servable_demo_html(html, "Thien An Sandwiches"))
+        self.assertFalse(server.servable_demo_html(html, "Yale Street Grill"))
 
 
 class ContactEmailTests(unittest.TestCase):

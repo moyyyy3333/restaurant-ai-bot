@@ -54,6 +54,8 @@ def test_print_and_reduced_motion():
 def test_no_blocking_webfonts_or_frameworks():
     assert "fonts.googleapis" not in HTML, "blocking web font"
     assert "<script src=" not in HTML, "external script on a static page"
+    assert 'src="https://maps.google.com' not in HTML, "maps embed blocks first paint"
+    assert 'data-src="https://maps.google.com/maps?q=' in HTML, "maps URL must stay for geocode"
 
 def test_honest_about_being_a_sample():
     low = HTML.lower()
