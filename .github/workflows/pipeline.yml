@@ -21,4 +21,5 @@ jobs:
             -H "X-Pipeline-Token: ${{ secrets.PIPELINE_TOKEN }}" \
             -H "X-Pipeline-Dry-Run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}" \
             -H "X-Pipeline-Scan-Budget: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '1' || '' }}" \
+            -H "X-Pipeline-Scan-Results: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '1' || '' }}" \
             -H "Content-Type: application/json"

@@ -16,7 +16,11 @@ from config import (
 )
 
 
-def run_daily(send_limit: int | None = None, scan_budget: int | None = None) -> dict:
+def run_daily(
+    send_limit: int | None = None,
+    scan_budget: int | None = None,
+    scan_max_results: int = 20,
+) -> dict:
     from emailer import build_sms, send_proposal, send_sms
     from generator import generate_site
     from scanner.email_finder import find_email
@@ -29,7 +33,14 @@ def run_daily(send_limit: int | None = None, scan_budget: int | None = None) -> 
     errors = []
 
     try:
-        found = daily_scan_sample(budget=scan_budget) if scan_budget else 0
+        found = (
+            daily_scan_sample(
+                budget=scan_budget,
+                max_results=max(1, min(scan_max_results, 50)),
+            )
+            if scan_budget
+            else 0
+        )
     except Exception as exc:
         found = 0
         errors.append({"stage": "scan", "error": str(exc)})

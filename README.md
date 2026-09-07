@@ -49,7 +49,8 @@ Production can be exercised safely by sending `X-Pipeline-Dry-Run: true`
 alongside the required `X-Pipeline-Token`; this forces an effective send limit
 of zero for that request without changing Render configuration. Manual GitHub
 workflow runs also set `X-Pipeline-Scan-Budget: 1` to keep the synchronous
-end-to-end production probe bounded.
+end-to-end production probe bounded, plus `X-Pipeline-Scan-Results: 1` so that
+area expands to only one business lookup.
 
 API-provider daily ceilings are configured with the `*_DAILY_BUDGET` variables
 in `.env.example`; shared counters are stored in `ops_meta`.

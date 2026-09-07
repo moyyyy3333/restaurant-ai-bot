@@ -467,15 +467,22 @@ class Handler(BaseHTTPRequestHandler):
             in ("1", "true", "yes")
         )
         scan_budget = None
+        scan_max_results = 20
         if forced_dry_run:
             try:
                 scan_budget = min(
                     50, max(0, int(self.headers.get("X-Pipeline-Scan-Budget", ""))))
             except ValueError:
                 scan_budget = None
+            try:
+                scan_max_results = min(
+                    50, max(1, int(self.headers.get("X-Pipeline-Scan-Results", "20"))))
+            except ValueError:
+                scan_max_results = 20
         report = run_daily(
             send_limit=0 if forced_dry_run else DAILY_SEND_LIMIT,
             scan_budget=scan_budget,
+            scan_max_results=scan_max_results,
         )
         return self.json_out(200 if report["ok"] else 500, report)
 

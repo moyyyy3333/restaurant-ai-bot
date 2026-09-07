@@ -454,7 +454,9 @@ def scan_city(city_key: str, categories=None, max_areas: int = 8) -> int:
     return total
 
 
-def daily_scan_sample(budget: int = 12, cities=None, categories=None) -> int:
+def daily_scan_sample(
+    budget: int = 12, cities=None, categories=None, max_results: int = 20
+) -> int:
     """Scan a random slice of the full (city, area, category) space instead of
     the whole thing — a full sweep is thousands of LocationIQ calls, way past
     what one scheduled run should do. google_place_id is UNIQUE, so re-rolling
@@ -470,7 +472,8 @@ def daily_scan_sample(budget: int = 12, cities=None, categories=None) -> int:
 
     total = 0
     for city, area, cat in combos[:budget]:
-        total += scan_area(area, city=city, category=cat)
+        total += scan_area(
+            area, city=city, category=cat, max_results=max(1, min(max_results, 50)))
         time.sleep(1.0)
     print(f"=== daily sample: {total} new leads from {min(budget, len(combos))} areas ===")
     return total

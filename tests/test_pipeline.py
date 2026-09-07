@@ -7,6 +7,7 @@ from unittest.mock import patch
 import db
 import pipeline
 import server
+from scanner import scanner
 
 
 _TMP = Path(tempfile.mkdtemp()) / "pipeline-test.db"
@@ -59,13 +60,24 @@ class PipelineDryRunTests(unittest.TestCase):
             headers={
                 "X-Pipeline-Dry-Run": "true",
                 "X-Pipeline-Scan-Budget": "1",
+                "X-Pipeline-Scan-Results": "1",
             },
             json_out=lambda status, report: (status, report),
         )
         with patch("pipeline.run_daily", return_value={"ok": True}) as run:
             status, _report = server.Handler.run_pipeline(fake)
         self.assertEqual(status, 200)
-        run.assert_called_once_with(send_limit=0, scan_budget=1)
+        run.assert_called_once_with(
+            send_limit=0, scan_budget=1, scan_max_results=1)
+
+    def test_discovery_probe_limits_results_per_area(self):
+        with patch("scanner.scanner.scan_area", return_value=0) as scan, \
+             patch("scanner.scanner.time.sleep"):
+            scanner.daily_scan_sample(
+                budget=1, cities=["houston"], categories=["restaurant"],
+                max_results=1)
+        self.assertEqual(scan.call_count, 1)
+        self.assertEqual(scan.call_args.kwargs["max_results"], 1)
 
 
 if __name__ == "__main__":
