@@ -462,7 +462,11 @@ class Handler(BaseHTTPRequestHandler):
     def run_pipeline(self):
         """Run the daily pipeline; DAILY_SEND_LIMIT=0 reports without sending."""
         from pipeline import run_daily
-        report = run_daily(send_limit=DAILY_SEND_LIMIT)
+        forced_dry_run = (
+            self.headers.get("X-Pipeline-Dry-Run", "").strip().lower()
+            in ("1", "true", "yes")
+        )
+        report = run_daily(send_limit=0 if forced_dry_run else DAILY_SEND_LIMIT)
         return self.json_out(200 if report["ok"] else 500, report)
 
 

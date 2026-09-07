@@ -1,10 +1,12 @@
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import db
 import pipeline
+import server
 
 
 _TMP = Path(tempfile.mkdtemp()) / "pipeline-test.db"
@@ -51,6 +53,16 @@ class PipelineDryRunTests(unittest.TestCase):
         self.assertTrue(db.consume_daily_budget("test_provider", 2))
         self.assertTrue(db.consume_daily_budget("test_provider", 2))
         self.assertFalse(db.consume_daily_budget("test_provider", 2))
+
+    def test_protected_endpoint_header_forces_zero_send_limit(self):
+        fake = SimpleNamespace(
+            headers={"X-Pipeline-Dry-Run": "true"},
+            json_out=lambda status, report: (status, report),
+        )
+        with patch("pipeline.run_daily", return_value={"ok": True}) as run:
+            status, _report = server.Handler.run_pipeline(fake)
+        self.assertEqual(status, 200)
+        run.assert_called_once_with(send_limit=0)
 
 
 if __name__ == "__main__":
