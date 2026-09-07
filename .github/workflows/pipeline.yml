@@ -3,7 +3,13 @@ name: Daily lead pipeline
 on:
   schedule:
     - cron: "17 14 * * *"   # ~9:17am Houston (CST/UTC-6); GH Actions cron is UTC
-  workflow_dispatch: {}      # lets you trigger a run manually from the Actions tab
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Run every stage without sending email or SMS
+        type: boolean
+        required: true
+        default: true
 
 jobs:
   run-pipeline:
@@ -13,4 +19,5 @@ jobs:
         run: |
           curl -f -s -X POST "https://restaurant-ai-bot-n844.onrender.com/pipeline/run" \
             -H "X-Pipeline-Token: ${{ secrets.PIPELINE_TOKEN }}" \
+            -H "X-Pipeline-Dry-Run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}" \
             -H "Content-Type: application/json"
