@@ -16,6 +16,7 @@ import json
 import os
 import re
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
@@ -36,6 +37,12 @@ REAL_SOURCES = frozenset({
     "menu_page", "order_page", "social_photo", "yelp",
 })
 SAMPLE_SOURCES = frozenset({"sample"})
+
+# Growth re-score / accuracy tokens called out in PRs 9, 12, 14, 16.
+PITCH_POOL_TOKENS = {
+    "wa2LGwK--aBb", "EBMKiuowROVS", "01Gs2yIATAWL", "QDfZzeoBRE9n",
+    "NlRkan5Pusto", "M0KmfMqIbrEl", "1g3-F7WHHY8k", "XXswWW1VRlIB",
+}
 
 # Public tokens from Daily lead pipeline run logs + Growth PR bodies.
 # Not a Turso dump — production /stats reports more demos than this seed.
@@ -194,21 +201,28 @@ def demo_url(base: str, token: str) -> str:
     return f"{base.rstrip('/')}/demo/{token}"
 
 
-def _http_get(url: str, timeout: float) -> tuple[int, str]:
+def _http_get(url: str, timeout: float, attempts: int = 3) -> tuple[int, str]:
     req = Request(url, headers={"User-Agent": "menu-source-report/1.0"})
-    try:
-        with urlopen(req, timeout=timeout) as resp:
-            raw = resp.read()
-            return resp.status, raw.decode("utf-8", "replace")
-    except HTTPError as exc:
-        body = ""
+    last_code, last_body = 0, ""
+    for i in range(max(1, attempts)):
         try:
-            body = exc.read().decode("utf-8", "replace")
-        except Exception:
-            pass
-        return exc.code, body
-    except (URLError, TimeoutError, OSError) as exc:
-        return 0, str(exc)
+            with urlopen(req, timeout=timeout) as resp:
+                raw = resp.read()
+                return resp.status, raw.decode("utf-8", "replace")
+        except HTTPError as exc:
+            body = ""
+            try:
+                body = exc.read().decode("utf-8", "replace")
+            except Exception:
+                pass
+            last_code, last_body = exc.code, body
+            if exc.code in (404, 403, 410):
+                return exc.code, body
+        except (URLError, TimeoutError, OSError) as exc:
+            last_code, last_body = 0, str(exc)
+        if i + 1 < attempts:
+            time.sleep(1.5 * (i + 1))
+    return last_code, last_body
 
 
 def fetch_stats() -> dict:
@@ -360,12 +374,26 @@ def _md_cell(value: str) -> str:
     return (value or "").replace("|", "\\|").replace("\n", " ")
 
 
+def _table_row(row: dict) -> str:
+    return "| {name} | {city} | {category} | {url} | {src} | {notes} |".format(
+        name=_md_cell(row.get("name") or ""),
+        city=_md_cell(row.get("city") or ""),
+        category=_md_cell(row.get("category") or ""),
+        url=row.get("demo_url") or "",
+        src=_md_cell(row.get("menu_class") or ""),
+        notes=_md_cell(row.get("notes") or ""),
+    )
+
+
 def render_markdown(rows: list[dict], stats: dict, method: str, generated_at: str) -> str:
     real = sum(1 for r in rows if r["menu_class"] == "REAL")
     sample = sum(1 for r in rows if r["menu_class"] == "SAMPLE")
     unknown = sum(1 for r in rows if r["menu_class"] == "UNKNOWN")
     funnel_demos = (stats.get("funnel") or {}).get("demos")
     sites = stats.get("sites")
+    missing_prod = (
+        int(funnel_demos) - real - sample if funnel_demos is not None else None
+    )
     lines = [
         "# Demo menu sources",
         "",
@@ -386,6 +414,10 @@ def render_markdown(rows: list[dict], stats: dict, method: str, generated_at: st
         f"- Public `/stats` sites (demo_sites rows): **{sites if sites is not None else 'n/a'}**",
         f"- Public `/stats` funnel.demos (leads with a token): **{funnel_demos if funnel_demos is not None else 'n/a'}**",
         f"- Rows classified in this snapshot: **{len(rows)}**",
+        f"- Live pages with a menu attribute: **{real + sample}**",
+        f"- Production demos with no public token in this seed: **{missing_prod if missing_prod is not None else 'n/a'}** (re-run with Turso to list them)",
+        "",
+        "Live `GET /demo/<token>` currently rebuilds the page. Enrich is fail-closed, so a later open can flip REAL to SAMPLE if Places/menu fetch fails. This snapshot records what each response contained. It does not invent dishes.",
         "",
         "## Totals (this snapshot)",
         "",
@@ -393,22 +425,25 @@ def render_markdown(rows: list[dict], stats: dict, method: str, generated_at: st
         f"- **{sample} sample**",
         f"- **{unknown} unknown/missing**",
         "",
-        "## Demos",
+        "## Growth pitch-pool tokens",
+        "",
+        "Tokens named in PRs 9 / 12 / 14 / 16 (no separate pitch-pool file in the repo):",
         "",
         "| name | city | category | demo_url | menu_source | notes |",
         "| --- | --- | --- | --- | --- | --- |",
     ]
-    for r in rows:
-        lines.append(
-            "| {name} | {city} | {category} | {url} | {src} | {notes} |".format(
-                name=_md_cell(r["name"]),
-                city=_md_cell(r["city"]),
-                category=_md_cell(r["category"]),
-                url=r["demo_url"],
-                src=_md_cell(r["menu_class"]),
-                notes=_md_cell(r["notes"]),
-            )
-        )
+    pool = [r for r in rows if r.get("token") in PITCH_POOL_TOKENS]
+    if not pool:
+        lines.append("| — | — | — | — | UNKNOWN | no pitch-pool rows in this run |")
+    lines.extend(_table_row(r) for r in pool)
+    lines.extend([
+        "",
+        "## Demos",
+        "",
+        "| name | city | category | demo_url | menu_source | notes |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ])
+    lines.extend(_table_row(r) for r in rows)
     lines.append("")
     return "\n".join(lines)
 
@@ -423,7 +458,7 @@ def main(argv: list[str] | None = None) -> int:
         help="GET each /demo/<token> when stored HTML is missing",
     )
     parser.add_argument("--no-fetch-live", action="store_true")
-    parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument("--workers", type=int, default=2)
     parser.add_argument("--timeout", type=float, default=45)
     parser.add_argument("--json-out", default="")
     args = parser.parse_args(argv)
