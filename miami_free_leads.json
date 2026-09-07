@@ -1,0 +1,1217 @@
+[
+ {
+  "name": "El Cartel Colombian Restaurant",
+  "phone": "+1-305-358-7800",
+  "email": "",
+  "addr": "194 Southeast 1st Avenue",
+  "cat": "restaurant",
+  "lat": 25.772604,
+  "lon": -80.191904
+ },
+ {
+  "name": "Iron Sushi",
+  "phone": "+1-305-373-2000",
+  "email": "",
+  "addr": "120 Southeast 3rd Avenue",
+  "cat": "restaurant",
+  "lat": 25.77323,
+  "lon": -80.189174
+ },
+ {
+  "name": "Camila's Restaurante Brasileiro",
+  "phone": "+1 305-375-0992",
+  "email": "",
+  "addr": "129 Southeast 1st Avenue",
+  "cat": "restaurant",
+  "lat": 25.7727393,
+  "lon": -80.1916754
+ },
+ {
+  "name": "Chick'n Grill",
+  "phone": "+1-786-621-4800",
+  "email": "",
+  "addr": "250 Southwest 8th Street",
+  "cat": "restaurant",
+  "lat": 25.766015,
+  "lon": -80.198587
+ },
+ {
+  "name": "Primo Cafe and Market",
+  "phone": "+1 305-674-1886",
+  "email": "",
+  "addr": "3924 Collins Avenue",
+  "cat": "cafe",
+  "lat": 25.812318,
+  "lon": -80.1233324
+ },
+ {
+  "name": "Taste of Philly",
+  "phone": "+1-305-456-0481",
+  "email": "",
+  "addr": "3940 Curtiss Parkway",
+  "cat": "restaurant",
+  "lat": 25.8099477,
+  "lon": -80.2896371
+ },
+ {
+  "name": "La Bottega",
+  "phone": "+1 305 603 1003",
+  "email": "",
+  "addr": "1800 North Bayshore Drive",
+  "cat": "cafe",
+  "lat": 25.7942149,
+  "lon": -80.1866129
+ },
+ {
+  "name": "Mary's Cafeteria",
+  "phone": "+1 305 443-6672",
+  "email": "",
+  "addr": "2542 Southwest 27th Avenue",
+  "cat": "cafe",
+  "lat": 25.744414,
+  "lon": -80.238208
+ },
+ {
+  "name": "Chivito Teca",
+  "phone": "+1 305 864 5252",
+  "email": "",
+  "addr": "6987 Collins Avenue",
+  "cat": "restaurant",
+  "lat": 25.8558428,
+  "lon": -80.1203973
+ },
+ {
+  "name": "Akashi Japanese Restaurant",
+  "phone": "+1-305-529-9954",
+  "email": "",
+  "addr": "3444 Main Hwy",
+  "cat": "restaurant",
+  "lat": 25.727493,
+  "lon": -80.243396
+ },
+ {
+  "name": "Caffe Di Mauro",
+  "phone": "+1-305-673-5774",
+  "email": "",
+  "addr": "1464 Washington Avenue",
+  "cat": "cafe",
+  "lat": 25.7874409,
+  "lon": -80.1319547
+ },
+ {
+  "name": "La Carreta Restaurant",
+  "phone": "+1-305-553-8383",
+  "email": "",
+  "addr": "8650 Bird Rd",
+  "cat": "restaurant",
+  "lat": 25.732781,
+  "lon": -80.334601
+ },
+ {
+  "name": "La Moon",
+  "phone": "+1-305-860-6209",
+  "email": "",
+  "addr": "97 Southwest 8th Street",
+  "cat": "restaurant",
+  "lat": 25.7664378,
+  "lon": -80.1951584
+ },
+ {
+  "name": "Little Bread Cuban Sandwich Co.",
+  "phone": "+1-786-420-2672",
+  "email": "",
+  "addr": "541 Southwest 12th Avenue",
+  "cat": "restaurant",
+  "lat": 25.767872,
+  "lon": -80.214368
+ },
+ {
+  "name": "Panda Express",
+  "phone": "+1 305-228-1888",
+  "email": "",
+  "addr": "8750 West Flagler Street",
+  "cat": "fast_food",
+  "lat": 25.7690522,
+  "lon": -80.3378938
+ },
+ {
+  "name": "Chili's",
+  "phone": "+1-305-348-2668",
+  "email": "",
+  "addr": "",
+  "cat": "restaurant",
+  "lat": 25.7563045,
+  "lon": -80.3722793
+ },
+ {
+  "name": "Subway",
+  "phone": "+1 305-876-7927",
+  "email": "",
+  "addr": "",
+  "cat": "fast_food",
+  "lat": 25.7921247,
+  "lon": -80.276782
+ },
+ {
+  "name": "BurgerFi",
+  "phone": "+1 305 534 0340",
+  "email": "",
+  "addr": "1242 Washington Avenue",
+  "cat": "fast_food",
+  "lat": 25.783723,
+  "lon": -80.1324155
+ },
+ {
+  "name": "Cake Thai",
+  "phone": "+1-786-534-7906",
+  "email": "",
+  "addr": "7919 Biscayne Boulevard",
+  "cat": "restaurant",
+  "lat": 25.848275,
+  "lon": -80.184445
+ },
+ {
+  "name": "La Fontana",
+  "phone": "+1 305 470 9614",
+  "email": "",
+  "addr": "10702 Northwest 74th Street",
+  "cat": "restaurant",
+  "lat": 25.8401764,
+  "lon": -80.3713777
+ },
+ {
+  "name": "Sabor Venezolano",
+  "phone": "+1-305-716-0375",
+  "email": "",
+  "addr": "10722 Northwest 74th Street",
+  "cat": "restaurant",
+  "lat": 25.8393242,
+  "lon": -80.3709915
+ },
+ {
+  "name": "La Fortuna Pizzeria",
+  "phone": "+1-305-468-1885",
+  "email": "",
+  "addr": "10783 Northwest 58th Street",
+  "cat": "restaurant",
+  "lat": 25.8273602,
+  "lon": -80.3719958
+ },
+ {
+  "name": "South Beach Munchies",
+  "phone": "+1 305 531 0559",
+  "email": "",
+  "addr": "324 Lincoln Road",
+  "cat": "restaurant",
+  "lat": 25.7905103,
+  "lon": -80.1313199
+ },
+ {
+  "name": "Pizza Hut",
+  "phone": "+1 305 672 1900",
+  "email": "",
+  "addr": "1604 Alton Road",
+  "cat": "restaurant",
+  "lat": 25.7892093,
+  "lon": -80.1414316
+ },
+ {
+  "name": "Chalan On the Beach",
+  "phone": "+1 305 532 8880",
+  "email": "",
+  "addr": "1580 Washington Avenue",
+  "cat": "restaurant",
+  "lat": 25.7890146,
+  "lon": -80.1320007
+ },
+ {
+  "name": "Montalcino",
+  "phone": "+1 305 695 1654",
+  "email": "",
+  "addr": "831 Lincoln Road",
+  "cat": "restaurant",
+  "lat": 25.7906996,
+  "lon": -80.1373116
+ },
+ {
+  "name": "BurgerFi",
+  "phone": "+1-786-803-8179",
+  "email": "",
+  "addr": "6812 Collins Avenue",
+  "cat": "fast_food",
+  "lat": 25.8526366,
+  "lon": -80.1205121
+ },
+ {
+  "name": "Charlotte Bakery & Bistro",
+  "phone": "+1-305-763-8865",
+  "email": "",
+  "addr": "",
+  "cat": "restaurant",
+  "lat": 25.8519704,
+  "lon": -80.1206972
+ },
+ {
+  "name": "Montefiore",
+  "phone": "+1-305-538-4770",
+  "email": "info@montefiorecafe.com",
+  "addr": "",
+  "cat": "cafe",
+  "lat": 25.8132952,
+  "lon": -80.1304338
+ },
+ {
+  "name": "Osteria del Teatro",
+  "phone": "+1-305-538-7850",
+  "email": "",
+  "addr": "1443 Washington Avenue",
+  "cat": "restaurant",
+  "lat": 25.7869522,
+  "lon": -80.1340517
+ },
+ {
+  "name": "La Provence South Beach",
+  "phone": "+1-305-538-2406",
+  "email": "",
+  "addr": "1629 Collins Avenue",
+  "cat": "bakery",
+  "lat": 25.790403,
+  "lon": -80.1298939
+ },
+ {
+  "name": "David's Cafecito Cafe",
+  "phone": "+1-305-534-8736",
+  "email": "",
+  "addr": "919 Alton Road",
+  "cat": "restaurant",
+  "lat": 25.7794302,
+  "lon": -80.1406706
+ },
+ {
+  "name": "Bocas Grill",
+  "phone": "+1 305 592 6333",
+  "email": "",
+  "addr": "3399 Northwest 72nd Avenue",
+  "cat": "restaurant",
+  "lat": 25.8072506,
+  "lon": -80.3128739
+ },
+ {
+  "name": "Ligero Express",
+  "phone": "+1-786-615-9833",
+  "email": "",
+  "addr": "201 Park Boulevard",
+  "cat": "cafe",
+  "lat": 25.7727763,
+  "lon": -80.3267583
+ },
+ {
+  "name": "Barzola",
+  "phone": "+1-305-446-2006",
+  "email": "",
+  "addr": "4860 Northwest 7th Street",
+  "cat": "restaurant",
+  "lat": 25.7783876,
+  "lon": -80.2753877
+ },
+ {
+  "name": "Rincon Criollo Restaurant",
+  "phone": "+1-305-871-7755",
+  "email": "",
+  "addr": "2601 Northwest 39th Avenue",
+  "cat": "restaurant",
+  "lat": 25.7998948,
+  "lon": -80.2597913
+ },
+ {
+  "name": "G Spot",
+  "phone": "+1-786-703-8762",
+  "email": "",
+  "addr": "4545 Northwest 7th Street",
+  "cat": "restaurant",
+  "lat": 25.7792368,
+  "lon": -80.2704952
+ },
+ {
+  "name": "La Tijera de Oro",
+  "phone": "+1-305-822-8802",
+  "email": "",
+  "addr": "3974 Palm Avenue",
+  "cat": "beauty",
+  "lat": 25.8587301,
+  "lon": -80.2830407
+ },
+ {
+  "name": "Mojitobar",
+  "phone": "+1-786-408-5483",
+  "email": "",
+  "addr": "401 Biscayne Boulevard",
+  "cat": "bar",
+  "lat": 25.778364,
+  "lon": -80.186486
+ },
+ {
+  "name": "Suvi Thai & Sushi Restaurant",
+  "phone": "+1-305-887-2212",
+  "email": "",
+  "addr": "5683 Northwest 36th Street",
+  "cat": "restaurant",
+  "lat": 25.8079402,
+  "lon": -80.2884923
+ },
+ {
+  "name": "JC's Pizzeria",
+  "phone": "+1 305-485-4433",
+  "email": "",
+  "addr": "",
+  "cat": "restaurant",
+  "lat": 25.7474005,
+  "lon": -80.3893268
+ },
+ {
+  "name": "Father and Son haircutters",
+  "phone": "+1 305-220-0304",
+  "email": "",
+  "addr": "",
+  "cat": "hairdresser",
+  "lat": 25.7472499,
+  "lon": -80.3893079
+ },
+ {
+  "name": "Wynwood Smoke and Lounge",
+  "phone": "+1-305-394-9966",
+  "email": "",
+  "addr": "320 Northwest 24th Street",
+  "cat": "restaurant",
+  "lat": 25.7998148,
+  "lon": -80.2012485
+ },
+ {
+  "name": "Frostys lab",
+  "phone": "+1-305-799-7545",
+  "email": "",
+  "addr": "15348 Northwest 79th Court",
+  "cat": "ice_cream",
+  "lat": 25.9120803,
+  "lon": -80.3313939
+ },
+ {
+  "name": "Moi Homemade Peruvian Bakery",
+  "phone": "+1 305-456-7485",
+  "email": "",
+  "addr": "7388 Southwest 57th Avenue",
+  "cat": "bakery",
+  "lat": 25.7028253,
+  "lon": -80.285616
+ },
+ {
+  "name": "Taco Rico Tex Mex Cafe",
+  "phone": "+1-305-663-3200",
+  "email": "",
+  "addr": "473 South Dixie Highway",
+  "cat": "restaurant",
+  "lat": 25.7257483,
+  "lon": -80.2630266
+ },
+ {
+  "name": "The Henry",
+  "phone": "+1-786-471-0070",
+  "email": "",
+  "addr": "701 South Miami Avenue",
+  "cat": "restaurant",
+  "lat": 25.766745,
+  "lon": -80.193146
+ },
+ {
+  "name": "BobaBurger",
+  "phone": "+1-305-505-5968",
+  "email": "",
+  "addr": "9580 Bay Harbor Terrace",
+  "cat": "restaurant",
+  "lat": 25.8863585,
+  "lon": -80.1313414
+ },
+ {
+  "name": "Mamale Cafe & Pizza Bar",
+  "phone": "+1-786-648-9045",
+  "email": "",
+  "addr": "1017 Kane Concourse",
+  "cat": "restaurant",
+  "lat": 25.8869749,
+  "lon": -80.1297553
+ },
+ {
+  "name": "Suenset Nails & Beauty",
+  "phone": "+1 305-595-1688",
+  "email": "",
+  "addr": "8738 Southwest 72nd Street",
+  "cat": "beauty",
+  "lat": 25.7010072,
+  "lon": -80.3352785
+ },
+ {
+  "name": "Shinju Japanese Buffet",
+  "phone": "+1 350-275-8801",
+  "email": "",
+  "addr": "8800 Southwest 72nd Street",
+  "cat": "restaurant",
+  "lat": 25.7016866,
+  "lon": -80.3355807
+ },
+ {
+  "name": "The Sushi Bar Japanese Cafe",
+  "phone": "+1 305-270-0662",
+  "email": "",
+  "addr": "8748 Southwest 72nd Street",
+  "cat": "restaurant",
+  "lat": 25.7010063,
+  "lon": -80.3354391
+ },
+ {
+  "name": "West Miami Paint and Body Shop",
+  "phone": "+1-305-266-5226",
+  "email": "",
+  "addr": "6468 Southwest 8th Street",
+  "cat": "car_repair",
+  "lat": 25.7629774,
+  "lon": -80.3013632
+ },
+ {
+  "name": "Don Pan",
+  "phone": "+1-305-640-1500",
+  "email": "",
+  "addr": "4179 Northwest 107th Avenue",
+  "cat": "bakery",
+  "lat": 25.8124473,
+  "lon": -80.3691361
+ },
+ {
+  "name": "Bodega Taqueria y Tequila",
+  "phone": "+1 786-785-1501",
+  "email": "",
+  "addr": "317 Miracle Mile",
+  "cat": "restaurant",
+  "lat": 25.749757,
+  "lon": -80.2611516
+ },
+ {
+  "name": "Fritanga Piolandia",
+  "phone": "+1-305-381-5485",
+  "email": "",
+  "addr": "1100 Northwest 119th Street",
+  "cat": "restaurant",
+  "lat": 25.8832235,
+  "lon": -80.2167854
+ },
+ {
+  "name": "Josh's Deli",
+  "phone": "+1-305-397-8494",
+  "email": "",
+  "addr": "9517 Harding Avenue",
+  "cat": "restaurant",
+  "lat": 25.885689,
+  "lon": -80.1233678
+ },
+ {
+  "name": "Yisell Bakery & Coffee",
+  "phone": "+1-305-856-8141",
+  "email": "",
+  "addr": "1356",
+  "cat": "bakery",
+  "lat": 25.7655994,
+  "lon": -80.2176676
+ },
+ {
+  "name": "Deweys Tavern",
+  "phone": "+1 786 620 2828",
+  "email": "",
+  "addr": "",
+  "cat": "bar",
+  "lat": 25.7791164,
+  "lon": -80.1410205
+ },
+ {
+  "name": "Clive's Cafe",
+  "phone": "+1 305 757 6512",
+  "email": "",
+  "addr": "5890 Northwest 2nd Avenue",
+  "cat": "restaurant",
+  "lat": 25.8293739,
+  "lon": -80.2004825
+ },
+ {
+  "name": "The Daily Creative Food Co.",
+  "phone": "+1-305-573-4535",
+  "email": "",
+  "addr": "2001 Biscayne Boulevard",
+  "cat": "restaurant",
+  "lat": 25.7954483,
+  "lon": -80.1888029
+ },
+ {
+  "name": "Apple a Day Juice Bar & Cafe",
+  "phone": "+1-305-538-4569",
+  "email": "",
+  "addr": "1534 Alton Road",
+  "cat": "cafe",
+  "lat": 25.7879744,
+  "lon": -80.1414186
+ },
+ {
+  "name": "Beaker & Gray",
+  "phone": "+1-305-699-2637",
+  "email": "",
+  "addr": "2637 North Miami Avenue",
+  "cat": "restaurant",
+  "lat": 25.802385,
+  "lon": -80.194839
+ },
+ {
+  "name": "Rey's Pizza",
+  "phone": "+1-305-265-2040",
+  "email": "",
+  "addr": "6340 Southwest 8th Street",
+  "cat": "restaurant",
+  "lat": 25.7631152,
+  "lon": -80.2986947
+ },
+ {
+  "name": "La Palma",
+  "phone": "+1-305-261-1113",
+  "email": "",
+  "addr": "6091 Southwest 8th Street",
+  "cat": "restaurant",
+  "lat": 25.7635162,
+  "lon": -80.2947843
+ },
+ {
+  "name": "Rincon Antioque\u00f1o",
+  "phone": "+1-305-262-1515",
+  "email": "",
+  "addr": "6521 Southwest 8th Street",
+  "cat": "restaurant",
+  "lat": 25.7634056,
+  "lon": -80.3022363
+ },
+ {
+  "name": "Rey's Pizza",
+  "phone": "+1-305-856-7535",
+  "email": "",
+  "addr": "2391 West Flagler Street",
+  "cat": "restaurant",
+  "lat": 25.7726514,
+  "lon": -80.2346247
+ },
+ {
+  "name": "Cono Pizza",
+  "phone": "+1-305-639-8492",
+  "email": "",
+  "addr": "1200 Southwest 67th Avenue",
+  "cat": "restaurant",
+  "lat": 25.7593122,
+  "lon": -80.3040049
+ },
+ {
+  "name": "Montes de Oca",
+  "phone": "+1-305-567-0306",
+  "email": "",
+  "addr": "5241 Southwest 8th Street",
+  "cat": "restaurant",
+  "lat": 25.7639815,
+  "lon": -80.2805817
+ },
+ {
+  "name": "Le Jardinier",
+  "phone": "+1-305-402-9060",
+  "email": "",
+  "addr": "151 Northeast 41st Street",
+  "cat": "restaurant",
+  "lat": 25.8147141,
+  "lon": -80.1920264
+ },
+ {
+  "name": "FEMME COIFFURE HAIR SALON",
+  "phone": "+1-305-864-4400",
+  "email": "",
+  "addr": "140 Northeast 39th Street",
+  "cat": "hairdresser",
+  "lat": 25.8120753,
+  "lon": -80.1920996
+ },
+ {
+  "name": "SWAN & BAR BEVY",
+  "phone": "+1-305-704-0994",
+  "email": "",
+  "addr": "90 Northeast 39th Street",
+  "cat": "restaurant",
+  "lat": 25.8125966,
+  "lon": -80.1935703
+ },
+ {
+  "name": "MICHAEL'S GENUINE FOOD & DRINK",
+  "phone": "+1-305-573-5550",
+  "email": "",
+  "addr": "130 Northeast 40th Street",
+  "cat": "restaurant",
+  "lat": 25.8132532,
+  "lon": -80.1926943
+ },
+ {
+  "name": "AUBI & RAMSA 21+ ICE CREAM",
+  "phone": "+1-305-946-9072",
+  "email": "",
+  "addr": "172 Northeast 41st Street",
+  "cat": "ice_cream",
+  "lat": 25.813945,
+  "lon": -80.1919344
+ },
+ {
+  "name": "The Spot Barbershop",
+  "phone": "+1-305-363-6477",
+  "email": "",
+  "addr": "151 Northeast 41st Street",
+  "cat": "hairdresser",
+  "lat": 25.8147608,
+  "lon": -80.1922492
+ },
+ {
+  "name": "MC Kitchen",
+  "phone": "+1 305-456-9948",
+  "email": "",
+  "addr": "4141 Northeast 2nd Avenue",
+  "cat": "restaurant",
+  "lat": 25.814206,
+  "lon": -80.1912625
+ },
+ {
+  "name": "Mercato",
+  "phone": "+1 786-332-3772",
+  "email": "",
+  "addr": "4141 Northeast 2nd Avenue",
+  "cat": "restaurant",
+  "lat": 25.814275,
+  "lon": -80.1912692
+ },
+ {
+  "name": "BurgerFi",
+  "phone": "+1-305-856-9918",
+  "email": "",
+  "addr": "3530 Northwest 83rd Avenue",
+  "cat": "fast_food",
+  "lat": 25.8089876,
+  "lon": -80.331515
+ },
+ {
+  "name": "Hiro's Sushi Express",
+  "phone": "+1 305-531-6068",
+  "email": "",
+  "addr": "1518 Washington Avenue",
+  "cat": "restaurant",
+  "lat": 25.7880668,
+  "lon": -80.131991
+ },
+ {
+  "name": "Quiznos",
+  "phone": "+1-305-876-0815",
+  "email": "",
+  "addr": "",
+  "cat": "fast_food",
+  "lat": 25.7902981,
+  "lon": -80.2764892
+ },
+ {
+  "name": "Nathan's",
+  "phone": "+1-305-869-4950",
+  "email": "",
+  "addr": "",
+  "cat": "fast_food",
+  "lat": 25.7911845,
+  "lon": -80.2767545
+ },
+ {
+  "name": "Plant Theory Creative Cuisine",
+  "phone": "+1-786-872-1901",
+  "email": "",
+  "addr": "723 Lincoln Lane North",
+  "cat": "restaurant",
+  "lat": 25.7912847,
+  "lon": -80.1362263
+ },
+ {
+  "name": "Cilantro 27",
+  "phone": "+1-786-366-7235",
+  "email": "",
+  "addr": "723 Lincoln Lane North",
+  "cat": "restaurant",
+  "lat": 25.7915428,
+  "lon": -80.1362128
+ },
+ {
+  "name": "Barbershop",
+  "phone": "+1-305-866-1223",
+  "email": "",
+  "addr": "1114 Normandy Drive",
+  "cat": "hairdresser",
+  "lat": 25.8556008,
+  "lon": -80.130029
+ },
+ {
+  "name": "Chipotle",
+  "phone": "+1-305-982-8050",
+  "email": "",
+  "addr": "7925 Hialeah Gardens Blvd",
+  "cat": "fast_food",
+  "lat": 25.8947619,
+  "lon": -80.3507561
+ },
+ {
+  "name": "Pho 79",
+  "phone": "+1 305-603-7222",
+  "email": "",
+  "addr": "",
+  "cat": "restaurant",
+  "lat": 25.7561648,
+  "lon": -80.3665996
+ },
+ {
+  "name": "The Plantisserie",
+  "phone": "+1-786-502-3363",
+  "email": "",
+  "addr": "7316 Northeast 2nd Avenue",
+  "cat": "restaurant",
+  "lat": 25.8424534,
+  "lon": -80.1929186
+ },
+ {
+  "name": "Amarres de amor Florida",
+  "phone": "+1-786-755-8139",
+  "email": "",
+  "addr": "43 Northeast 1st Street",
+  "cat": "restaurant",
+  "lat": 25.7752852,
+  "lon": -80.1925692
+ },
+ {
+  "name": "Gabriel's Speciality Autobodyshop",
+  "phone": "+1-305-542-0957",
+  "email": "",
+  "addr": "",
+  "cat": "car_repair",
+  "lat": 25.880227,
+  "lon": -80.3409605
+ },
+ {
+  "name": "Mary & Lu\u2019s Flowers",
+  "phone": "+1-786-712-9808",
+  "email": "mqflowering@gmail.com",
+  "addr": "",
+  "cat": "florist",
+  "lat": 25.7314968,
+  "lon": -80.4161261
+ },
+ {
+  "name": "Comida de la Tierra Colombian Cuisine",
+  "phone": "+1-305-579-0927",
+  "email": "",
+  "addr": "",
+  "cat": "restaurant",
+  "lat": 25.7751429,
+  "lon": -80.188974
+ },
+ {
+  "name": "La Patagonia Argentina",
+  "phone": "+1-305-443-1668",
+  "email": "",
+  "addr": "4802 Northwest 7th Street",
+  "cat": "restaurant",
+  "lat": 25.7783726,
+  "lon": -80.2740701
+ },
+ {
+  "name": "Wingstop",
+  "phone": "+1 786-701-9977",
+  "email": "",
+  "addr": "6714 Bird Road",
+  "cat": "fast_food",
+  "lat": 25.7312791,
+  "lon": -80.3036534
+ },
+ {
+  "name": "Wingstop",
+  "phone": "+1 786-391-0825",
+  "email": "",
+  "addr": "9457 West Flagler Street",
+  "cat": "fast_food",
+  "lat": 25.7694787,
+  "lon": -80.350364
+ },
+ {
+  "name": "Golden Touch Barbershop & Salon",
+  "phone": "+1-305-348-0191",
+  "email": "",
+  "addr": "1211 Walsh Avenue",
+  "cat": "hairdresser",
+  "lat": 25.7180614,
+  "lon": -80.2772497
+ },
+ {
+  "name": "Wingstop",
+  "phone": "+1 305-754-5455",
+  "email": "",
+  "addr": "651 Northwest 62nd Street",
+  "cat": "fast_food",
+  "lat": 25.8327037,
+  "lon": -80.2079697
+ },
+ {
+  "name": "Russian volume by Vizavi Lashes",
+  "phone": "+1 772-275-8888",
+  "email": "",
+  "addr": "175 Southwest 7th Street",
+  "cat": "beauty",
+  "lat": 25.7676311,
+  "lon": -80.1968393
+ },
+ {
+  "name": "Southwest Smothie Bar",
+  "phone": "+1 305-462-8850",
+  "email": "",
+  "addr": "8782 Southwest 72nd Street",
+  "cat": "restaurant",
+  "lat": 25.7014419,
+  "lon": -80.3355766
+ },
+ {
+  "name": "Mi Tierra Restaurant & Bakery",
+  "phone": "+1-305-993-4470",
+  "email": "",
+  "addr": "615 71st Street",
+  "cat": "restaurant",
+  "lat": 25.8561547,
+  "lon": -80.1246069
+ },
+ {
+  "name": "Costco Food Court",
+  "phone": "+1 786-482-7157",
+  "email": "",
+  "addr": "",
+  "cat": "fast_food",
+  "lat": 25.7755272,
+  "lon": -80.3221657
+ },
+ {
+  "name": "Classic Collision",
+  "phone": "+1-305-381-0317",
+  "email": "",
+  "addr": "1650 Northeast 134th Street",
+  "cat": "car_repair",
+  "lat": 25.8992028,
+  "lon": -80.166299
+ },
+ {
+  "name": "Chachy's Auto Tinting",
+  "phone": "+1-305-696-7798",
+  "email": "",
+  "addr": "2601 Northwest 103rd Street",
+  "cat": "car_repair",
+  "lat": 25.8684155,
+  "lon": -80.2417675
+ },
+ {
+  "name": "Nicoya Fusion Cafe",
+  "phone": "+1-786-299-0097",
+  "email": "",
+  "addr": "1426 West 49th Street",
+  "cat": "cafe",
+  "lat": 25.8659436,
+  "lon": -80.3110213
+ },
+ {
+  "name": "Xpress Food",
+  "phone": "+1 305 647 7610",
+  "email": "",
+  "addr": "2315 Pine Tree Drive",
+  "cat": "restaurant",
+  "lat": 25.7993833,
+  "lon": -80.1298474
+ },
+ {
+  "name": "Harbor Caf\u00e9",
+  "phone": "+1 305-397-8446",
+  "email": "",
+  "addr": "1048 A Kane Concourse",
+  "cat": "cafe",
+  "lat": 25.8865893,
+  "lon": -80.1304017
+ },
+ {
+  "name": "WOW Brows Miami",
+  "phone": "+1 305-244-8088",
+  "email": "",
+  "addr": "1074 Kane Concourse",
+  "cat": "beauty",
+  "lat": 25.8865913,
+  "lon": -80.1307949
+ },
+ {
+  "name": "DUNDUN\u2019s - Barbershop Coral Gables",
+  "phone": "+1-786-689-5516",
+  "email": "",
+  "addr": "2263 Southwest 37th Avenue",
+  "cat": "hairdresser",
+  "lat": 25.7485296,
+  "lon": -80.2542771
+ },
+ {
+  "name": "House Of Clips",
+  "phone": "+1 786-819-3899",
+  "email": "",
+  "addr": "490 Northwest 36th Street",
+  "cat": "hairdresser",
+  "lat": 25.810037,
+  "lon": -80.2032613
+ },
+ {
+  "name": "Starbucks",
+  "phone": "+1 786-238-7951",
+  "email": "",
+  "addr": "249 Northwest 6th Street",
+  "cat": "cafe",
+  "lat": 25.7799788,
+  "lon": -80.1983048
+ },
+ {
+  "name": "Golfeados 900",
+  "phone": "+1-786-881-0300",
+  "email": "",
+  "addr": "7885 Northwest 107th Avenue",
+  "cat": "bakery",
+  "lat": 25.8454083,
+  "lon": -80.3702662
+ },
+ {
+  "name": "Juice Fountain",
+  "phone": "+1-305-619-2022",
+  "email": "",
+  "addr": "77 Northeast 24th Street",
+  "cat": "fast_food",
+  "lat": 25.8001203,
+  "lon": -80.1931312
+ },
+ {
+  "name": "Glowfit Nutrition",
+  "phone": "+1-786-784-2000",
+  "email": "",
+  "addr": "10893 Northwest 17th Street",
+  "cat": "cafe",
+  "lat": 25.7908606,
+  "lon": -80.3726285
+ },
+ {
+  "name": "Rico Bakery & Cafe",
+  "phone": "+1-305-649-6241",
+  "email": "",
+  "addr": "425 Southwest 22nd Avenue",
+  "cat": "bakery",
+  "lat": 25.7685106,
+  "lon": -80.2304971
+ },
+ {
+  "name": "Delicias en Miami",
+  "phone": "+1-786-499-5213",
+  "email": "",
+  "addr": "",
+  "cat": "restaurant",
+  "lat": 25.7731862,
+  "lon": -80.2207709
+ },
+ {
+  "name": "Cesar Barbershop",
+  "phone": "+1-786-568-2241",
+  "email": "",
+  "addr": "3760 West Flagler Street",
+  "cat": "hairdresser",
+  "lat": 25.7716618,
+  "lon": -80.2565773
+ },
+ {
+  "name": "The Grape Ape",
+  "phone": "+13053978922",
+  "email": "",
+  "addr": "7400 Southwest 57th Court",
+  "cat": "restaurant",
+  "lat": 25.7023699,
+  "lon": -80.2865461
+ },
+ {
+  "name": "Amarone",
+  "phone": "+17869053889",
+  "email": "",
+  "addr": "15400 Biscayne Boulevard",
+  "cat": "restaurant",
+  "lat": 25.9169769,
+  "lon": -80.1567355
+ },
+ {
+  "name": "Juice Fountain 305",
+  "phone": "+1-305-619-2022",
+  "email": "",
+  "addr": "1310 NE 1st Avenue",
+  "cat": "cafe",
+  "lat": 25.7872682,
+  "lon": -80.1926137
+ },
+ {
+  "name": "Karibii Food On The Go Caribbean",
+  "phone": "+1-786-381-6766",
+  "email": "",
+  "addr": "11758 Northwest 7th Avenue",
+  "cat": "fast_food",
+  "lat": 25.8828727,
+  "lon": -80.2108911
+ },
+ {
+  "name": "Gladys and Miguel Flowers",
+  "phone": "+1-305-624-1060",
+  "email": "",
+  "addr": "16045 NW 57th Avenue",
+  "cat": "florist",
+  "lat": 25.9190441,
+  "lon": -80.2925242
+ },
+ {
+  "name": "El Shaddai Latin Grill",
+  "phone": "+1-305-456-7630",
+  "email": "",
+  "addr": "9160 Northwest 122nd Street",
+  "cat": "restaurant",
+  "lat": 25.883465,
+  "lon": -80.3463429
+ },
+ {
+  "name": "Vintage Auto Spa & Bistro Caf\u00e9",
+  "phone": "+1-305-456-1291",
+  "email": "",
+  "addr": "15 Southwest 17th Avenue",
+  "cat": "cafe",
+  "lat": 25.7726111,
+  "lon": -80.2224645
+ },
+ {
+  "name": "Jimmy's Diner",
+  "phone": "+1-786-952-7717",
+  "email": "",
+  "addr": "11045 Northwest 7th Avenue",
+  "cat": "restaurant",
+  "lat": 25.8761611,
+  "lon": -80.2099666
+ },
+ {
+  "name": "Maman Coffee Bakery Kitchen",
+  "phone": "+1-305-967-8260",
+  "email": "",
+  "addr": "136 Miracle Mile",
+  "cat": "fast_food",
+  "lat": 25.7493214,
+  "lon": -80.2575054
+ },
+ {
+  "name": "Pollo Tropical",
+  "phone": "+13059440227",
+  "email": "",
+  "addr": "7501 Biscayne Boulevard",
+  "cat": "fast_food",
+  "lat": 25.8443026,
+  "lon": -80.1841659
+ },
+ {
+  "name": "Cliff's Restaurant & Catering",
+  "phone": "+1-305-754-2679",
+  "email": "",
+  "addr": "10740 Northwest 7th Avenue",
+  "cat": "restaurant",
+  "lat": 25.8733247,
+  "lon": -80.2104
+ },
+ {
+  "name": "Wendy's",
+  "phone": "+13056856371",
+  "email": "",
+  "addr": "12485 Northwest 7th Avenue",
+  "cat": "fast_food",
+  "lat": 25.8888827,
+  "lon": -80.2104372
+ },
+ {
+  "name": "Sabor Latino Cubano Criollo",
+  "phone": "+1-786-773-2940",
+  "email": "",
+  "addr": "6500 Southwest 40th Street",
+  "cat": "restaurant",
+  "lat": 25.7331646,
+  "lon": -80.3011288
+ },
+ {
+  "name": "Lung Yai Thai Tappas",
+  "phone": "+1-786-334-6262",
+  "email": "",
+  "addr": "1731 Southwest 8th Street",
+  "cat": "restaurant",
+  "lat": 25.7657717,
+  "lon": -80.2232054
+ },
+ {
+  "name": "Andino Auto Service",
+  "phone": "+1-786-317-4756",
+  "email": "",
+  "addr": "5101 Northwest 7th Avenue",
+  "cat": "car_repair",
+  "lat": 25.8223983,
+  "lon": -80.2078465
+ },
+ {
+  "name": "Starbucks",
+  "phone": "+1 305-512-0349",
+  "email": "",
+  "addr": "583 West 49th Street",
+  "cat": "cafe",
+  "lat": 25.8670453,
+  "lon": -80.2934132
+ },
+ {
+  "name": "Wingstop",
+  "phone": "+1 786-899-0211",
+  "email": "",
+  "addr": "3440 Northwest 79th Street",
+  "cat": "fast_food",
+  "lat": 25.8451699,
+  "lon": -80.253525
+ },
+ {
+  "name": "Cane A Sucre",
+  "phone": "+1-305-377-4722",
+  "email": "",
+  "addr": "21 Northwest Miami Court",
+  "cat": "fast_food",
+  "lat": 25.774565,
+  "lon": -80.1945309
+ },
+ {
+  "name": "Chick-fil-A",
+  "phone": "+13053064333",
+  "email": "",
+  "addr": "9190 Biscayne Boulevard",
+  "cat": "fast_food",
+  "lat": 25.8596047,
+  "lon": -80.183331
+ },
+ {
+  "name": "Panda Express",
+  "phone": "+1 305 907 6126",
+  "email": "",
+  "addr": "5600 Blue Lagoon Drive",
+  "cat": "fast_food",
+  "lat": 25.7814967,
+  "lon": -80.2877965
+ }
+]
