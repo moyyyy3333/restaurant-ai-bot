@@ -10,16 +10,21 @@ jobs:
     steps:
       - name: Trigger Render deploy and wait for it to go live
         run: |
-          deploy_id=$(curl -f -s -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
+          response=$(curl --fail-with-body --silent --show-error \
+            --retry 4 --retry-all-errors --retry-delay 4 \
+            -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
             -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
             -H "Content-Type: application/json" \
-            -d '{}' | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+            -d '{}')
+          deploy_id=$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['id'])" "$response")
           echo "Deploy $deploy_id triggered, waiting for it to finish..."
 
           for i in $(seq 1 60); do
-            status=$(curl -f -s "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys/$deploy_id" \
-              -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-              | python3 -c "import json,sys; print(json.load(sys.stdin)['status'])")
+            response=$(curl --fail-with-body --silent --show-error \
+              --retry 4 --retry-all-errors --retry-delay 4 \
+              "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys/$deploy_id" \
+              -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}")
+            status=$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['status'])" "$response")
             echo "status: $status"
             if [ "$status" = "live" ]; then
               break
