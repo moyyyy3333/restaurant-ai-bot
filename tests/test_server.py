@@ -23,6 +23,11 @@ from http.server import ThreadingHTTPServer  # noqa: E402
 
 class HandlerTests(unittest.TestCase):
     def setUp(self):
+        # unittest discovery can import emailer (and therefore db/config) before
+        # this module. Select this suite's database explicitly instead of
+        # relying on import order.
+        db.TURSO_DATABASE_URL = str(_TMP)
+        db.TURSO_AUTH_TOKEN = "test-token"
         db._schema_ready = False
         if _TMP.exists():
             _TMP.unlink()

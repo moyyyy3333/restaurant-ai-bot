@@ -1,20 +1,26 @@
-"""Ops dashboard + Stripe claim stub. Shares the isolated DB from test_server."""
+"""Ops dashboard + Stripe claim stub using an isolated database."""
 import json
+import tempfile
 import unittest
 from http.client import HTTPConnection
+from pathlib import Path
 from threading import Thread
 from unittest.mock import patch
 
 from http.server import ThreadingHTTPServer
 
-from tests.test_server import db, server, _TMP
+import db
+import server
 
 
 TOKEN = "ops-secret"
+_TMP = Path(tempfile.mkdtemp()) / "ops-test.db"
 
 
 class OpsAndClaimTests(unittest.TestCase):
     def setUp(self):
+        db.TURSO_DATABASE_URL = str(_TMP)
+        db.TURSO_AUTH_TOKEN = "test-token"
         db._schema_ready = False
         if _TMP.exists():
             _TMP.unlink()
