@@ -55,7 +55,7 @@ def claim(scope: str, owner: str, minutes: int) -> bool:
             "   OR substr(ops_meta.value, instr(ops_meta.value, '|') + 1) < ?",
             (key, value, db.now(), owner, _now().isoformat()))
         row = c.execute("SELECT value FROM ops_meta WHERE key = ?", (key,)).fetchone()
-    return bool(row) and row["value"] == value
+    return bool(row) and row[0] == value
 
 
 def release(scope: str, owner: str) -> bool:
@@ -92,7 +92,7 @@ def status() -> list:
             "OR key LIKE 'budget:%' ORDER BY key").fetchall()
     now = _now().isoformat()
     for r in rows:
-        key, val = r["key"], r["value"]
+        key, val = r[0], r[1]
         if key.startswith("lease:"):
             owner, _, exp = val.partition("|")
             state = "LIVE " if exp > now else "free "
