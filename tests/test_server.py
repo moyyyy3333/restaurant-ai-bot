@@ -16,6 +16,7 @@ os.environ["TURSO_DATABASE_URL"] = str(_TMP)
 os.environ["TURSO_AUTH_TOKEN"] = "test-token"
 
 import db  # noqa: E402
+import config  # noqa: E402
 import landing  # noqa: E402
 import server  # noqa: E402
 from http.server import ThreadingHTTPServer  # noqa: E402
@@ -116,6 +117,17 @@ class HandlerTests(unittest.TestCase):
         finally:
             httpd.shutdown()
             httpd.server_close()
+
+    def test_render_refuses_localhost_public_links(self):
+        with patch.object(config, "DEMO_BASE_URL", "http://localhost:8080"), \
+             patch.object(config, "UNSUBSCRIBE_BASE", "https://public.example"):
+            with self.assertRaisesRegex(RuntimeError, "DEMO_BASE_URL"):
+                config.validate_production_urls({"RENDER": "true"})
+
+    def test_local_development_allows_localhost_links(self):
+        with patch.object(config, "DEMO_BASE_URL", "http://localhost:8080"), \
+             patch.object(config, "UNSUBSCRIBE_BASE", "http://localhost:8080"):
+            config.validate_production_urls({})
 
     def test_homepage_survives_stats_failure(self):
         httpd = self._serve()

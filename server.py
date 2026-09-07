@@ -13,9 +13,6 @@ Demo server.
   /pipeline/run         token-guarded: full daily scan -> site -> email -> send
 
 Stdlib only — no Flask needed, so `python server.py` just works.
-
-On Vercel the Handler class is invoked per request and main() never runs, so
-schema setup happens in ensure_schema() on the first request.
 """
 
 import json
@@ -27,7 +24,14 @@ from urllib.parse import parse_qs, urlparse
 import claim
 import db
 import ops
-from config import DAILY_SEND_LIMIT, DEFAULT_CITIES, DEMO_BASE_URL, DEMO_EXPIRE_HOURS, PORT
+from config import (
+    DAILY_SEND_LIMIT,
+    DEFAULT_CITIES,
+    DEMO_BASE_URL,
+    DEMO_EXPIRE_HOURS,
+    PORT,
+    validate_production_urls,
+)
 from landing import preview_contact_email, render_home
 
 LEAD_STATUSES = ops.LEAD_STATUSES
@@ -535,6 +539,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
+    validate_production_urls()
     db.init_db()
     print(f"demo server on http://localhost:{PORT}")
     print(f"  /  /stats  /health  /demo/<token>  /ops  /claim/start  /unsubscribe  /webhook/resend  /pipeline/run")

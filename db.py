@@ -228,8 +228,7 @@ def init_db():
 
 
 def ensure_schema():
-    """Create tables if needed. Vercel invokes Handler without main(), so this
-    must run on the first request rather than only at process startup."""
+    """Create tables once per process, including before direct Handler tests."""
     global _schema_ready
     if _schema_ready:
         return

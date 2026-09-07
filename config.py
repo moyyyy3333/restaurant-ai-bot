@@ -7,6 +7,7 @@ by editing one dict.
 """
 
 import os
+import sys
 from pathlib import Path
 
 try:
@@ -60,11 +61,16 @@ MAX_UNLOCK_ATTEMPTS = int(os.getenv("MAX_UNLOCK_ATTEMPTS", "5"))
 UNLOCK_COOLDOWN_MIN = int(os.getenv("UNLOCK_COOLDOWN_MIN", "15"))
 
 # ---------------------------------------------------------------- deployment
-DEMO_BASE_URL = os.getenv("DEMO_BASE_URL", "https://restaurant-ai-bot-n844.onrender.com").rstrip("/")
+DEFAULT_PUBLIC_URL = "https://restaurant-ai-bot-n844.onrender.com"
+PUBLIC_BASE_URL = (
+    os.getenv("PUBLIC_BASE_URL")
+    or os.getenv("RENDER_EXTERNAL_URL")
+    or DEFAULT_PUBLIC_URL
+).rstrip("/")
+DEMO_BASE_URL = (os.getenv("DEMO_BASE_URL") or PUBLIC_BASE_URL).rstrip("/")
 DEMO_EXPIRE_HOURS = int(os.getenv("DEMO_EXPIRE_HOURS", "336"))
 PORT = int(os.getenv("PORT", "8080"))
-# Turso (hosted libSQL) — replaces local SQLite so data survives redeploys
-# on hosts with no persistent disk (e.g. Render free/starter plans).
+# Turso (hosted libSQL) — replaces local SQLite so data survives Render deploys.
 TURSO_DATABASE_URL = os.getenv("TURSO_DATABASE_URL", "")
 TURSO_AUTH_TOKEN = os.getenv("TURSO_AUTH_TOKEN", "")
 DEMO_DIR = Path(os.getenv("DEMO_DIR", str(
@@ -79,7 +85,7 @@ FROM_EMAIL = os.getenv("FROM_EMAIL", "onboarding@resend.dev")
 FROM_NAME = os.getenv("FROM_NAME", "Local Web Studio")
 REPLY_TO = os.getenv("REPLY_TO", "").strip()
 SENDER_POSTAL_ADDRESS = os.getenv("SENDER_POSTAL_ADDRESS", "").strip()
-UNSUBSCRIBE_BASE = os.getenv("UNSUBSCRIBE_BASE", DEMO_BASE_URL).rstrip("/")
+UNSUBSCRIBE_BASE = (os.getenv("UNSUBSCRIBE_BASE") or PUBLIC_BASE_URL).rstrip("/")
 PRICE_USD = int(os.getenv("PRICE_USD", "99"))
 BUILD_PRICE_USD = int(os.getenv("BUILD_PRICE_USD", "99"))
 CARE_MONTHLY_USD = int(os.getenv("CARE_MONTHLY_USD", "29"))
@@ -96,6 +102,29 @@ STRIPE_PRICE_CARE_YEARLY = os.getenv("STRIPE_PRICE_CARE_YEARLY", "").strip()
 # How many proposal emails the automated daily pipeline (/pipeline/run) may
 # send in one run. Manual /propose in Telegram is not affected by this.
 DAILY_SEND_LIMIT = int(os.getenv("DAILY_SEND_LIMIT", "15"))
+
+
+def validate_production_urls(environ=None) -> None:
+    """Fail fast when Render would publish localhost links to buyers."""
+    env = os.environ if environ is None else environ
+    is_render = str(env.get("RENDER", "")).lower() in ("1", "true", "yes")
+    if not is_render:
+        return
+    bad = [
+        name for name, value in (
+            ("DEMO_BASE_URL", DEMO_BASE_URL),
+            ("UNSUBSCRIBE_BASE", UNSUBSCRIBE_BASE),
+        )
+        if "localhost" in value.lower() or "127.0.0.1" in value
+    ]
+    if bad:
+        message = (
+            "FATAL production URL configuration: "
+            + ", ".join(bad)
+            + " points to localhost. Set PUBLIC_BASE_URL to the Render service URL."
+        )
+        print(f"\n{'!' * 78}\n{message}\n{'!' * 78}\n", file=sys.stderr, flush=True)
+        raise RuntimeError(message)
 
 # Ops board: one vertical per weekday (Mon–Fri). Weekend reuses Friday.
 OPS_WEEKLY_ROTATION = (

@@ -38,6 +38,6 @@ jobs:
 
       - name: Verify service responds
         run: |
-          curl -f -s -o /dev/null "https://restaurant-ai-bot-n844.onrender.com/" \
+          curl -f -s -o /dev/null "https://restaurant-ai-bot-n844.onrender.com/health" \
             || (echo "::error::Health check failed after deploy" && exit 1)
           echo "Health check passed."
