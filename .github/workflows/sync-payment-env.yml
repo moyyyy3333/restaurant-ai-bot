@@ -1,0 +1,51 @@
+name: Sync Payment Env to Render
+
+on: workflow_dispatch
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set payment vars on Render and report required keys
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          PUBLIC_BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
+          TELEGRAM_NOTIFY_CHAT_ID: ${{ vars.TELEGRAM_NOTIFY_CHAT_ID }}
+          SALES_SMS_NUMBER: ${{ vars.SALES_SMS_NUMBER }}
+        run: |
+          curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/env-vars" \
+            -o current.json
+
+          python3 - <<'PY'
+          import json, os
+          required = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "PUBLIC_BASE_URL",
+                      "TELEGRAM_NOTIFY_CHAT_ID", "SALES_SMS_NUMBER"]
+          with open("current.json") as f:
+              data = json.load(f)
+          vars_ = [{"key": e["envVar"]["key"], "value": e["envVar"]["value"]} for e in data]
+          # Empty inputs leave whatever Render already has untouched.
+          updates = {k: v for k in required if (v := os.environ.get(k, "").strip())}
+          seen = set()
+          for v in vars_:
+              if v["key"] in updates:
+                  v["value"] = updates[v["key"]]
+                  seen.add(v["key"])
+          vars_ += [{"key": k, "value": v} for k, v in updates.items() if k not in seen]
+          with open("updated.json", "w") as f:
+              json.dump(vars_, f)
+          print("updated from GitHub:", sorted(updates) or "none")
+          have = {v["key"] for v in vars_ if v["value"].strip()}
+          for k in required:
+              print(f"  {k}: {'set' if k in have else 'MISSING'}")
+          PY
+
+          http_code=$(curl -s -X PUT \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            --data @updated.json \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/env-vars" \
+            -o /dev/null -w "%{http_code}")
+          echo "Render responded HTTP $http_code"
+          [ "$http_code" = "200" ] || (echo "::error::Render env-var update failed" && exit 1)
