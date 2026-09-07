@@ -13,6 +13,14 @@ jobs:
           PUBLIC_BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
           TELEGRAM_NOTIFY_CHAT_ID: ${{ vars.TELEGRAM_NOTIFY_CHAT_ID }}
           SALES_SMS_NUMBER: ${{ vars.SALES_SMS_NUMBER }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
+          LOCATIONIQ_API_KEY: ${{ secrets.LOCATIONIQ_API_KEY }}
+          FROM_EMAIL: ${{ vars.FROM_EMAIL }}
+          FROM_NAME: ${{ vars.FROM_NAME }}
+          DAILY_SEND_LIMIT: ${{ vars.DAILY_SEND_LIMIT }}
+          MAX_UNLOCK_ATTEMPTS: ${{ vars.MAX_UNLOCK_ATTEMPTS }}
+          UNLOCK_COOLDOWN_MIN: ${{ vars.UNLOCK_COOLDOWN_MIN }}
         run: |
           curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
             "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/env-vars?limit=100" \
@@ -21,7 +29,10 @@ jobs:
           python3 - <<'PY'
           import json, os
           required = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "PUBLIC_BASE_URL",
-                      "TELEGRAM_NOTIFY_CHAT_ID", "SALES_SMS_NUMBER"]
+                      "TELEGRAM_NOTIFY_CHAT_ID", "SALES_SMS_NUMBER",
+                      "RESEND_API_KEY", "GOOGLE_PLACES_API_KEY", "LOCATIONIQ_API_KEY",
+                      "FROM_EMAIL", "FROM_NAME", "DAILY_SEND_LIMIT",
+                      "MAX_UNLOCK_ATTEMPTS", "UNLOCK_COOLDOWN_MIN"]
           with open("current.json") as f:
               data = json.load(f)
           vars_ = [{"key": e["envVar"]["key"], "value": e["envVar"]["value"]} for e in data]
