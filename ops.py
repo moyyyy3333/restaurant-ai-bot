@@ -13,6 +13,16 @@ import claim
 import config as C
 import db
 from config import DEMO_BASE_URL, FROM_EMAIL, RESEND_API_KEY
+from profiles import FOOD_CATEGORIES
+
+_BOOK_CTA = {
+    "salon", "barber", "dentist", "gym", "tattoo", "photo",
+    "veterinary", "optician",
+}
+_QUOTE_CTA = {
+    "plumber", "electrician", "roofer", "auto", "locksmith",
+    "insurance", "estate_agent", "hardware",
+}
 
 LEAD_STATUSES = ("new", "site_generated", "proposed", "replied", "claimed", "sold", "dead")
 
@@ -55,15 +65,22 @@ def _default_wave(today: date | None = None) -> str:
     return waves[(d.isocalendar()[1] - 1) % len(waves)]
 
 
+def _cta_hint(category: str) -> str:
+    """Category-fit demo CTA: Order | Book | Quote | Call."""
+    cat = (category or "").strip().lower()
+    if cat in FOOD_CATEGORIES:
+        return "Order"
+    if cat in _BOOK_CTA:
+        return "Book"
+    if cat in _QUOTE_CTA:
+        return "Quote"
+    return "Call"
+
+
 def _focus_blurb(category: str, city: str, stats: dict, qc: dict) -> str:
-    label = _cat_label(category).lower()
+    del category, stats, qc  # one-liner default; live counts stay on the rhythm cards
     city_l = _city_label(city)
-    return (
-        f"Warm-up: no-website {label} in {city_l}. "
-        f"{qc.get('new', 0)} new leads, {qc.get('need_site', 0)} waiting on a demo, "
-        f"{qc.get('need_send', 0)} ready to email, "
-        f"{stats.get('claimed', 0)} claimed, {stats.get('sold', 0)} sold."
-    )
+    return f"{city_l} none-site locals — Order for food, Book/Quote/Call for trades."
 
 
 def _queue_counts(c) -> dict:
@@ -108,6 +125,8 @@ def ops_payload(today: date | None = None) -> dict:
     saved_wave = (db.get_meta("active_wave") or "").strip().lower()
     focus_city = saved_wave if saved_wave in waves else _default_wave(day)
     notes = db.get_meta("overall_notes")
+    quick_note = db.get_meta("quick_note")
+    last_prep_at = db.get_meta("last_prep_at")
     stats = db.get_stats()
 
     with db.conn() as c:
@@ -136,6 +155,7 @@ def ops_payload(today: date | None = None) -> dict:
         l["claim_url"] = claim.start_url(token, l.get("care_plan") or "none") if token else None
         l["status_label"] = STATUS_LABEL.get(l.get("status") or "new", l.get("status"))
         l["review_count"] = l.get("review_count") or 0
+        l["cta"] = _cta_hint(l.get("category") or "")
         l.pop("business_id", None)
         leads.append(l)
 
@@ -155,6 +175,8 @@ def ops_payload(today: date | None = None) -> dict:
     entries.sort(key=lambda e: e["when"], reverse=True)
 
     by_cat = stats.get("by_category") or {}
+    named = {key for key, _ in rotation}
+    other_n = sum(n for key, n in by_cat.items() if key not in named)
     industries = []
     for i, (key, label) in enumerate(rotation):
         n = by_cat.get(key, 0)
@@ -166,6 +188,14 @@ def ops_payload(today: date | None = None) -> dict:
             "status": "Not started — build template on first day" if n == 0
                       else f"{n} leads in pipeline",
         })
+    industries.append({
+        "category": "other",
+        "label": "Other",
+        "count": other_n,
+        "next": False,
+        "status": "Catch-all (not a weekday tab)" if other_n == 0
+                  else f"{other_n} leads outside the weekday buckets",
+    })
 
     funnel = stats.get("funnel") or {}
     return {
@@ -178,6 +208,7 @@ def ops_payload(today: date | None = None) -> dict:
             "city_label": _city_label(focus_city),
             "category": focus_cat,
             "category_label": focus_cat_label,
+            "cta": _cta_hint(focus_cat),
             "blurb": _focus_blurb(focus_cat, focus_city, stats, qc),
             "weekend": day.weekday() >= 5,
         },
@@ -186,7 +217,10 @@ def ops_payload(today: date | None = None) -> dict:
                 "n": 1,
                 "title": "Scan & qualify",
                 "mins": 15,
-                "detail": f"Find no-website {_cat_label(focus_cat).lower()} in {_city_label(focus_city)}.",
+                "detail": (
+                    f"Find no-website {_cat_label(focus_cat).lower()} in "
+                    f"{_city_label(focus_city)}."
+                ),
                 "count": qc["new"],
                 "hint": f"{qc['new']} new",
             },
@@ -194,7 +228,9 @@ def ops_payload(today: date | None = None) -> dict:
                 "n": 2,
                 "title": "Build demos",
                 "mins": 15,
-                "detail": "Generate a preview site for each qualified lead.",
+                "detail": (
+                    f"Generate a preview site. Primary CTA: {_cta_hint(focus_cat)}."
+                ),
                 "count": qc["need_site"],
                 "hint": f"{qc['need_site']} waiting",
             },
@@ -202,7 +238,10 @@ def ops_payload(today: date | None = None) -> dict:
                 "n": 3,
                 "title": "Email & claim",
                 "mins": 15,
-                "detail": "Send the demo, then start the $99 claim (Care optional).",
+                "detail": (
+                    f"Send the demo ({_cta_hint(focus_cat)}). "
+                    f"$99 builds it. Care keeps it live."
+                ),
                 "count": qc["need_send"] + qc["need_claim"],
                 "hint": f"{qc['need_send']} to send · {qc['need_claim']} to claim",
             },
@@ -216,7 +255,13 @@ def ops_payload(today: date | None = None) -> dict:
                 "count": by_cat.get(key, 0),
             }
             for i, (key, label) in enumerate(rotation)
-        ],
+        ] + [{
+            "day": "Also",
+            "category": "other",
+            "label": "Other",
+            "today": False,
+            "count": other_n,
+        }],
         "waves": [
             {
                 "city": key,
@@ -234,6 +279,12 @@ def ops_payload(today: date | None = None) -> dict:
         "research": {"industries": industries, "need_email": research_missing},
         "log": entries[:60],
         "notes": notes,
+        "quick_note": quick_note,
+        "prep": {
+            "auto": True,
+            "schedule": "9 AM CT",
+            "last_at": last_prep_at,
+        },
         "claim": {
             "configured": claim.stripe_configured(),
             "stub": not claim.stripe_configured(),
