@@ -56,13 +56,16 @@ class PipelineDryRunTests(unittest.TestCase):
 
     def test_protected_endpoint_header_forces_zero_send_limit(self):
         fake = SimpleNamespace(
-            headers={"X-Pipeline-Dry-Run": "true"},
+            headers={
+                "X-Pipeline-Dry-Run": "true",
+                "X-Pipeline-Scan-Budget": "1",
+            },
             json_out=lambda status, report: (status, report),
         )
         with patch("pipeline.run_daily", return_value={"ok": True}) as run:
             status, _report = server.Handler.run_pipeline(fake)
         self.assertEqual(status, 200)
-        run.assert_called_once_with(send_limit=0)
+        run.assert_called_once_with(send_limit=0, scan_budget=1)
 
 
 if __name__ == "__main__":

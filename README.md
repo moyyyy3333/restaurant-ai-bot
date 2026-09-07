@@ -47,7 +47,9 @@ DAILY_SEND_LIMIT=0 python3 scripts/pipeline_dry_run.py --scan-budget 12
 
 Production can be exercised safely by sending `X-Pipeline-Dry-Run: true`
 alongside the required `X-Pipeline-Token`; this forces an effective send limit
-of zero for that request without changing Render configuration.
+of zero for that request without changing Render configuration. Manual GitHub
+workflow runs also set `X-Pipeline-Scan-Budget: 1` to keep the synchronous
+end-to-end production probe bounded.
 
 API-provider daily ceilings are configured with the `*_DAILY_BUDGET` variables
 in `.env.example`; shared counters are stored in `ops_meta`.
