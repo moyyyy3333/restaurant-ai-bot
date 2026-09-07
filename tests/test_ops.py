@@ -15,6 +15,7 @@ from http.server import ThreadingHTTPServer
 
 import db
 import claim
+import ops
 import server
 
 
@@ -114,7 +115,7 @@ class OpsAndClaimTests(unittest.TestCase):
             status, body, headers = self._get(httpd, f"/ops?k={TOKEN}")
             self.assertEqual(status, 200)
             self.assertIn("text/html", headers.get("content-type", ""))
-            self.assertIn(b"Ops Board", body)
+            self.assertIn(b"Prospect Board", body)
             self.assertIn(b"Today's focus", body)
             self.assertIn(b"Daily rhythm", body)
             self.assertIn(b"Weekly rotation", body)
@@ -122,11 +123,30 @@ class OpsAndClaimTests(unittest.TestCase):
             self.assertIn(b"Houston", body)
             self.assertIn(b"Miami", body)
             self.assertIn(b"Austin", body)
+            self.assertIn(b"Restaurant", body)
+            self.assertIn(b"Cafe", body)
+            self.assertIn(b"Trades", body)
+            self.assertIn(b"Salon", body)
+            self.assertIn(b"Auto", body)
+            self.assertIn(b"Other", body)
+            self.assertIn(b"not restaurant-only", body)
+            self.assertIn(b"$99 builds it. Care keeps it live.", body)
+            self.assertIn(b"Reload", body)
+            self.assertIn(b"Pop out", body)
+            self.assertIn(b"Quick note", body)
+            self.assertIn(b"Copy for Claude/CoS", body)
+            self.assertIn(b'data-tag="PIPELINE:"', body)
+            self.assertIn(b'data-tag="RESEARCH:"', body)
+            self.assertIn(b'data-tag="IDEA:"', body)
+            self.assertIn(b"Auto-prep ON", body)
+            self.assertIn(b"9 AM CT", body)
+            self.assertIn(b"Re-run today's prep", body)
+            self.assertIn(b"Refresh from database", body)
+            self.assertIn(b"Claim", body)
             self.assertIn(b"$99", body)
             self.assertIn(b"$29", body)
             self.assertIn(b"$249", body)
             self.assertNotIn(b"$79", body)
-            self.assertNotIn(b"Copy for Claude", body)
 
             status, body, _ = self._get(httpd, f"/api/ops?k={TOKEN}")
             self.assertEqual(status, 200)
@@ -139,12 +159,24 @@ class OpsAndClaimTests(unittest.TestCase):
             self.assertEqual(data["stats"]["by_website_status"].get("social_only"), 1)
             self.assertEqual(len(data["waves"]), 3)
             self.assertEqual({w["city"] for w in data["waves"]}, {"houston", "miami", "austin"})
-            self.assertEqual(len(data["rotation"]), 5)
+            self.assertEqual(len(data["rotation"]), 6)
             names = [l["name"] for l in data["leads"]]
             self.assertIn("Montrose Plumbing", names)
             self.assertEqual(data["claim"]["pricing"]["build"]["amount_usd"], 99)
             self.assertEqual(data["claim"]["pricing"]["care_monthly"]["amount_usd"], 29)
             self.assertTrue(data["claim"]["stub"])
+            self.assertTrue(data["prep"]["auto"])
+            self.assertEqual(data["prep"]["schedule"], "9 AM CT")
+            self.assertIn("cta", data["today"])
+            self.assertIn("none-site locals", data["today"]["blurb"])
+            self.assertIn("Order for food", data["today"]["blurb"])
+            labels = {d["label"] for d in data["rotation"]}
+            self.assertEqual(
+                labels, {"Restaurant", "Cafe", "Trades", "Salon", "Auto", "Other"})
+            plumber = next(l for l in data["leads"] if l["name"] == "Montrose Plumbing")
+            cafe = next(l for l in data["leads"] if l["name"] == "Miami Cafe")
+            self.assertEqual(plumber["cta"], "Quote")
+            self.assertEqual(cafe["cta"], "Order")
         finally:
             httpd.shutdown()
             httpd.server_close()
@@ -154,15 +186,26 @@ class OpsAndClaimTests(unittest.TestCase):
         try:
             status, body = self._post(
                 httpd, f"/api/ops/meta?k={TOKEN}",
-                {"wave": "austin", "notes": "Focus Midtown next week"})
+                {"wave": "austin", "notes": "Focus Midtown next week",
+                 "quick_note": "PIPELINE: text Houston plumbers", "prep": True})
             self.assertEqual(status, 200)
             status, body, _ = self._get(httpd, f"/api/ops?k={TOKEN}")
             data = json.loads(body)
             self.assertEqual(data["today"]["city"], "austin")
             self.assertEqual(data["notes"], "Focus Midtown next week")
+            self.assertEqual(data["quick_note"], "PIPELINE: text Houston plumbers")
+            self.assertTrue(data["prep"]["last_at"])
         finally:
             httpd.shutdown()
             httpd.server_close()
+
+    def test_cta_hint_food_vs_trade(self):
+        self.assertEqual(ops._cta_hint("restaurant"), "Order")
+        self.assertEqual(ops._cta_hint("cafe"), "Order")
+        self.assertEqual(ops._cta_hint("plumber"), "Quote")
+        self.assertEqual(ops._cta_hint("auto"), "Quote")
+        self.assertEqual(ops._cta_hint("salon"), "Book")
+        self.assertEqual(ops._cta_hint("lawyer"), "Call")
 
     def test_claim_stub_without_stripe_keys(self):
         lid = self._seed()

@@ -314,6 +314,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.json_out(400, {"error": "bad json"})
             if "notes" in body and isinstance(body.get("notes"), str):
                 db.set_meta("overall_notes", body["notes"])
+            if "quick_note" in body and isinstance(body.get("quick_note"), str):
+                db.set_meta("quick_note", body["quick_note"])
+            if body.get("prep"):
+                db.set_meta("last_prep_at", datetime.now().isoformat(timespec="seconds"))
             if body.get("wave"):
                 wave = str(body["wave"]).strip().lower()
                 if wave not in DEFAULT_CITIES:
