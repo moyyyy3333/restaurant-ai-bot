@@ -1,0 +1,776 @@
+[
+  {
+    "name": "1891 American Eatery and Bar",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/pZsrB8GI79A0",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "pZsrB8GI79A0",
+    "lead_id": "71"
+  },
+  {
+    "name": "Almost Famous",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/DofacFrFhz54",
+    "city": "Houston",
+    "category": "cafe",
+    "website_status": "",
+    "token": "DofacFrFhz54",
+    "lead_id": "16"
+  },
+  {
+    "name": "American and Cuban coffee",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/sJ-mP2KnDIBn",
+    "city": "Miami",
+    "category": "cafe",
+    "website_status": "",
+    "token": "sJ-mP2KnDIBn",
+    "lead_id": "24"
+  },
+  {
+    "name": "Antidote Coffee",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/yk04K6KX68CV",
+    "city": "Houston",
+    "category": "cafe",
+    "website_status": "",
+    "token": "yk04K6KX68CV",
+    "lead_id": "17"
+  },
+  {
+    "name": "Apothecary Cafe & Wine Bar",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/01Gs2yIATAWL",
+    "city": "Austin",
+    "category": "cafe",
+    "website_status": "",
+    "token": "01Gs2yIATAWL",
+    "lead_id": "41"
+  },
+  {
+    "name": "ARCH Café",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/x7Y2bFAAgmfk",
+    "city": "Miami",
+    "category": "cafe",
+    "website_status": "",
+    "token": "x7Y2bFAAgmfk",
+    "lead_id": "21"
+  },
+  {
+    "name": "B&B Joint",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/6haIdu9tl9Pz",
+    "city": "Miami",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "6haIdu9tl9Pz",
+    "lead_id": "35"
+  },
+  {
+    "name": "Bao'd Up",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/VvIhVSZHkCg9",
+    "city": "",
+    "category": "",
+    "website_status": "",
+    "token": "VvIhVSZHkCg9",
+    "lead_id": "3"
+  },
+  {
+    "name": "Bianchini Mercato",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/O--RAyQIbY5y",
+    "city": "Miami",
+    "category": "cafe",
+    "website_status": "",
+    "token": "O--RAyQIbY5y",
+    "lead_id": "29"
+  },
+  {
+    "name": "Black Hole Coffee House",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/5i9Qrv3PLlkD",
+    "city": "Houston",
+    "category": "cafe",
+    "website_status": "",
+    "token": "5i9Qrv3PLlkD",
+    "lead_id": "43"
+  },
+  {
+    "name": "Blue Lacy",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/u2jjsqsA7leB",
+    "city": "",
+    "category": "",
+    "website_status": "",
+    "token": "u2jjsqsA7leB",
+    "lead_id": "5"
+  },
+  {
+    "name": "Bonjour Cafe",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/7qdviCOL8_nD",
+    "city": "Houston",
+    "category": "cafe",
+    "website_status": "",
+    "token": "7qdviCOL8_nD",
+    "lead_id": "4"
+  },
+  {
+    "name": "Cafe Galleria",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/A8bYXTkKE1Ot",
+    "city": "Miami",
+    "category": "cafe",
+    "website_status": "",
+    "token": "A8bYXTkKE1Ot",
+    "lead_id": "23"
+  },
+  {
+    "name": "Chopsticks Express",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/zXADMT_yLjvi",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "zXADMT_yLjvi",
+    "lead_id": "45"
+  },
+  {
+    "name": "Chuy's",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/hgzM_wbTIjKl",
+    "city": "",
+    "category": "",
+    "website_status": "",
+    "token": "hgzM_wbTIjKl",
+    "lead_id": "6"
+  },
+  {
+    "name": "Cliff's Grill",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/Qk1NdQZI-j32",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "Qk1NdQZI-j32",
+    "lead_id": "9"
+  },
+  {
+    "name": "Clos Bistro & Cafe",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/LwyD63hWc2Au",
+    "city": "Miami",
+    "category": "cafe",
+    "website_status": "",
+    "token": "LwyD63hWc2Au",
+    "lead_id": "27"
+  },
+  {
+    "name": "CoCo Fresh Tea & Juice",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/X2j-uxuIRJs2",
+    "city": "Houston",
+    "category": "cafe",
+    "website_status": "",
+    "token": "X2j-uxuIRJs2",
+    "lead_id": "63"
+  },
+  {
+    "name": "Colleen's Kitchen",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/nGLcnkGCjNKk",
+    "city": "",
+    "category": "",
+    "website_status": "",
+    "token": "nGLcnkGCjNKk",
+    "lead_id": "2"
+  },
+  {
+    "name": "Conscious Cravings",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/-ikz1E_rxPgp",
+    "city": "Austin",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "-ikz1E_rxPgp",
+    "lead_id": "38"
+  },
+  {
+    "name": "Conscious Cravings",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/uQTrDmllpefG",
+    "city": "",
+    "category": "",
+    "website_status": "",
+    "token": "uQTrDmllpefG",
+    "lead_id": "11"
+  },
+  {
+    "name": "Cream Parlor",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/QDfZzeoBRE9n",
+    "city": "Miami",
+    "category": "cafe",
+    "website_status": "",
+    "token": "QDfZzeoBRE9n",
+    "lead_id": ""
+  },
+  {
+    "name": "Cure Cafe",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/WYER5Kr_hL-K",
+    "city": "Miami",
+    "category": "cafe",
+    "website_status": "",
+    "token": "WYER5Kr_hL-K",
+    "lead_id": "22"
+  },
+  {
+    "name": "Dish Society",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/iDTCVws6hR6R",
+    "city": "",
+    "category": "",
+    "website_status": "",
+    "token": "iDTCVws6hR6R",
+    "lead_id": "8"
+  },
+  {
+    "name": "Dish Society",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/rLb8FCOkUS6M",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "rLb8FCOkUS6M",
+    "lead_id": "66"
+  },
+  {
+    "name": "Double Trouble",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/b9vB_nN-m5gt",
+    "city": "Austin",
+    "category": "cafe",
+    "website_status": "",
+    "token": "b9vB_nN-m5gt",
+    "lead_id": "40"
+  },
+  {
+    "name": "E Star Chinese Buffet",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/3dmomuSTkstD",
+    "city": "",
+    "category": "",
+    "website_status": "",
+    "token": "3dmomuSTkstD",
+    "lead_id": "2"
+  },
+  {
+    "name": "Eggman",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/1sYi46Z2z84D",
+    "city": "",
+    "category": "",
+    "website_status": "",
+    "token": "1sYi46Z2z84D",
+    "lead_id": "12"
+  },
+  {
+    "name": "Elaine's Pork and Pie",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/3L8UGdBjVc5i",
+    "city": "Austin",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "3L8UGdBjVc5i",
+    "lead_id": "53"
+  },
+  {
+    "name": "Focaccia Bistro",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/DprFGmpmjPz8",
+    "city": "Miami",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "DprFGmpmjPz8",
+    "lead_id": "14"
+  },
+  {
+    "name": "Frenchies Dinner",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/bIO9ncQPL6S5",
+    "city": "Miami",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "bIO9ncQPL6S5",
+    "lead_id": "196"
+  },
+  {
+    "name": "Galloway's Sandwich Shop",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/byJ6FILpk4gW",
+    "city": "Austin",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "byJ6FILpk4gW",
+    "lead_id": "50"
+  },
+  {
+    "name": "Go Fish",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/1CEYJhz53TeH",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "1CEYJhz53TeH",
+    "lead_id": "10"
+  },
+  {
+    "name": "GVA BOX",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/ZoCmFLuIFi9Z",
+    "city": "Miami",
+    "category": "cafe",
+    "website_status": "",
+    "token": "ZoCmFLuIFi9Z",
+    "lead_id": "25"
+  },
+  {
+    "name": "GW Gyro & Wings",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/lrwlM-PqbgwT",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "lrwlM-PqbgwT",
+    "lead_id": "44"
+  },
+  {
+    "name": "Half Moon Empanadas",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/U5UbrUYNbnuP",
+    "city": "Miami",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "U5UbrUYNbnuP",
+    "lead_id": "12"
+  },
+  {
+    "name": "Harold's",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/6uHzUctF7gAz",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "6uHzUctF7gAz",
+    "lead_id": "65"
+  },
+  {
+    "name": "Jenni's Noodle House",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/-zIJ-V-XOPvJ",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "-zIJ-V-XOPvJ",
+    "lead_id": "68"
+  },
+  {
+    "name": "Juan Valdez Café",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/GY4GRz7utQ3i",
+    "city": "Miami",
+    "category": "cafe",
+    "website_status": "",
+    "token": "GY4GRz7utQ3i",
+    "lead_id": "26"
+  },
+  {
+    "name": "Katz's",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/Urn-76MPxlyS",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "Urn-76MPxlyS",
+    "lead_id": "55"
+  },
+  {
+    "name": "Kerbey Lane Café",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/awQfMiVIg5at",
+    "city": "",
+    "category": "",
+    "website_status": "",
+    "token": "awQfMiVIg5at",
+    "lead_id": "10"
+  },
+  {
+    "name": "Koko Cafe",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/_NZTxd94xBOK",
+    "city": "Houston",
+    "category": "cafe",
+    "website_status": "",
+    "token": "_NZTxd94xBOK",
+    "lead_id": "42"
+  },
+  {
+    "name": "Korea House",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/F1vDQauRYi-3",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "F1vDQauRYi-3",
+    "lead_id": "7"
+  },
+  {
+    "name": "L'Oca d'Oro",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/2mzDCfq8THG7",
+    "city": "",
+    "category": "",
+    "website_status": "",
+    "token": "2mzDCfq8THG7",
+    "lead_id": "1"
+  },
+  {
+    "name": "La Gazzetta",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/o_iG-fMMQeoY",
+    "city": "Miami",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "o_iG-fMMQeoY",
+    "lead_id": "36"
+  },
+  {
+    "name": "La Moon",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/RTf2CbcCm4eA",
+    "city": "Miami",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "RTf2CbcCm4eA",
+    "lead_id": "37"
+  },
+  {
+    "name": "La Pupusa Loca",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/ebJU-rKQa3Hd",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "ebJU-rKQa3Hd",
+    "lead_id": "5"
+  },
+  {
+    "name": "Marufuku Ramen",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/RPkEJDhkQM2h",
+    "city": "",
+    "category": "",
+    "website_status": "",
+    "token": "RPkEJDhkQM2h",
+    "lead_id": "7"
+  },
+  {
+    "name": "Melange Creperie",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/M0KmfMqIbrEl",
+    "city": "Houston",
+    "category": "cafe",
+    "website_status": "",
+    "token": "M0KmfMqIbrEl",
+    "lead_id": "76"
+  },
+  {
+    "name": "Miami Under Ground",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/aEGN6bcLJZMl",
+    "city": "Miami",
+    "category": "cafe",
+    "website_status": "",
+    "token": "aEGN6bcLJZMl",
+    "lead_id": "30"
+  },
+  {
+    "name": "Mister Block Cafe",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/Gor72nWJNPKk",
+    "city": "Miami",
+    "category": "cafe",
+    "website_status": "",
+    "token": "Gor72nWJNPKk",
+    "lead_id": "28"
+  },
+  {
+    "name": "Nando's",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/JkZc_BgGsS8S",
+    "city": "",
+    "category": "",
+    "website_status": "",
+    "token": "JkZc_BgGsS8S",
+    "lead_id": "4"
+  },
+  {
+    "name": "Orno Miami",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/5B1qhYeXKYRq",
+    "city": "Miami",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "5B1qhYeXKYRq",
+    "lead_id": "13"
+  },
+  {
+    "name": "Pavón Coffee Den",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/3DLzbKSCJjo4",
+    "city": "Houston",
+    "category": "cafe",
+    "website_status": "",
+    "token": "3DLzbKSCJjo4",
+    "lead_id": "61"
+  },
+  {
+    "name": "Petit Rouge",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/wl8ksbgZcabh",
+    "city": "Miami",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "wl8ksbgZcabh",
+    "lead_id": "20"
+  },
+  {
+    "name": "Pho I-10",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/QriQmIUtMOiC",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "QriQmIUtMOiC",
+    "lead_id": "8"
+  },
+  {
+    "name": "Revolucion Coffee + Juice",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/1g3-F7WHHY8k",
+    "city": "Houston",
+    "category": "cafe",
+    "website_status": "",
+    "token": "1g3-F7WHHY8k",
+    "lead_id": "74"
+  },
+  {
+    "name": "Roland's Soul Food",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/NfWOw2F4zl2P",
+    "city": "Austin",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "NfWOw2F4zl2P",
+    "lead_id": "48"
+  },
+  {
+    "name": "Rustica Hondureña",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/QzTEkSRkFTpI",
+    "city": "Miami",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "QzTEkSRkFTpI",
+    "lead_id": "19"
+  },
+  {
+    "name": "Rustika Cafe & Bakery",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/sL7EkRvIUOdl",
+    "city": "Houston",
+    "category": "cafe",
+    "website_status": "",
+    "token": "sL7EkRvIUOdl",
+    "lead_id": "3"
+  },
+  {
+    "name": "Sam's BBQ",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/f_5hF9MciXcR",
+    "city": "Austin",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "f_5hF9MciXcR",
+    "lead_id": "49"
+  },
+  {
+    "name": "Sharetea",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/MTg_A-cZltwo",
+    "city": "Houston",
+    "category": "cafe",
+    "website_status": "",
+    "token": "MTg_A-cZltwo",
+    "lead_id": "34"
+  },
+  {
+    "name": "Simply Coffie",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/4EDfTorGlcKr",
+    "city": "Houston",
+    "category": "cafe",
+    "website_status": "",
+    "token": "4EDfTorGlcKr",
+    "lead_id": "18"
+  },
+  {
+    "name": "Simply Phở",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/NlRkan5Pusto",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "NlRkan5Pusto",
+    "lead_id": "77"
+  },
+  {
+    "name": "Tai Kee",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/rvR3yxAhb2wW",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "rvR3yxAhb2wW",
+    "lead_id": "6"
+  },
+  {
+    "name": "Teapresso Bar",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/TAtKLRfrMwXz",
+    "city": "Houston",
+    "category": "cafe",
+    "website_status": "",
+    "token": "TAtKLRfrMwXz",
+    "lead_id": "15"
+  },
+  {
+    "name": "Teriyaki Kitchen",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/U8j7s0qOvMQU",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "U8j7s0qOvMQU",
+    "lead_id": "46"
+  },
+  {
+    "name": "Texas Medical Center Commons",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/zLUSQZWrXGW2",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "zLUSQZWrXGW2",
+    "lead_id": "11"
+  },
+  {
+    "name": "Texas Mesquite Grill",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/_4ur89DO-Ptd",
+    "city": "",
+    "category": "",
+    "website_status": "",
+    "token": "_4ur89DO-Ptd",
+    "lead_id": "1"
+  },
+  {
+    "name": "Thai Thani",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/rMWq8aJ_9VnR",
+    "city": "Austin",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "rMWq8aJ_9VnR",
+    "lead_id": "52"
+  },
+  {
+    "name": "The Original New Orleans Po-Boy and Gumbo Shop",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/ZNsitniK_uT3",
+    "city": "Austin",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "ZNsitniK_uT3",
+    "lead_id": "51"
+  },
+  {
+    "name": "The Stone House",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/k7MG6MShdJPl",
+    "city": "",
+    "category": "",
+    "website_status": "",
+    "token": "k7MG6MShdJPl",
+    "lead_id": "15"
+  },
+  {
+    "name": "The Stone House",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/lXn9dLkZq87B",
+    "city": "Austin",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "lXn9dLkZq87B",
+    "lead_id": "39"
+  },
+  {
+    "name": "Thien An Sandwiches",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/EBMKiuowROVS",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "EBMKiuowROVS",
+    "lead_id": "33"
+  },
+  {
+    "name": "Think Tacos",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/ZoUXNca36__H",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "ZoUXNca36__H",
+    "lead_id": "32"
+  },
+  {
+    "name": "Tout Suite",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/aKkUSX43uFkN",
+    "city": "Houston",
+    "category": "cafe",
+    "website_status": "",
+    "token": "aKkUSX43uFkN",
+    "lead_id": "89"
+  },
+  {
+    "name": "Uncle Bean's Coffee",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/IgWKVOofG3MJ",
+    "city": "Houston",
+    "category": "cafe",
+    "website_status": "",
+    "token": "IgWKVOofG3MJ",
+    "lead_id": "47"
+  },
+  {
+    "name": "Veracruz All Natural",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/T3-070410vPK",
+    "city": "",
+    "category": "",
+    "website_status": "",
+    "token": "T3-070410vPK",
+    "lead_id": "13"
+  },
+  {
+    "name": "Veracruz Fonda and Bar",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/S__Q_1RqQj0f",
+    "city": "",
+    "category": "",
+    "website_status": "",
+    "token": "S__Q_1RqQj0f",
+    "lead_id": "9"
+  },
+  {
+    "name": "Via313 Pizzeria",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/XXswWW1VRlIB",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "XXswWW1VRlIB",
+    "lead_id": "72"
+  },
+  {
+    "name": "Vietnam Restaurant",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/sui5P3BEhGQA",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "sui5P3BEhGQA",
+    "lead_id": "69"
+  },
+  {
+    "name": "Wild",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/8MwFoJpVXhCo",
+    "city": "Houston",
+    "category": "cafe",
+    "website_status": "",
+    "token": "8MwFoJpVXhCo",
+    "lead_id": "75"
+  },
+  {
+    "name": "Wynwood Cafe",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/ZJaV1FTYOBdo",
+    "city": "Miami",
+    "category": "cafe",
+    "website_status": "",
+    "token": "ZJaV1FTYOBdo",
+    "lead_id": "31"
+  },
+  {
+    "name": "Xian Sushi and Noodle - Mueller",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/d-SDqIrxr49O",
+    "city": "",
+    "category": "",
+    "website_status": "",
+    "token": "d-SDqIrxr49O",
+    "lead_id": "14"
+  },
+  {
+    "name": "Yale Street Grill",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/wa2LGwK--aBb",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "wa2LGwK--aBb",
+    "lead_id": "2"
+  },
+  {
+    "name": "Zapvor by Thai Spice",
+    "demo_url": "https://restaurant-ai-bot-two.vercel.app/demo/1oUxyV9qBoYB",
+    "city": "Houston",
+    "category": "restaurant",
+    "website_status": "",
+    "token": "1oUxyV9qBoYB",
+    "lead_id": "67"
+  }
+]
