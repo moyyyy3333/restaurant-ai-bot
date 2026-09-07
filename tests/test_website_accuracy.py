@@ -3,6 +3,8 @@
 Run: ./venv/bin/python -m tests.test_website_accuracy
 """
 import sys, os
+import urllib.error
+from unittest.mock import patch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from scanner.scanner import (classify_website, hours_from_descriptions,
                              name_matches, types_from_place, url_liveness)
@@ -57,7 +59,10 @@ def test_nonexistent_domain_is_dead():
 
 def test_blocked_site_is_unknown_not_dead():
     # A 403 means we were refused, not that the business has no website.
-    assert url_liveness("https://tksugarland.square.site/") == "unknown"
+    blocked = urllib.error.HTTPError(
+        "https://business.example/", 403, "Forbidden", {}, None)
+    with patch("scanner.scanner.urllib.request.urlopen", side_effect=blocked):
+        assert url_liveness("https://business.example/") == "unknown"
 
 
 def test_hours_from_descriptions_collapse_and_omit():
