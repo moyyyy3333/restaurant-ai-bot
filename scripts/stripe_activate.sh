@@ -11,7 +11,11 @@ api() { curl -sS -u "$STRIPE_SECRET_KEY:" "$@"; }
 # for this URL instead of trying to read its secret back.
 api https://api.stripe.com/v1/webhook_endpoints?limit=100 \
   | python3 -c "import sys,json;print('\n'.join(e['id'] for e in json.load(sys.stdin)['data'] if e['url']=='$url'))" \
-  | while read -r id; do [ -n "$id" ] && api -X DELETE "https://api.stripe.com/v1/webhook_endpoints/$id" >/dev/null; done
+  | while read -r id; do
+      if [ -n "$id" ]; then
+        api -X DELETE "https://api.stripe.com/v1/webhook_endpoints/$id" >/dev/null
+      fi
+    done
 
 api https://api.stripe.com/v1/webhook_endpoints \
   -d "url=$url" \
