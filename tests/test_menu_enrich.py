@@ -10,8 +10,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from generator import generate_site
 from menu_enrich import (enrich_menu, parse_menu_html, parse_menu_text,
-                         _looks_like_menu_or_order, _page_names_business,
-                         _partner_menu_urls, _rank_urls, _CACHE)
+                         _infer_bias, _looks_like_menu_or_order,
+                         _page_names_business, _partner_menu_urls, _rank_urls,
+                         _CACHE)
 
 GOTOEAT = """
 <section>
@@ -82,6 +83,83 @@ TOAST_NEXT = """
   {"name":"Seasonal scone","price":3.5}
 ]}}}
 }
+</script>
+"""
+
+CREAM_SECTIONS = """
+<div class="menus">
+  <h3>Breakfast</h3>
+  <div class="item left">
+    <h4 class="item-title">Yogurt with Dried Cranberries</h4>
+    <span class="price">$6.50</span>
+  </div>
+  <div class="item left">
+    <h4 class="item-title">Croissant Breakfast</h4>
+    <span class="price">$3.75</span>
+  </div>
+  <h3>Wraps</h3>
+  <div class="item left">
+    <h4 class="item-title">The Blondie Wrapture</h4>
+    <span class="price">$9.95</span>
+  </div>
+  <h3>Ice Cream</h3>
+  <div class="item left">
+    <h4 class="item-title">House Scoop</h4>
+    <span class="price">$4.25</span>
+  </div>
+  <div class="item left">
+    <h4 class="item-title">Unicorn Poop Sundae</h4>
+    <span class="price">$7.00</span>
+  </div>
+  <div class="item left">
+    <h4 class="item-title">Cookie Milkshake</h4>
+    <span class="price">$8.50</span>
+  </div>
+  <div class="item left">
+    <h4 class="item-title">Ice Cream Sandwich</h4>
+    <span class="price">$7.00</span>
+  </div>
+</div>
+"""
+
+CREAM_CAFE_ONLY = """
+<div class="menus">
+  <h3>Breakfast</h3>
+  <div class="item left">
+    <h4 class="item-title">Yogurt with Dried Cranberries</h4>
+    <span class="price">$6.50</span>
+  </div>
+  <div class="item left">
+    <h4 class="item-title">Croissant Breakfast</h4>
+    <span class="price">$3.75</span>
+  </div>
+  <h3>Fresh Salads</h3>
+  <div class="item left">
+    <h4 class="item-title">Mixed Greens Salad</h4>
+    <span class="price">$6.95</span>
+  </div>
+  <h3>Wraps</h3>
+  <div class="item left">
+    <h4 class="item-title">The Blondie Wrapture</h4>
+    <span class="price">$9.95</span>
+  </div>
+</div>
+"""
+
+SP_OFFER_LD = """
+<script type="application/ld+json">
+{"@type":"Restaurant","name":"Cream Parlor","hasOfferCatalog":{
+  "@type":"OfferCatalog","name":"Menu","itemListElement":[
+    {"@type":"OfferCatalog","name":"Breakfast","itemListElement":[
+      {"@type":"Offer","price":6.5,"itemOffered":{"@type":"MenuItem","name":"Yogurt with Dried Cranberries"}}
+    ]},
+    {"@type":"OfferCatalog","name":"Ice Cream","itemListElement":[
+      {"@type":"Offer","price":4.25,"itemOffered":{"@type":"MenuItem","name":"House Scoop"}},
+      {"@type":"Offer","price":7,"itemOffered":{"@type":"MenuItem","name":"Unicorn Poop Sundae"}},
+      {"@type":"Offer","price":8.5,"itemOffered":{"@type":"MenuItem","name":"Cookie Milkshake"}}
+    ]}
+  ]
+}}
 </script>
 """
 
@@ -224,12 +302,15 @@ def test_generate_site_uses_sourced_items_and_marks_them():
         "(713) 522-7007", "restaurant", 4.5, "houston", use_ai=False,
         menu_items=[("Bánh Mì Thịt Nướng", "Grilled pork sandwich", 7.5),
                     ("Bánh Mì Đặc Biệt", "The loaded one", 7.75),
-                    ("Phở Tai", "Rare steak", 9.5)],
+                    ("Phở Tai", "Rare steak", 9.5),
+                    ("Bánh Mì Rau", "Veggie", 2)],
         menu_source={"source": "order_page", "url": "https://www.ubereats.com/store/thien-an",
                      "label": "From their order page"},
     )
     assert "Bánh Mì Thịt Nướng" in html
-    assert "$7.50" in html and "$7.75" in html
+    assert "$7.50" in html and "$7.75" in html and "$9.50" in html
+    assert "$2.00" in html
+    assert "$2<" not in html and "$2</" not in html
     assert "From their order page" in html
     assert "not sample prices" in html
     assert "Sample prices —" not in html
@@ -303,6 +384,103 @@ def test_search_rejects_a_different_restaurant():
          patch("menu_enrich._fetch", return_value=wrong), \
          patch("menu_enrich._places_website", return_value=""):
         assert enrich_menu("Thien An Sandwiches") is None
+
+
+def test_ice_cream_sections_beat_cafe_food():
+    items = parse_menu_html(
+        CREAM_SECTIONS, "https://places.singleplatform.com/cream-parlor/menu",
+        bias="ice_cream")
+    titles = [t for t, *_ in items]
+    assert "House Scoop" in titles
+    assert "Unicorn Poop Sundae" in titles
+    assert "Cookie Milkshake" in titles
+    assert "Ice Cream Sandwich" in titles
+    assert "The Blondie Wrapture" not in titles
+    assert "Yogurt with Dried Cranberries" not in titles
+    prices = {t: p for t, _, p in items}
+    assert prices["House Scoop"] == 4.25
+    assert prices["Cookie Milkshake"] == 8.5
+
+
+def test_ice_cream_bias_fails_closed_on_cafe_only_page():
+    assert parse_menu_html(
+        CREAM_CAFE_ONLY, "https://places.singleplatform.com/cream-parlor/menu",
+        bias="ice_cream") is None
+    # Same page is fine for a cafe — we only refuse it for a parlor.
+    cafe = parse_menu_html(
+        CREAM_CAFE_ONLY, "https://places.singleplatform.com/cream-parlor/menu")
+    assert cafe is not None
+    assert any(t == "The Blondie Wrapture" for t, *_ in cafe)
+
+
+def test_offer_catalog_keeps_section_and_price():
+    items = parse_menu_html(
+        SP_OFFER_LD, "https://places.singleplatform.com/cream-parlor/menu",
+        bias="ice_cream")
+    titles = [t for t, *_ in items]
+    assert titles == ["House Scoop", "Unicorn Poop Sundae", "Cookie Milkshake"]
+    prices = {t: p for t, _, p in items}
+    assert prices["House Scoop"] == 4.25
+    assert prices["Unicorn Poop Sundae"] == 7.0
+
+
+def test_infer_bias_from_parlor_name():
+    assert _infer_bias("Cream Parlor") == "ice_cream"
+    assert _infer_bias("Joe's Gelato") == "ice_cream"
+    assert _infer_bias("Thien An Sandwiches") == ""
+    assert _infer_bias("Yale Street Grill") == ""
+
+
+def test_enrich_skips_cafe_only_then_takes_ice_cream():
+    _CACHE.clear()
+    pages = {
+        "https://places.singleplatform.com/cream-parlor/menu": {
+            "url": "https://places.singleplatform.com/cream-parlor/menu",
+            "html": "<title>Cream Parlor</title>" + CREAM_CAFE_ONLY,
+            "links": [],
+            "images": [],
+            "ctype": "text/html",
+        },
+        "https://order.toasttab.com/cream-parlor": {
+            "url": "https://order.toasttab.com/cream-parlor",
+            "html": "<title>Cream Parlor</title>" + CREAM_SECTIONS,
+            "links": [],
+            "images": [],
+            "ctype": "text/html",
+        },
+    }
+
+    def fake_fetch(url, deadline):
+        return pages.get(url)
+
+    with patch("menu_enrich._search_menu_urls",
+               return_value=["https://order.toasttab.com/cream-parlor"]), \
+         patch("menu_enrich._fetch", side_effect=fake_fetch), \
+         patch("menu_enrich._places_website", return_value=""):
+        got = enrich_menu(
+            "Cream Parlor", "8224 Biscayne Blvd, Miami, FL",
+            extra_urls=["https://places.singleplatform.com/cream-parlor/menu"],
+            bias="ice_cream")
+    assert got is not None
+    titles = [t for t, *_ in got["items"]]
+    assert "House Scoop" in titles
+    assert "Unicorn Poop Sundae" in titles
+    assert "The Blondie Wrapture" not in titles
+    assert got["source"] == "order_page"
+
+
+def test_cream_parlor_sample_stays_scoops_when_enrich_fails():
+    with patch("generator._lookup_menu", return_value=None):
+        html, _ = generate_site(
+            "Cream Parlor", "8216 Biscayne Boulevard, Miami, FL",
+            "(305) 555-0110", "cafe", 4.8, "miami", use_ai=False,
+            fetch_place=True)
+    assert 'data-cuisine="ice_cream"' in html
+    assert 'data-menu-source="sample"' in html
+    assert "House scoop" in html
+    assert "Sundae" in html
+    assert "The Blondie Wrapture" not in html
+    assert "Yogurt with Dried Cranberries" not in html
 
 
 def test_never_marks_sample_as_real():
