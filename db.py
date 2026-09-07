@@ -22,7 +22,13 @@ _LOCAL_DB = os.environ.get("LOCAL_DB_PATH", "/tmp/restaurant-ai-bot.db")
 
 
 def _connect_url() -> str:
-    return TURSO_DATABASE_URL or _LOCAL_DB
+    # Read the environment at connection time. Test runners and operational
+    # scripts may select an isolated database after config was first imported.
+    return os.environ.get("TURSO_DATABASE_URL", TURSO_DATABASE_URL).strip() or _LOCAL_DB
+
+
+def _auth_token() -> str:
+    return os.environ.get("TURSO_AUTH_TOKEN", TURSO_AUTH_TOKEN).strip()
 
 
 class Row:
@@ -195,7 +201,7 @@ CREATE INDEX IF NOT EXISTS idx_demo_token   ON demo_sites(token);
 
 @contextmanager
 def conn():
-    raw = libsql.connect(_connect_url(), auth_token=TURSO_AUTH_TOKEN or "")
+    raw = libsql.connect(_connect_url(), auth_token=_auth_token())
     c = _Conn(raw)
     try:
         yield c
@@ -208,7 +214,10 @@ _schema_ready = False
 
 
 def turso_configured() -> bool:
-    return bool(TURSO_DATABASE_URL and TURSO_AUTH_TOKEN)
+    return bool(
+        os.environ.get("TURSO_DATABASE_URL", TURSO_DATABASE_URL).strip()
+        and _auth_token()
+    )
 
 
 def _ensure_column(c, table: str, name: str, decl: str):
@@ -560,5 +569,5 @@ def get_stats() -> dict:
 
 if __name__ == "__main__":
     init_db()
-    print(f"initialized {DB_PATH}")
+    print(f"initialized {_connect_url()}")
     print(get_stats())
