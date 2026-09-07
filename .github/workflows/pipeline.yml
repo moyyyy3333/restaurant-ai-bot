@@ -1,0 +1,16 @@
+name: Daily lead pipeline
+
+on:
+  schedule:
+    - cron: "17 14 * * *"   # ~9:17am Houston (CST/UTC-6); GH Actions cron is UTC
+  workflow_dispatch: {}      # lets you trigger a run manually from the Actions tab
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger /pipeline/run
+        run: |
+          curl -f -s -X POST "https://restaurant-ai-bot-n844.onrender.com/pipeline/run" \
+            -H "X-Pipeline-Token: ${{ secrets.PIPELINE_TOKEN }}" \
+            -H "Content-Type: application/json"

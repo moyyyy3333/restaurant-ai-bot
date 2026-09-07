@@ -1,0 +1,47 @@
+name: Sync Turso Env to Render
+
+on: workflow_dispatch
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN on Render
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: |
+          curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/env-vars" \
+            -o current.json
+
+          python3 - <<'PY'
+          import json, os
+          with open("current.json") as f:
+              data = json.load(f)
+          vars_ = [{"key": e["envVar"]["key"], "value": e["envVar"]["value"]} for e in data]
+          updates = {
+              "TURSO_DATABASE_URL": os.environ["TURSO_DATABASE_URL"],
+              "TURSO_AUTH_TOKEN": os.environ["TURSO_AUTH_TOKEN"],
+          }
+          keys_seen = set()
+          for v in vars_:
+              if v["key"] in updates:
+                  v["value"] = updates[v["key"]]
+                  keys_seen.add(v["key"])
+          for k, val in updates.items():
+              if k not in keys_seen:
+                  vars_.append({"key": k, "value": val})
+          with open("updated.json", "w") as f:
+              json.dump(vars_, f)
+          print(f"env vars: {len(vars_)} total, set: {sorted(updates.keys())}")
+          PY
+
+          http_code=$(curl -s -X PUT \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            --data @updated.json \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/env-vars" \
+            -o /dev/null -w "%{http_code}")
+          echo "Render responded HTTP $http_code"
+          [ "$http_code" = "200" ] || (echo "::error::Render env-var update failed" && exit 1)

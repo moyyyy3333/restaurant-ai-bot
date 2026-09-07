@@ -1,0 +1,103 @@
+"""The bot may only claim 'no website' when a lookup actually said so.
+
+Run: ./venv/bin/python -m tests.test_website_accuracy
+"""
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from scanner.scanner import (classify_website, hours_from_descriptions,
+                             name_matches, types_from_place, url_liveness)
+
+
+def test_empty_url_is_unknown_when_nothing_answered():
+    assert classify_website("", source_answered=False) == "unknown", \
+        "no data source answered -> must NOT claim the business has no website"
+
+
+def test_empty_url_is_none_only_when_a_source_answered():
+    assert classify_website("", source_answered=True) == "none"
+
+
+def test_social_is_not_a_website():
+    assert classify_website("https://facebook.com/joes") == "social_only"
+
+
+def test_real_site():
+    assert classify_website("https://joescafe.com") == "has_site"
+
+
+def test_order_thanx_and_real_restaurants_are_has_site():
+    assert classify_website("https://order.thanx.com/simply-pho") == "has_site"
+    assert classify_website("https://order.toasttab.com/shop") == "has_site"
+    assert classify_website("https://dishsociety.com") == "has_site"
+    assert classify_website("https://www.toutsuitehtx.com/menu") == "has_site"
+
+
+def test_name_match_accepts_same_business():
+    assert name_matches("Sam's BBQ", "Sams BBQ")
+    assert name_matches("The Original New Orleans Po-Boy", "Original New Orleans Po Boy Shop")
+
+
+def test_name_match_rejects_a_different_business():
+    assert not name_matches("Sam's BBQ", "Torchy's Tacos")
+    assert not name_matches("Koko Cafe", "Starbucks")
+
+
+def test_generic_words_alone_do_not_match():
+    # "Cafe" vs "Cafe" must not be enough to accept a wrong result
+    assert not name_matches("Koko Cafe", "Bluebird Cafe")
+
+
+def test_parked_domain_is_dead():
+    assert url_liveness("https://foo.sedoparking.com/") == "dead"
+
+
+def test_nonexistent_domain_is_dead():
+    assert url_liveness("http://this-domain-truly-does-not-exist-9x7q2.com") == "dead"
+
+
+def test_blocked_site_is_unknown_not_dead():
+    # A 403 means we were refused, not that the business has no website.
+    assert url_liveness("https://tksugarland.square.site/") == "unknown"
+
+
+def test_hours_from_descriptions_collapse_and_omit():
+    assert hours_from_descriptions([]) == []
+    assert hours_from_descriptions(None) == []
+    assert hours_from_descriptions(["not-a-row"]) == []
+    rows = hours_from_descriptions([
+        "Monday: 7:00 AM – 4:30 PM",
+        "Tuesday: 7:00 AM – 4:30 PM",
+        "Wednesday: 7:00 AM – 4:30 PM",
+        "Thursday: 7:00 AM – 4:30 PM",
+        "Friday: 7:00 AM – 4:30 PM",
+        "Saturday: 7:00 AM – 4:30 PM",
+        "Sunday: 7:00 AM – 5:00 PM",
+    ])
+    assert rows == [
+        ("Mon – Sat", "7:00 AM – 4:30 PM"),
+        ("Sunday", "7:00 AM – 5:00 PM"),
+    ]
+    assert hours_from_descriptions(["Monday: Closed"]) == [("Monday", "Closed")]
+
+
+def test_types_from_place_keeps_primary():
+    types = types_from_place({
+        "primaryType": "vietnamese_restaurant",
+        "primaryTypeDisplayName": {"text": "Vietnamese restaurant"},
+        "types": ["vietnamese_restaurant", "sandwich_shop", "restaurant"],
+    })
+    assert types[0] == "vietnamese_restaurant"
+    assert "sandwich_shop" in types
+    assert types.count("vietnamese_restaurant") == 1
+
+
+if __name__ == "__main__":
+    fails = 0
+    for n, f in sorted(globals().items()):
+        if n.startswith("test_") and callable(f):
+            try:
+                f(); print(f"  ok  {n}")
+            except AssertionError as e:
+                fails += 1; print(f"  FAIL {n}: {e}")
+    print("accuracy:", "ALL PASS" if not fails else f"{fails} FAILED")
+    sys.exit(1 if fails else 0)

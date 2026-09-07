@@ -1,0 +1,39 @@
+name: Set Python Version on Render
+
+on: workflow_dispatch
+
+jobs:
+  set:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set PYTHON_VERSION env var on Render
+        run: |
+          curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/env-vars" \
+            -o current.json
+
+          python3 - <<'PY'
+          import json
+          with open("current.json") as f:
+              data = json.load(f)
+          vars_ = [{"key": e["envVar"]["key"], "value": e["envVar"]["value"]} for e in data]
+          keys_seen = set()
+          for v in vars_:
+              if v["key"] == "PYTHON_VERSION":
+                  v["value"] = "3.12.7"
+                  keys_seen.add("PYTHON_VERSION")
+          if "PYTHON_VERSION" not in keys_seen:
+              vars_.append({"key": "PYTHON_VERSION", "value": "3.12.7"})
+          with open("updated.json", "w") as f:
+              json.dump(vars_, f)
+          print(f"env vars: {len(vars_)} total, PYTHON_VERSION set to 3.12.7")
+          PY
+
+          http_code=$(curl -s -X PUT \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            --data @updated.json \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/env-vars" \
+            -o /dev/null -w "%{http_code}")
+          echo "Render responded HTTP $http_code"
+          [ "$http_code" = "200" ] || (echo "::error::Render env-var update failed" && exit 1)

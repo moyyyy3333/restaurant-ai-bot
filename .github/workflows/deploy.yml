@@ -1,0 +1,43 @@
+name: Deploy to Render
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy and wait for it to go live
+        run: |
+          deploy_id=$(curl -f -s -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}' | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
+          echo "Deploy $deploy_id triggered, waiting for it to finish..."
+
+          for i in $(seq 1 60); do
+            status=$(curl -f -s "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys/$deploy_id" \
+              -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+              | python3 -c "import json,sys; print(json.load(sys.stdin)['status'])")
+            echo "status: $status"
+            if [ "$status" = "live" ]; then
+              break
+            fi
+            if [ "$status" = "build_failed" ] || [ "$status" = "update_failed" ] || [ "$status" = "canceled" ]; then
+              echo "::error::Render deploy failed with status $status"
+              exit 1
+            fi
+            sleep 10
+          done
+
+          if [ "$status" != "live" ]; then
+            echo "::error::Render deploy did not go live within 10 minutes (last status: $status)"
+            exit 1
+          fi
+
+      - name: Verify service responds
+        run: |
+          curl -f -s -o /dev/null "https://restaurant-ai-bot-n844.onrender.com/" \
+            || (echo "::error::Health check failed after deploy" && exit 1)
+          echo "Health check passed."
