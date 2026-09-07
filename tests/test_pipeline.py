@@ -61,6 +61,7 @@ class PipelineDryRunTests(unittest.TestCase):
                 "X-Pipeline-Dry-Run": "true",
                 "X-Pipeline-Scan-Budget": "1",
                 "X-Pipeline-Scan-Results": "1",
+                "X-Pipeline-Work-Limit": "1",
             },
             json_out=lambda status, report: (status, report),
         )
@@ -68,7 +69,7 @@ class PipelineDryRunTests(unittest.TestCase):
             status, _report = server.Handler.run_pipeline(fake)
         self.assertEqual(status, 200)
         run.assert_called_once_with(
-            send_limit=0, scan_budget=1, scan_max_results=1)
+            send_limit=0, scan_budget=1, scan_max_results=1, work_limit=1)
 
     def test_discovery_probe_limits_results_per_area(self):
         with patch("scanner.scanner.scan_area", return_value=0) as scan, \

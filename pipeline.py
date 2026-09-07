@@ -20,6 +20,7 @@ def run_daily(
     send_limit: int | None = None,
     scan_budget: int | None = None,
     scan_max_results: int = 20,
+    work_limit: int | None = None,
 ) -> dict:
     from emailer import build_sms, send_proposal, send_sms
     from generator import generate_site
@@ -29,7 +30,8 @@ def run_daily(
     send_limit = DAILY_SEND_LIMIT if send_limit is None else max(0, send_limit)
     scan_budget = PIPELINE_SCAN_BUDGET if scan_budget is None else max(0, scan_budget)
     dry_run = send_limit == 0
-    work_limit = max(1, PIPELINE_WORK_LIMIT)
+    work_limit = max(
+        1, PIPELINE_WORK_LIMIT if work_limit is None else min(work_limit, 100))
     errors = []
 
     try:
@@ -125,6 +127,7 @@ def run_daily(
         "ok": not errors,
         "dry_run": dry_run,
         "scan_budget": scan_budget,
+        "work_limit": work_limit,
         "send_limit": send_limit,
         "scanned_new": found,
         "sites_generated": len(made),
