@@ -177,8 +177,20 @@ CREATE TABLE IF NOT EXISTS claims (
     amount_cents       INTEGER,
     care_plan          TEXT,            -- none | monthly | yearly
     stripe_session_id  TEXT,
+    stripe_subscription_id TEXT,
+    stripe_customer_id TEXT,
+    buyer_email        TEXT,
+    buyer_phone        TEXT,
+    claim_token        TEXT,
     status             TEXT,            -- stub | pending | paid | failed
-    created_at         TEXT
+    created_at         TEXT,
+    updated_at         TEXT
+);
+
+CREATE TABLE IF NOT EXISTS stripe_events (
+    event_id     TEXT PRIMARY KEY,
+    event_type   TEXT,
+    processed_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS ops_meta (
@@ -225,6 +237,13 @@ def init_db():
         _ensure_column(c, "leads", "claimed", "INTEGER DEFAULT 0")
         _ensure_column(c, "leads", "claimed_at", "TEXT")
         _ensure_column(c, "leads", "care_plan", "TEXT")
+        _ensure_column(c, "leads", "care_status", "TEXT")
+        _ensure_column(c, "claims", "stripe_subscription_id", "TEXT")
+        _ensure_column(c, "claims", "stripe_customer_id", "TEXT")
+        _ensure_column(c, "claims", "buyer_email", "TEXT")
+        _ensure_column(c, "claims", "buyer_phone", "TEXT")
+        _ensure_column(c, "claims", "claim_token", "TEXT")
+        _ensure_column(c, "claims", "updated_at", "TEXT")
 
 
 def ensure_schema():
@@ -503,18 +522,56 @@ def consume_daily_budget(name: str, daily_limit: int, amount: int = 1) -> bool:
     return True
 
 
-def mark_claimed(lead_id: int, care_plan: str = "none", session_id: str = "",
-                 amount_cents: int = 0, status: str = "paid"):
-    """Flip a lead to claimed and record a claims row (Stripe or stub)."""
+def mark_claimed(
+    lead_id: int,
+    care_plan: str = "none",
+    session_id: str = "",
+    amount_cents: int = 0,
+    status: str = "paid",
+    subscription_id: str = "",
+    customer_id: str = "",
+    buyer_email: str = "",
+    buyer_phone: str = "",
+):
+    """Flip a lead to claimed and upsert its Stripe Checkout claim."""
+    import secrets
     plan = care_plan if care_plan in ("monthly", "yearly") else "none"
-    update_lead(lead_id, status="claimed", claimed=1, claimed_at=now(), care_plan=plan)
+    update_lead(
+        lead_id, status="claimed", claimed=1, claimed_at=now(), care_plan=plan,
+        care_status="active" if plan != "none" else "none",
+        demo_expires_at=None,
+    )
     kind = "build_plus_care" if plan in ("monthly", "yearly") else "build"
     with conn() as c:
-        c.execute(
-            """INSERT INTO claims
-               (lead_id, kind, amount_cents, care_plan, stripe_session_id, status, created_at)
-               VALUES (?,?,?,?,?,?,?)""",
-            (lead_id, kind, amount_cents, plan, session_id or "", status, now()))
+        existing = c.execute(
+            "SELECT id, claim_token FROM claims WHERE stripe_session_id = ? "
+            "ORDER BY id DESC LIMIT 1", (session_id or "",)).fetchone() if session_id else None
+        claim_token = (
+            existing["claim_token"]
+            if existing and existing["claim_token"]
+            else secrets.token_urlsafe(24)
+        )
+        values = (
+            kind, amount_cents, plan, subscription_id or "", customer_id or "",
+            buyer_email or "", buyer_phone or "", claim_token, status, now(),
+        )
+        if existing:
+            c.execute(
+                """UPDATE claims SET kind=?, amount_cents=?, care_plan=?,
+                   stripe_subscription_id=?, stripe_customer_id=?, buyer_email=?,
+                   buyer_phone=?, claim_token=?, status=?, updated_at=? WHERE id=?""",
+                (*values, existing["id"]))
+        else:
+            c.execute(
+                """INSERT INTO claims
+                   (lead_id, kind, amount_cents, care_plan, stripe_session_id,
+                    stripe_subscription_id, stripe_customer_id, buyer_email,
+                    buyer_phone, claim_token, status, created_at, updated_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (lead_id, kind, amount_cents, plan, session_id or "",
+                 subscription_id or "", customer_id or "", buyer_email or "",
+                 buyer_phone or "", claim_token, status, now(), now()))
+    return get_claim_by_session(session_id)
 
 
 def record_claim_pending(lead_id: int, care_plan: str, session_id: str, amount_cents: int):
@@ -534,6 +591,81 @@ def get_claim_by_session(session_id: str):
     with conn() as c:
         return c.execute("SELECT * FROM claims WHERE stripe_session_id = ?",
                          (session_id,)).fetchone()
+
+
+def stripe_event_seen(event_id: str) -> bool:
+    if not event_id:
+        return False
+    with conn() as c:
+        return c.execute(
+            "SELECT 1 FROM stripe_events WHERE event_id = ?", (event_id,)
+        ).fetchone() is not None
+
+
+def record_stripe_event(event_id: str, event_type: str):
+    if not event_id:
+        return
+    with conn() as c:
+        c.execute(
+            "INSERT OR IGNORE INTO stripe_events (event_id, event_type, processed_at) "
+            "VALUES (?,?,?)", (event_id, event_type, now()))
+
+
+def mark_checkout_expired(session_id: str):
+    if not session_id:
+        return
+    with conn() as c:
+        c.execute(
+            "UPDATE claims SET status='expired', updated_at=? "
+            "WHERE stripe_session_id=? AND status='pending'",
+            (now(), session_id))
+
+
+def _lead_for_subscription(subscription_id: str = "", customer_id: str = ""):
+    with conn() as c:
+        if subscription_id:
+            row = c.execute(
+                "SELECT lead_id FROM claims WHERE stripe_subscription_id=? "
+                "ORDER BY id DESC LIMIT 1", (subscription_id,)).fetchone()
+            if row:
+                return row["lead_id"]
+        if customer_id:
+            row = c.execute(
+                "SELECT lead_id FROM claims WHERE stripe_customer_id=? "
+                "ORDER BY id DESC LIMIT 1", (customer_id,)).fetchone()
+            if row:
+                return row["lead_id"]
+    return None
+
+
+def mark_care_paid(
+    lead_id: int = 0, subscription_id: str = "", customer_id: str = ""
+) -> bool:
+    lead_id = lead_id or _lead_for_subscription(subscription_id, customer_id) or 0
+    if not lead_id:
+        return False
+    update_lead(lead_id, care_status="active")
+    with conn() as c:
+        c.execute(
+            "UPDATE claims SET status='paid', updated_at=? WHERE lead_id=? "
+            "AND care_plan IN ('monthly','yearly')",
+            (now(), lead_id))
+    return True
+
+
+def mark_care_cancelled(
+    lead_id: int = 0, subscription_id: str = "", customer_id: str = ""
+) -> bool:
+    lead_id = lead_id or _lead_for_subscription(subscription_id, customer_id) or 0
+    if not lead_id:
+        return False
+    lead = get_lead(lead_id)
+    previous = (lead["notes"] or "") if lead else ""
+    note = f"[{now()[:16]}] Care subscription cancelled"
+    update_lead(
+        lead_id, care_status="cancelled",
+        notes=(previous + "\n" if previous else "") + note)
+    return True
 
 
 # ----------------------------------------------------------------------- stats

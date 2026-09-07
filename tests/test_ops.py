@@ -1,7 +1,11 @@
 """Ops dashboard + Stripe claim stub using an isolated database."""
+import hashlib
+import hmac
 import json
 import tempfile
+import time
 import unittest
+import urllib.parse
 from http.client import HTTPConnection
 from pathlib import Path
 from threading import Thread
@@ -10,6 +14,7 @@ from unittest.mock import patch
 from http.server import ThreadingHTTPServer
 
 import db
+import claim
 import server
 
 
@@ -59,6 +64,16 @@ class OpsAndClaimTests(unittest.TestCase):
         data = resp.read()
         conn.close()
         return resp.status, data
+
+    def _signed_stripe_post(self, httpd, event, secret="whsec_test"):
+        raw = json.dumps(event).encode()
+        timestamp = str(int(time.time()))
+        digest = hmac.new(
+            secret.encode(), timestamp.encode() + b"." + raw,
+            hashlib.sha256).hexdigest()
+        return self._post(
+            httpd, "/webhook/stripe", event,
+            {"Stripe-Signature": f"t={timestamp},v1={digest}"})
 
     def _seed(self):
         db.ensure_schema()
@@ -184,6 +199,22 @@ class OpsAndClaimTests(unittest.TestCase):
             httpd.shutdown()
             httpd.server_close()
 
+    def test_demo_contains_buyer_claim_bar(self):
+        self._seed()
+        db.create_demo_site(
+            1, 1, "<html><body>preview</body></html>", "opsdemo1")
+        httpd = self._serve()
+        try:
+            status, body, _ = self._get(httpd, "/demo/opsdemo1")
+            self.assertEqual(status, 200)
+            self.assertIn(b"This is a preview built for Montrose Plumbing", body)
+            self.assertIn(b"/claim/start?t=opsdemo1&amp;care=none", body)
+            self.assertIn(b"Claim with Care", body)
+            self.assertIn(b"What you get", body)
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+
     def test_stripe_webhook_stub_without_secret(self):
         httpd = self._serve()
         try:
@@ -202,6 +233,141 @@ class OpsAndClaimTests(unittest.TestCase):
         self.assertGreaterEqual(stats["claimed"], 1)
         self.assertGreaterEqual(stats["care"], 1)
         self.assertGreaterEqual(stats["funnel"]["claimed"], 1)
+
+    def test_checkout_collects_phone_and_carries_subscription_metadata(self):
+        captured = {}
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return None
+
+            def read(self):
+                return b'{"id":"cs_live","url":"https://checkout.stripe.test"}'
+
+        def open_request(request, timeout=0):
+            captured.update(urllib.parse.parse_qs(request.data.decode()))
+            return Response()
+
+        lead = {"id": 44, "demo_token": "demo-44", "name": "Cafe 44"}
+        with patch("claim.urllib.request.urlopen", side_effect=open_request):
+            result = claim._create_stripe_session(
+                lead, "monthly", "https://success.test", "https://cancel.test")
+        self.assertEqual(result["id"], "cs_live")
+        self.assertEqual(captured["phone_number_collection[enabled]"], ["true"])
+        self.assertEqual(captured["metadata[lead_id]"], ["44"])
+        self.assertEqual(
+            captured["subscription_data[metadata][care_plan]"], ["monthly"])
+
+    def test_configured_stripe_failure_never_falls_back_to_stub(self):
+        lead = {"id": 44, "demo_token": "demo-44", "name": "Cafe 44"}
+        with patch.object(claim, "STRIPE_SECRET_KEY", "sk_live_test"), \
+             patch.object(
+                 claim, "_create_stripe_session",
+                 return_value={"error": {"message": "provider unavailable"}}):
+            result = claim.create_checkout(lead, "none")
+        self.assertFalse(result["ok"])
+        self.assertFalse(result["stub"])
+        self.assertIsNone(result["url"])
+
+    def test_signed_checkout_webhook_is_idempotent(self):
+        lead_id = self._seed()
+        event = {
+            "id": "evt_checkout_paid_1",
+            "type": "checkout.session.completed",
+            "data": {"object": {
+                "id": "cs_paid_1",
+                "amount_total": 12800,
+                "customer": "cus_1",
+                "subscription": "sub_1",
+                "metadata": {
+                    "lead_id": str(lead_id),
+                    "care_plan": "monthly",
+                    "demo_token": "opsdemo1",
+                },
+                "customer_details": {
+                    "email": "buyer@example.test",
+                    "phone": "+17135550101",
+                },
+            }},
+        }
+        httpd = self._serve()
+        try:
+            with patch.object(claim, "STRIPE_WEBHOOK_SECRET", "whsec_test"), \
+                 patch("notifications.notify_admin", return_value=True) as notify, \
+                 patch("emailer.send_welcome_email", return_value="email_1") as welcome:
+                first_status, first_body = self._signed_stripe_post(httpd, event)
+                second_status, second_body = self._signed_stripe_post(httpd, event)
+            self.assertEqual(first_status, 200)
+            self.assertTrue(json.loads(first_body)["applied"])
+            self.assertEqual(second_status, 200)
+            self.assertTrue(json.loads(second_body)["duplicate"])
+            notify.assert_called_once()
+            welcome.assert_called_once()
+            lead = db.get_lead(lead_id)
+            self.assertEqual(lead["status"], "claimed")
+            self.assertEqual(lead["care_status"], "active")
+            self.assertIsNone(lead["demo_expires_at"])
+            with db.conn() as connection:
+                claims = connection.execute(
+                    "SELECT COUNT(*) FROM claims WHERE stripe_session_id='cs_paid_1'"
+                ).fetchone()[0]
+                events = connection.execute(
+                    "SELECT COUNT(*) FROM stripe_events "
+                    "WHERE event_id='evt_checkout_paid_1'"
+                ).fetchone()[0]
+            self.assertEqual(claims, 1)
+            self.assertEqual(events, 1)
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+
+    def test_stripe_lifecycle_events_update_claim_and_care(self):
+        lead_id = self._seed()
+        db.record_claim_pending(lead_id, "monthly", "cs_expired", 12800)
+        db.mark_claimed(
+            lead_id, "monthly", "cs_paid", 12800,
+            subscription_id="sub_lifecycle", customer_id="cus_lifecycle")
+        events = [
+            {
+                "id": "evt_expired",
+                "type": "checkout.session.expired",
+                "data": {"object": {"id": "cs_expired"}},
+            },
+            {
+                "id": "evt_invoice",
+                "type": "invoice.paid",
+                "data": {"object": {
+                    "subscription": "sub_lifecycle",
+                    "customer": "cus_lifecycle",
+                }},
+            },
+            {
+                "id": "evt_cancel",
+                "type": "customer.subscription.deleted",
+                "data": {"object": {
+                    "id": "sub_lifecycle",
+                    "customer": "cus_lifecycle",
+                    "metadata": {"lead_id": str(lead_id)},
+                }},
+            },
+        ]
+        httpd = self._serve()
+        try:
+            with patch.object(claim, "STRIPE_WEBHOOK_SECRET", "whsec_test"):
+                for event in events:
+                    status, body = self._signed_stripe_post(httpd, event)
+                    self.assertEqual(status, 200, body)
+            expired = db.get_claim_by_session("cs_expired")
+            self.assertEqual(expired["status"], "expired")
+            lead = db.get_lead(lead_id)
+            self.assertEqual(lead["care_status"], "cancelled")
+            self.assertIn("Care subscription cancelled", lead["notes"])
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
 
     def test_existing_public_routes_still_work(self):
         httpd = self._serve()

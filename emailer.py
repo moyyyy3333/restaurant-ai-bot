@@ -237,6 +237,75 @@ def send_proposal(business_name: str, demo_url: str, owner_email: str,
         return None
 
 
+def send_welcome_email(
+    business_name: str,
+    buyer_email: str,
+    amount_cents: int,
+    onboarding_url: str,
+    preview_url: str,
+    lead_id=None,
+):
+    """Send the post-payment receipt summary and next-step link."""
+    buyer_email = (buyer_email or "").strip()
+    if not RESEND_API_KEY or not buyer_email or "@" not in buyer_email:
+        return None
+    if db.is_suppressed(buyer_email):
+        print(f"! {buyer_email} is suppressed — not sending welcome email")
+        return None
+    amount = f"${amount_cents / 100:,.2f}"
+    subject = f"Payment received — next steps for {business_name}"
+    text = f"""Payment received: {amount}
+
+Thanks for claiming the website preview for {business_name}.
+
+Confirm your business details here:
+{onboarding_url}
+
+Your preview remains available here:
+{preview_url}
+
+We target launch within 48 hours after receiving your details.
+
+{FROM_NAME}
+{SENDER_POSTAL_ADDRESS}
+"""
+    body = f"""<!DOCTYPE html><html><body style="font:16px/1.6 -apple-system,sans-serif;color:#211d19">
+<div style="max-width:560px;margin:32px auto;padding:0 20px">
+<p style="color:#68706a">Payment received · {html.escape(amount)}</p>
+<h1 style="font-size:26px">Next steps for {html.escape(business_name)}</h1>
+<p>Thanks for claiming your website preview. Confirm your hours, contact details,
+menu, photos, and domain so we can prepare it for launch.</p>
+<p><a href="{html.escape(onboarding_url)}" style="display:inline-block;background:#211d19;color:#fff;
+padding:12px 18px;border-radius:8px;text-decoration:none">Start onboarding</a></p>
+<p>We target launch within 48 hours after receiving your details.</p>
+<p><a href="{html.escape(preview_url)}">View your preview</a></p>
+<hr style="border:0;border-top:1px solid #ddd;margin:28px 0">
+<p style="font-size:12px;color:#777">{html.escape(FROM_NAME)}<br>
+{html.escape(SENDER_POSTAL_ADDRESS)}</p>
+</div></body></html>"""
+    payload = {
+        "from": f"{FROM_NAME} <{FROM_EMAIL}>",
+        "to": [buyer_email],
+        "subject": subject,
+        "html": body,
+        "text": text,
+    }
+    if REPLY_TO:
+        payload["reply_to"] = REPLY_TO
+    req = urllib.request.Request(
+        RESEND_URL, json.dumps(payload).encode(),
+        {"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as response:
+            provider_id = json.load(response).get("id")
+        db.log_email(lead_id, buyer_email, subject, provider_id, "sent")
+        return provider_id
+    except Exception as exc:
+        print(f"  ! welcome email failed: {exc}")
+        db.log_email(lead_id, buyer_email, subject, None, "error")
+        return None
+
+
 if __name__ == "__main__":
     s, h, t = build_email("Taqueria La Esquina", "http://localhost:8080/demo/abc123",
                           "owner@example.com", "restaurant", "houston")

@@ -31,6 +31,7 @@ RESEND_API_KEY = os.getenv("RESEND_API_KEY", "").strip()
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "").strip()
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
 TWILIO_FROM = os.getenv("TWILIO_FROM", "").strip()
+SALES_SMS_NUMBER = os.getenv("SALES_SMS_NUMBER", TWILIO_FROM).strip()
 
 # Hunter.io — free tier (25 email searches/month).
 # Used to find business emails by domain.
@@ -52,6 +53,7 @@ DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "").strip()
 ADMIN_USER_IDS = [
     int(x) for x in os.getenv("ADMIN_USER_IDS", "").replace(" ", "").split(",") if x.isdigit()
 ]
+TELEGRAM_NOTIFY_CHAT_ID = os.getenv("TELEGRAM_NOTIFY_CHAT_ID", "").strip()
 
 # Passcode gate: a user must /unlock <code> once before any command works.
 # A short numeric code is guessable by brute force, so attempts are rate-limited

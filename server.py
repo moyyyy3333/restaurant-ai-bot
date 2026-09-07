@@ -250,7 +250,9 @@ class Handler(BaseHTTPRequestHandler):
                                        "<p>The link may have expired.</p>"))
         # Rebuild on every open: stored HTML would freeze the old template, and
         # an expired token should come back instead of a 410 dead-end.
-        return self.send(200, self.rebuild_demo(lead, token).encode())
+        html_str = self.rebuild_demo(lead, token)
+        return self.send(
+            200, claim.inject_claim_bar(html_str, lead["name"], token).encode())
 
     # --------------------------------------------------------------------- POST
     def do_POST(self):
@@ -395,7 +397,12 @@ class Handler(BaseHTTPRequestHandler):
             if result.get("session_id"):
                 db.record_claim_pending(
                     lead["id"], care, result["session_id"], result.get("amount_cents") or 0)
-            url = result.get("url") or claim.stub_checkout_url(token, care)
+            url = result.get("url")
+            if not result.get("ok") or not url:
+                return self.send(502, page(
+                    "Checkout unavailable",
+                    "<h1>Checkout is temporarily unavailable</h1>"
+                    "<p>Please try again in a few minutes. No charge was made.</p>"))
             self.send_response(302)
             self.send_header("Location", url)
             self.send_header("Content-Length", "0")
@@ -407,7 +414,13 @@ class Handler(BaseHTTPRequestHandler):
             lead = db.get_lead_by_token(token) if token else None
             return self.send(200, claim.render_stub(dict(lead) if lead else None, care), robots=False)
         if action == "success":
-            return self.send(200, claim.render_success((q.get("session_id") or [""])[0]), robots=False)
+            session_id = (q.get("session_id") or [""])[0]
+            claim_row = db.get_claim_by_session(session_id)
+            return self.send(
+                200,
+                claim.render_success(
+                    session_id, dict(claim_row) if claim_row else None),
+                robots=False)
         if action == "cancel":
             return self.send(200, claim.render_cancel((q.get("t") or [""])[0]), robots=False)
         return self.send(404, page("Not found", "<h1>Not found</h1>"))
@@ -439,25 +452,75 @@ class Handler(BaseHTTPRequestHandler):
             ev = json.loads(raw or b"{}")
         except json.JSONDecodeError:
             return self.json_out(400, {"error": "bad json"})
+        event_id = ev.get("id") or ""
         etype = ev.get("type") or ""
-        session = (ev.get("data") or {}).get("object") or {}
+        if not event_id:
+            return self.json_out(400, {"error": "missing_event_id"})
+        if db.stripe_event_seen(event_id):
+            return self.json_out(200, {"ok": True, "duplicate": True})
+        obj = (ev.get("data") or {}).get("object") or {}
+
+        def object_id(value):
+            return value.get("id", "") if isinstance(value, dict) else (value or "")
+
+        applied = False
         if etype == "checkout.session.completed":
-            meta = session.get("metadata") or {}
+            meta = obj.get("metadata") or {}
             lead_id = int(meta.get("lead_id") or 0)
-            if not lead_id and session.get("client_reference_id"):
+            if not lead_id and obj.get("client_reference_id"):
                 try:
-                    lead_id = int(session["client_reference_id"])
+                    lead_id = int(obj["client_reference_id"])
                 except (TypeError, ValueError):
                     lead_id = 0
+            if not lead_id or not db.get_lead(lead_id):
+                return self.json_out(422, {"error": "lead_not_found"})
             care = claim.normalize_care(meta.get("care_plan"))
-            amount = int(session.get("amount_total") or claim.amount_cents(care))
-            if lead_id:
-                db.mark_claimed(
-                    lead_id, care_plan=care,
-                    session_id=session.get("id") or "",
-                    amount_cents=amount, status="paid")
-            return self.json_out(200, {"ok": True, "applied": bool(lead_id)})
-        return self.json_out(200, {"ok": True, "ignored": etype})
+            amount = int(obj.get("amount_total") or claim.amount_cents(care))
+            customer = obj.get("customer_details") or {}
+            buyer_email = customer.get("email") or obj.get("customer_email") or ""
+            buyer_phone = customer.get("phone") or ""
+            claim_row = db.mark_claimed(
+                lead_id, care_plan=care, session_id=obj.get("id") or "",
+                amount_cents=amount, status="paid",
+                subscription_id=object_id(obj.get("subscription")),
+                customer_id=object_id(obj.get("customer")),
+                buyer_email=buyer_email, buyer_phone=buyer_phone)
+            lead = db.get_lead(lead_id)
+            claim_token = claim_row["claim_token"] if claim_row else ""
+            onboarding_url = f"{DEMO_BASE_URL}/onboard/{claim_token}"
+            preview_url = f"{DEMO_BASE_URL}/demo/{lead['demo_token']}"
+            from emailer import send_welcome_email
+            from notifications import notify_admin
+            notify_admin(
+                f"PAID $99 — {lead['name']}, {lead['city'] or ''}, "
+                f"{buyer_email or 'email not provided'}")
+            send_welcome_email(
+                lead["name"], buyer_email, amount, onboarding_url, preview_url,
+                lead_id=lead_id)
+            applied = True
+        elif etype == "checkout.session.expired":
+            db.mark_checkout_expired(obj.get("id") or "")
+            applied = True
+        elif etype == "invoice.paid":
+            meta = obj.get("metadata") or {}
+            parent_meta = (
+                ((obj.get("parent") or {}).get("subscription_details") or {})
+                .get("metadata") or {}
+            )
+            lead_id = int(meta.get("lead_id") or parent_meta.get("lead_id") or 0)
+            applied = db.mark_care_paid(
+                lead_id, object_id(obj.get("subscription")),
+                object_id(obj.get("customer")))
+        elif etype == "customer.subscription.deleted":
+            meta = obj.get("metadata") or {}
+            lead_id = int(meta.get("lead_id") or 0)
+            applied = db.mark_care_cancelled(
+                lead_id, obj.get("id") or "", object_id(obj.get("customer")))
+        db.record_stripe_event(event_id, etype)
+        return self.json_out(200, {
+            "ok": True, "applied": bool(applied),
+            **({"ignored": etype} if not applied else {}),
+        })
 
     def run_pipeline(self):
         """Run the daily pipeline; DAILY_SEND_LIMIT=0 reports without sending."""

@@ -8,6 +8,7 @@ Checkout Session via Stripe's HTTP API (stdlib urllib — no stripe SDK).
 from __future__ import annotations
 
 import json
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -18,6 +19,7 @@ from config import (
     CARE_MONTHLY_USD,
     CARE_YEARLY_USD,
     DEMO_BASE_URL,
+    SALES_SMS_NUMBER,
     STRIPE_PRICE_BUILD,
     STRIPE_PRICE_CARE_MONTHLY,
     STRIPE_PRICE_CARE_YEARLY,
@@ -50,7 +52,7 @@ def pricing() -> dict:
 
 def stripe_configured() -> bool:
     key = (STRIPE_SECRET_KEY or "").strip()
-    return key.startswith("sk_")
+    return key.startswith(("sk_", "rk_"))
 
 
 def normalize_care(care: str | None) -> str:
@@ -126,9 +128,9 @@ def create_checkout(lead: dict, care: str = "none") -> dict:
     err = (session.get("error") or {}).get("message") if isinstance(session.get("error"), dict) else session.get("error")
     payload["ok"] = False
     payload["error"] = err or "stripe_session_failed"
-    payload["stub"] = True
-    payload["url"] = stub_checkout_url(token, care)
-    payload["message"] = "Stripe Checkout failed; falling back to the placeholder."
+    payload["stub"] = False
+    payload["url"] = None
+    payload["message"] = "Stripe Checkout is temporarily unavailable. Please try again."
     return payload
 
 
@@ -177,6 +179,15 @@ def _create_stripe_session(lead: dict, care: str, success_url: str, cancel_url: 
     form["metadata[demo_token]"] = lead.get("demo_token") or ""
     name = lead.get("name") or "Local business"
     form["metadata[business]"] = name
+    form["phone_number_collection[enabled]"] = "true"
+    if mode == "payment":
+        form["customer_creation"] = "always"
+        form["payment_intent_data[metadata][lead_id]"] = str(lead.get("id") or "")
+        form["payment_intent_data[metadata][demo_token]"] = lead.get("demo_token") or ""
+    else:
+        form["subscription_data[metadata][lead_id]"] = str(lead.get("id") or "")
+        form["subscription_data[metadata][care_plan]"] = care
+        form["subscription_data[metadata][demo_token]"] = lead.get("demo_token") or ""
 
     body = urllib.parse.urlencode(form).encode()
     req = urllib.request.Request(
@@ -209,12 +220,14 @@ def verify_webhook(payload: bytes, sig_header: str) -> bool:
     try:
         import hmac
         import hashlib
-        parts = dict(p.split("=", 1) for p in sig_header.split(",") if "=" in p)
-        timestamp = parts.get("t", "")
-        expected = parts.get("v1", "")
+        parts = [p.split("=", 1) for p in sig_header.split(",") if "=" in p]
+        timestamp = next((v for k, v in parts if k == "t"), "")
+        signatures = [v for k, v in parts if k == "v1"]
+        if not timestamp or abs(time.time() - int(timestamp)) > 300:
+            return False
         signed = f"{timestamp}.{payload.decode('utf-8')}".encode()
         digest = hmac.new(secret.encode(), signed, hashlib.sha256).hexdigest()
-        return hmac.compare_digest(digest, expected)
+        return any(hmac.compare_digest(digest, signature) for signature in signatures)
     except Exception:
         return False
 
@@ -240,6 +253,47 @@ p {{ color:#4a453e; margin:0 0 12px; }}
 a.btn {{ display:inline-block; margin-top:18px; background:var(--acc); color:#fff; text-decoration:none;
   padding:12px 20px; border-radius:8px; font-weight:600; }}
 </style></head><body><div class="box">{body}</div></body></html>""".encode()
+
+
+def inject_claim_bar(html: str, business_name: str, demo_token: str) -> str:
+    """Add buyer checkout controls without changing the generated site body."""
+    name = escape(business_name or "this business")
+    token = urllib.parse.quote(demo_token or "")
+    bar = f"""
+<style id="preview-claim-style">
+body{{padding-bottom:max(7.25rem,env(safe-area-inset-bottom))!important}}
+.preview-claim{{position:fixed;z-index:2147483000;left:.65rem;right:.65rem;bottom:.65rem;
+font:500 14px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#181512;
+background:rgba(255,253,248,.97);border:1px solid rgba(24,21,18,.16);border-radius:14px;
+box-shadow:0 12px 36px rgba(0,0,0,.2);padding:.75rem;backdrop-filter:blur(12px)}}
+.preview-claim__row{{display:flex;flex-wrap:wrap;align-items:center;gap:.55rem}}
+.preview-claim__copy{{flex:1 1 17rem}}.preview-claim__copy strong{{display:block;font-size:15px}}
+.preview-claim__actions{{display:flex;flex:1 1 18rem;gap:.45rem}}
+.preview-claim__button{{display:inline-flex;flex:1;min-height:42px;align-items:center;
+justify-content:center;border-radius:9px;padding:.55rem .7rem;text-decoration:none!important;
+font-weight:700;background:#181512;color:#fff!important;border:1px solid #181512}}
+.preview-claim__button--care{{background:transparent;color:#181512!important}}
+.preview-claim details{{margin-top:.4rem;font-size:12px;color:#59524a}}
+.preview-claim summary{{cursor:pointer;width:max-content}}
+@media(min-width:760px){{.preview-claim{{left:50%;right:auto;transform:translateX(-50%);
+width:min(880px,calc(100% - 2rem));padding:.7rem .9rem}}body{{padding-bottom:6rem!important}}}}
+</style>
+<aside class="preview-claim" aria-label="Claim this website preview">
+  <div class="preview-claim__row">
+    <div class="preview-claim__copy"><strong>This is a preview built for {name}.</strong>
+      Make it yours — ${BUILD_PRICE_USD} one-time, optional Care ${CARE_MONTHLY_USD}/mo.</div>
+    <div class="preview-claim__actions">
+      <a class="preview-claim__button" href="/claim/start?t={token}&amp;care=none">Claim this site</a>
+      <a class="preview-claim__button preview-claim__button--care"
+         href="/claim/start?t={token}&amp;care=monthly">Claim with Care</a>
+    </div>
+  </div>
+  <details><summary>What you get</summary>
+    Hosting, mobile layout, Google Maps, click-to-call, edits for 30 days, and a target launch within 48 hours.
+  </details>
+</aside>"""
+    marker = "</body>"
+    return html.replace(marker, bar + marker, 1) if marker in html else html + bar
 
 
 def render_stub(lead: dict | None, care: str = "none") -> bytes:
@@ -272,14 +326,29 @@ def render_stub(lead: dict | None, care: str = "none") -> bytes:
     """)
 
 
-def render_success(session_id: str = "") -> bytes:
+def render_success(session_id: str = "", claim_record: dict | None = None) -> bytes:
     sid = escape(session_id or "")
     extra = f'<p class="muted">Session <code>{sid}</code></p>' if sid else ""
+    claim_token = (claim_record or {}).get("claim_token") or ""
+    onboard = (
+        f'<a class="btn" href="/onboard/{escape(claim_token)}">Start onboarding</a>'
+        if claim_token
+        else '<p class="muted">Your private onboarding link is also in your welcome email.</p>'
+    )
+    sms = (
+        f'<p><a href="sms:{escape(SALES_SMS_NUMBER)}">Text us with a question</a></p>'
+        if SALES_SMS_NUMBER
+        else ""
+    )
     return _shell("You're in", f"""
-      <div class="k">Claim received</div>
-      <h1>Thanks — we'll take it from here.</h1>
-      <p>The ${BUILD_PRICE_USD} build is next. If you added Care, hosting and
-      small updates are included on that plan.</p>
+      <div class="k">Payment received</div>
+      <h1>Your site is moving toward launch.</h1>
+      <p>Next, confirm your hours, contact details, menu, photos, and domain.
+      We review those details and target going live within 48 hours.</p>
+      <p>If you added Care, hosting, SSL, monitoring, and small updates are
+      included while the plan is active.</p>
+      {onboard}
+      {sms}
       {extra}
     """)
 
