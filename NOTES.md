@@ -83,3 +83,25 @@ other agent can't see your session.
   records are NOT in cPanel yet — `scripts/dns_add.py` writes them via cPanel
   UAPI once a cPanel API token exists. Until then the domain is unverified
   and sending will fail.
+
+## 2026-09-07 (evening) — claude
+
+- `outreach.foundrydesk.vip` DNS is **done** in cPanel (3 records, no dupes,
+  builder's `mail.foundrydesk.vip` untouched). Published DKIM matches Resend's
+  expected value byte-for-byte (218 chars). Domain still shows `pending` —
+  that is Resend/SES resolver lag, not a records problem. Re-trigger with:
+  `curl -X POST https://api.resend.com/domains/<id>/verify -H "Authorization: Bearer $RESEND_API_KEY"`
+  Domain id: 7388a870-1a34-408b-bcba-ce84d7133a52
+- **cPanel API tokens are NOT available on this Namecheap plan.** "Manage API
+  Tokens" appears in the sidebar but `security/api_tokens/index.html` 404s and
+  the link does not navigate. So `scripts/dns_add.py` cannot be used against
+  server229 — DNS still needs an SSO'd browser session via
+  ap.www.namecheap.com > Hosting List > GO TO CPANEL. This is the strongest
+  argument for moving DNS to Cloudflare, whose API tokens do work.
+- **Sending chain is proven**: live email sent via Resend from the verified
+  `fitnessprotocol.store` (id 9247330d). Pro plan, key, and delivery all work.
+  `onboarding@resend.dev` only delivers to your own address — never use it for
+  outreach, it fails silently.
+- Free lead insert done: **596 leads total, 267 with phone** (was 402 / 22).
+  194 new Miami businesses from OSM at zero API cost, cross-industry.
+  195 leads still need demo sites generated.
