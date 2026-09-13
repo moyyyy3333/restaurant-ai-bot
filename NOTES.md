@@ -105,3 +105,38 @@ other agent can't see your session.
 - Free lead insert done: **596 leads total, 267 with phone** (was 402 / 22).
   194 new Miami businesses from OSM at zero API cost, cross-industry.
   195 leads still need demo sites generated.
+
+## 2026-09-13 — claude  (THE bug: bot had never sent an email)
+
+**Root cause of zero sends since launch:** `emailer.py` called the Resend API
+without a `User-Agent` header. Resend sits behind Cloudflare, which rejects
+urllib's default agent with **403 error 1010**. `send_proposal()` returned
+`None` on that path *without appending to `errors[]`*, so every pipeline run
+reported `"ok": true, "errors": [], "proposals_sent": 0` — a green check on a
+send that never happened. Fixed; first two emails delivered 16:17 UTC.
+If you add any new Resend call, set a User-Agent (same trap hit `dns_add.py`).
+
+Other fixes today, all pushed, 42 tests green:
+- `db.leads_needing_email` had no ORDER BY, so 267 phone-only leads filled the
+  daily LIMIT and email-bearing leads were never reached. Now email-first.
+- `pipeline.py` passed a bare name to `check_website` when a lead had no
+  street address; Google can't match that. Now qualifies with city (~75%).
+- Verification is cached 30 days (`leads.website_verified_at`). The send gate
+  used to re-call Google per candidate and ignore stored status — which both
+  wasted the bulk-verify spend and skipped everything once the budget ran out.
+  "unknown" is never cached.
+- `pipeline.yml` used `curl -f -s`, hiding the response body; a 500 gave no
+  reason at all. Now prints the JSON.
+
+**Mistake to not repeat:** `verify_leads.py` stored Google's phone only when
+the lead had no address, discarding ~541 numbers from responses already paid
+for (~$18 run). Condition fixed, but those numbers are gone unless re-fetched.
+
+**Free phone backfill** (`scripts/backfill_phones.py`, OSM/Overpass, no cost):
+austin 72/150 matched, houston 19/61. **Miami failed with Overpass HTTP 504 —
+not yet run; retry it.** Overpass 504s on large bboxes; retry or shrink `pad`.
+
+**Standing constraint:** only 25 of 617 leads have an email. The 21 imported
+contractors have no street address, so Google returns a *different* business
+and they stay `unknown`. Leads with addresses (576) almost never have emails.
+Phone is the reachable channel: 300+ leads now have numbers.

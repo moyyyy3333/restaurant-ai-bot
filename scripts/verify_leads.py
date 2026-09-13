@@ -66,7 +66,10 @@ def main():
             tally[status] = tally.get(status, 0) + 1
             if a.apply:
                 fields = {"website_status": status}
-                if info.get("phone") and not address:
+                # Always keep the phone: the same paid response carries it,
+                # and discarding it for address-having leads threw away 541
+                # numbers we had already paid for.
+                if info.get("phone"):
                     fields["phone"] = info["phone"]
                 if status == "has_site":
                     fields["status"] = "dead"
