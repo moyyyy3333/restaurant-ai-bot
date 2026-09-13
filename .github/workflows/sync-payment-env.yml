@@ -17,6 +17,7 @@ jobs:
           GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
           LOCATIONIQ_API_KEY: ${{ secrets.LOCATIONIQ_API_KEY }}
           HUNTER_API_KEY: ${{ secrets.HUNTER_API_KEY }}
+          GOOGLE_PLACES_DAILY_BUDGET: ${{ vars.GOOGLE_PLACES_DAILY_BUDGET }}
           FROM_EMAIL: ${{ vars.FROM_EMAIL }}
           FROM_NAME: ${{ vars.FROM_NAME }}
           REPLY_TO: ${{ vars.REPLY_TO }}
@@ -34,6 +35,7 @@ jobs:
                       "TELEGRAM_NOTIFY_CHAT_ID", "SALES_SMS_NUMBER",
                       "RESEND_API_KEY", "GOOGLE_PLACES_API_KEY", "LOCATIONIQ_API_KEY", "HUNTER_API_KEY",
                       "FROM_EMAIL", "FROM_NAME", "REPLY_TO", "DAILY_SEND_LIMIT",
+                      "GOOGLE_PLACES_DAILY_BUDGET",
                       "MAX_UNLOCK_ATTEMPTS", "UNLOCK_COOLDOWN_MIN"]
           with open("current.json") as f:
               data = json.load(f)
