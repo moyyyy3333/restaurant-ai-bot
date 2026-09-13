@@ -351,7 +351,12 @@ def leads_needing_email(limit: int = 25):
         return c.execute(
             "SELECT * FROM leads WHERE emailed = 0 AND demo_token IS NOT NULL "
             "AND ((email IS NOT NULL AND email != '') "
-            "OR (phone IS NOT NULL AND phone != '')) LIMIT ?", (limit,)).fetchall()
+            "OR (phone IS NOT NULL AND phone != '')) "
+            # Email-reachable leads first: a phone-only lead cannot be
+            # emailed, so letting 267 of them fill the daily LIMIT meant
+            # leads WITH addresses were never reached and nothing sent.
+            "ORDER BY (email IS NOT NULL AND email != '') DESC, id "
+            "LIMIT ?", (limit,)).fetchall()
 
 
 def leads_missing_email(limit: int = 25):
