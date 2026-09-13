@@ -237,6 +237,7 @@ def init_db():
         _ensure_column(c, "leads", "claimed", "INTEGER DEFAULT 0")
         _ensure_column(c, "leads", "claimed_at", "TEXT")
         _ensure_column(c, "leads", "care_plan", "TEXT")
+        _ensure_column(c, "leads", "website_verified_at", "TEXT")
         _ensure_column(c, "leads", "care_status", "TEXT")
         _ensure_column(c, "claims", "stripe_subscription_id", "TEXT")
         _ensure_column(c, "claims", "stripe_customer_id", "TEXT")
