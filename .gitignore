@@ -5,3 +5,10 @@ __pycache__/
 *.pyc
 venv/
 .venv/
+.vercel
+.env*
+*.val
+.hermes/
+skills-export.tar.gz
+no_site_run.log
+no_site_leads.txt
