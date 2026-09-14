@@ -332,6 +332,21 @@ def get_lead_by_token(token: str):
         return c.execute("SELECT * FROM leads WHERE demo_token = ?", (token,)).fetchone()
 
 
+def get_lead_and_demo(token: str):
+    """One Turso connection for /demo/{token}: lead + stored HTML."""
+    with conn() as c:
+        demo = c.execute(
+            "SELECT * FROM demo_sites WHERE token = ?", (token,)).fetchone()
+        if not demo:
+            return None, None
+        lead = c.execute(
+            "SELECT * FROM leads WHERE id = ?", (demo["lead_id"],)).fetchone()
+        if not lead:
+            lead = c.execute(
+                "SELECT * FROM leads WHERE demo_token = ?", (token,)).fetchone()
+        return lead, demo
+
+
 def update_lead(lead_id: int, **fields):
     if not fields:
         return
@@ -406,6 +421,15 @@ def get_demo(token: str):
 def bump_demo_views(token: str):
     with conn() as c:
         c.execute("UPDATE demo_sites SET views = views + 1 WHERE token = ?", (token,))
+
+
+def record_demo_open(token: str, lead_id: int, expires_at: str):
+    """Views + expiry in one connection, after the HTML has been sent."""
+    with conn() as c:
+        c.execute("UPDATE demo_sites SET views = views + 1 WHERE token = ?", (token,))
+        if lead_id and expires_at:
+            c.execute("UPDATE leads SET demo_expires_at = ? WHERE id = ?",
+                      (expires_at, lead_id))
 
 
 # ----------------------------------------------------------------- suppression

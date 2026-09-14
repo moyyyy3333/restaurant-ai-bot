@@ -17,6 +17,7 @@ Stdlib only — no Flask needed, so `python server.py` just works.
 
 import json
 import os
+import time
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
@@ -40,6 +41,32 @@ PIPELINE_TOKEN = os.getenv("PIPELINE_TOKEN", "")
 
 
 BOARD_KEY = (os.getenv("BOARD_KEY") or os.getenv("PIPELINE_TOKEN") or "").strip()
+
+# Token URLs are unguessable unpublished previews. Short CDN cache + SWR so
+# repeat opens skip the origin. Bump s-maxage only if demo HTML must be fresher.
+DEMO_CACHE_CONTROL = "public, max-age=60, s-maxage=120, stale-while-revalidate=86400"
+
+
+def servable_demo_html(html, name: str = "") -> bool:
+    """True when stored HTML is a real generated site we can paint immediately.
+
+    Stubs and pre-generator leftovers (missing doctype / data-menu-source)
+    still rebuild locally. Enrich is never required to decide this.
+    """
+    if not html or not isinstance(html, str):
+        return False
+    if len(html) < 800:
+        return False
+    head = html[:400].lower()
+    if "<!doctype html>" not in head and "<html" not in head:
+        return False
+    if "data-menu-source" not in html:
+        return False
+    if name:
+        first = (name.strip().split() or [""])[0]
+        if first and first not in html:
+            return False
+    return True
 
 
 def board_payload() -> dict:
@@ -111,12 +138,16 @@ class Handler(BaseHTTPRequestHandler):
 
     # ------------------------------------------------------------------ helpers
     def send(self, code: int, body: bytes, ctype="text/html; charset=utf-8",
-             robots=True):
+             robots=True, headers=None):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
         if robots:
             self.send_header("X-Robots-Tag", "noindex, nofollow")
+        if headers:
+            for key, value in headers.items():
+                if value is not None:
+                    self.send_header(key, value)
         self.end_headers()
         self.wfile.write(body)
 
@@ -212,9 +243,9 @@ class Handler(BaseHTTPRequestHandler):
 
         return self.send(404, page("Not found", "<h1>Not found</h1>"))
 
-    def rebuild_demo(self, lead, token: str) -> str:
-        """Always rebuild from the current generator so design upgrades land
-        on existing /demo/{token} links. Extends expiry on open."""
+    def rebuild_demo(self, lead, token: str, fetch_place: bool = False) -> str:
+        """Local regenerate. Places / menu enrich stay off the request path so
+        a missing file cannot hang first paint. Pipeline still enriches."""
         from generator import generate_site
         html_str, _ = generate_site(
             name=lead["name"] or "Business",
@@ -226,33 +257,64 @@ class Handler(BaseHTTPRequestHandler):
             lead_id=lead["id"],
             business_id=lead["business_id"],
             use_ai=False,
-            fetch_place=True,
+            fetch_place=fetch_place,
         )
         try:
             db.save_demo_html(token, html_str)
         except Exception as e:
             print(f"  could not persist regenerated demo: {e}")
-        try:
-            db.update_lead(
-                lead["id"],
-                demo_expires_at=(datetime.now() + timedelta(hours=DEMO_EXPIRE_HOURS)).isoformat(),
-            )
-        except Exception as e:
-            print(f"  could not extend demo expiry: {e}")
-        db.bump_demo_views(token)
         return html_str
 
+    def _demo_headers(self, cache: str, db_ms: float, gen_ms: float, total_ms: float) -> dict:
+        timing = (
+            f'db;dur={db_ms:.1f}, generate;dur={gen_ms:.1f}, '
+            f'total;dur={total_ms:.1f}'
+        )
+        return {
+            "Cache-Control": DEMO_CACHE_CONTROL,
+            "CDN-Cache-Control": DEMO_CACHE_CONTROL,
+            "Vercel-CDN-Cache-Control": DEMO_CACHE_CONTROL,
+            "Server-Timing": timing,
+            "X-Demo-Cache": cache,
+        }
+
+    def _record_demo_open(self, lead, token: str):
+        try:
+            db.record_demo_open(
+                token, lead["id"],
+                (datetime.now() + timedelta(hours=DEMO_EXPIRE_HOURS)).isoformat())
+        except Exception as e:
+            print(f"  could not record demo open: {e}")
+
     def serve_demo(self, token: str):
-        lead = db.get_lead_by_token(token)
-        demo = db.get_demo(token)
+        t0 = time.perf_counter()
+        lead, demo = db.get_lead_and_demo(token)
+        db_ms = (time.perf_counter() - t0) * 1000
         if not demo or not lead:
             return self.send(404, page("Expired", "<h1>This sample isn't available</h1>"
                                        "<p>The link may have expired.</p>"))
-        # Rebuild on every open: stored HTML would freeze the old template, and
-        # an expired token should come back instead of a 410 dead-end.
-        html_str = self.rebuild_demo(lead, token)
-        return self.send(
-            200, claim.inject_claim_bar(html_str, lead["name"], token).encode())
+        stored = demo["html"] if "html" in demo.keys() else None
+        gen_ms = 0.0
+        if servable_demo_html(stored, lead["name"] or ""):
+            cache = "hit"
+            html_str = stored
+        else:
+            # Missing or pre-generator stub. Rebuild locally (fail-closed
+            # sample / hours omitted). Do not block on Places or menu enrich.
+            cache = "miss"
+            t1 = time.perf_counter()
+            html_str = self.rebuild_demo(lead, token, fetch_place=False)
+            gen_ms = (time.perf_counter() - t1) * 1000
+        body = claim.inject_claim_bar(html_str, lead["name"], token).encode()
+        total_ms = (time.perf_counter() - t0) * 1000
+        print(
+            f"  demo {token} cache={cache} db={db_ms:.0f}ms "
+            f"gen={gen_ms:.0f}ms total={total_ms:.0f}ms bytes={len(body)}"
+        )
+        result = self.send(
+            200, body, headers=self._demo_headers(cache, db_ms, gen_ms, total_ms))
+        self._record_demo_open(lead, token)
+        return result
 
     # --------------------------------------------------------------------- POST
     def do_POST(self):
