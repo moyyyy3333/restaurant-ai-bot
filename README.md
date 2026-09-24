@@ -16,6 +16,38 @@ service runs both the stdlib HTTP server and Telegram operator bot through
 
 Never commit `.env`. Local SQLite is used when Turso is not configured.
 
+## Stripe Checkout ($99 claim + Care)
+
+The marketing homepage and every `/demo/<token>` page start Stripe Checkout
+for a one-time **$99** site claim. Optional Care is **$29/mo** or **$249/yr**.
+
+Required for live Checkout (otherwise `/claim/start` opens a visible stub):
+
+| Variable | Purpose |
+| --- | --- |
+| `STRIPE_SECRET_KEY` | Creates Checkout Sessions (`sk_live_…` or `sk_test_…`) |
+| `STRIPE_WEBHOOK_SECRET` | Verifies `POST /webhook/stripe` so paid sessions mark the lead claimed |
+| `STRIPE_PUBLISHABLE_KEY` | Optional; not required for server-side Checkout |
+| `STRIPE_PRICE_BUILD` | Optional Price ID for the $99 one-time claim |
+| `STRIPE_PRICE_CARE_MONTHLY` | Optional Price ID for Care $29/mo |
+| `STRIPE_PRICE_CARE_YEARLY` | Optional Price ID for Care $249/yr |
+| `PUBLIC_BASE_URL` / `DEMO_BASE_URL` | Success + cancel URLs (cancel returns to `/`) |
+| `REPLY_TO` | Preview-request mailto on the landing form |
+
+If a Price ID is empty, Checkout uses inline `price_data` in USD. The $99
+line is named **Local Web Studio — site claim**.
+
+Public buy path (no ops token):
+
+- `POST /api/claim/checkout` — JSON `{care, t, business}` or an HTML form; JSON returns `{url}`, form POSTs 302 to Stripe
+- `GET /claim/start?care=none|monthly|yearly&t=<demo-token>` — same session, then 302
+- `GET /claim/success?session_id=…` — confirmation + reply to dealermatt72@me.com
+- `GET /claim/cancel` — no charge; link back to the landing
+- `POST /webhook/stripe` — `checkout.session.completed` and Care lifecycle events
+
+`care` is `none` (default), `monthly`, or `yearly`. A demo token or lead id
+is attached as Stripe metadata when present; the landing can claim without one.
+
 ## Production
 
 Render is the only public runtime. The service command is defined in the
@@ -25,7 +57,20 @@ link points to localhost.
 
 Pushes to `main` trigger `.github/workflows/deploy.yml`, which deploys Render
 and verifies `/health`. The daily workflow calls `/pipeline/run` with
-`X-Pipeline-Token`.
+`X-Pipeline-Token`. A linked Vercel project also deploys `main` to
+`https://restaurant-ai-bot-two.vercel.app/`.
+
+After deploy, click these on **both** hosts (Vercel is the buyer-facing
+landing; Render is the long-running service):
+
+- `https://restaurant-ai-bot-two.vercel.app/` — primary CTA **Claim for $99**
+- `https://restaurant-ai-bot-two.vercel.app/api/claim/checkout` — should 302 to Stripe or the stub
+- `https://restaurant-ai-bot-two.vercel.app/claim/start` — same
+- `https://restaurant-ai-bot-two.vercel.app/claim/success` — confirmation + dealermatt72@me.com
+- `https://restaurant-ai-bot-n844.onrender.com/` — same landing + buy path
+- `https://restaurant-ai-bot-n844.onrender.com/demo/<token>` — personalized demo + claim bar
+- Stripe webhook endpoint: `https://restaurant-ai-bot-n844.onrender.com/webhook/stripe`
+  (also add the Vercel host if Checkout success stays on Vercel)
 
 ## Pre-deploy check
 

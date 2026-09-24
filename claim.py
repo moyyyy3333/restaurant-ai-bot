@@ -28,6 +28,9 @@ from config import (
 )
 
 CARE_PLANS = ("none", "monthly", "yearly")
+SITE_CLAIM_PRODUCT = "Local Web Studio — site claim"
+STUDIO_NAME = "Local Web Studio"
+STUDIO_EMAIL = "dealermatt72@me.com"
 
 
 def pricing() -> dict:
@@ -90,12 +93,44 @@ def start_url(demo_token: str, care: str = "none") -> str:
     return f"/claim/start?t={urllib.parse.quote(demo_token or '')}&care={care}"
 
 
-def create_checkout(lead: dict, care: str = "none") -> dict:
-    """Start Checkout for a lead. Always returns a dict; never raises to the UI.
+def claim_form(care: str, label: str, token: str = "", button_class: str = "btn primary",
+               business: str = "") -> str:
+    """POST form that hits /api/claim/checkout (works without JavaScript)."""
+    care = normalize_care(care)
+    extra = (
+        f'<input type="hidden" name="business" value="{escape(business)}">'
+        if business else ""
+    )
+    return (
+        f'<form class="claim-go" action="/api/claim/checkout" method="post">'
+        f'<input type="hidden" name="care" value="{escape(care)}">'
+        f'<input type="hidden" name="t" value="{escape(token or "")}">'
+        f'{extra}'
+        f'<button class="{escape(button_class)}" type="submit">{escape(label)}</button>'
+        f'</form>'
+    )
+
+
+def checkout_subject(lead: dict | None = None, **extra) -> dict:
+    """Lead row when we have one; otherwise a landing/guest payload."""
+    subject = dict(lead or {})
+    for key, value in extra.items():
+        if value not in (None, "") and not subject.get(key):
+            subject[key] = value
+    subject.setdefault("id", "")
+    subject.setdefault("demo_token", "")
+    subject.setdefault("name", "Local business")
+    subject.setdefault("business_id", "")
+    return subject
+
+
+def create_checkout(lead: dict | None = None, care: str = "none") -> dict:
+    """Start Checkout for a lead or a landing visitor. Never raises to the UI.
 
     {ok, stub, url, session_id, line_items, pricing, error}
     """
     care = normalize_care(care)
+    lead = checkout_subject(lead)
     items = line_items_preview(care)
     token = lead.get("demo_token") or ""
     payload = {
@@ -118,7 +153,7 @@ def create_checkout(lead: dict, care: str = "none") -> dict:
         return payload
 
     success = f"{DEMO_BASE_URL}/claim/success?session_id={{CHECKOUT_SESSION_ID}}"
-    cancel = f"{DEMO_BASE_URL}/claim/cancel?t={urllib.parse.quote(token)}"
+    cancel = f"{DEMO_BASE_URL}/"
     session = _create_stripe_session(lead, care, success, cancel)
     if session.get("id") and session.get("url"):
         payload["url"] = session["url"]
@@ -159,7 +194,7 @@ def _line_item(price_id: str, fallback_name: str, amount_usd: int, recurring: st
 
 
 def _create_stripe_session(lead: dict, care: str, success_url: str, cancel_url: str) -> dict:
-    items = [_line_item(STRIPE_PRICE_BUILD, "Website build", BUILD_PRICE_USD, None)]
+    items = [_line_item(STRIPE_PRICE_BUILD, SITE_CLAIM_PRODUCT, BUILD_PRICE_USD, None)]
     mode = "payment"
     if care == "monthly":
         items.append(_line_item(STRIPE_PRICE_CARE_MONTHLY, "Care", CARE_MONTHLY_USD, "month"))
@@ -168,26 +203,39 @@ def _create_stripe_session(lead: dict, care: str, success_url: str, cancel_url: 
         items.append(_line_item(STRIPE_PRICE_CARE_YEARLY, "Care (annual)", CARE_YEARLY_USD, "year"))
         mode = "subscription"
 
+    lead = checkout_subject(lead)
+    lead_id = str(lead.get("id") or "")
+    demo_token = lead.get("demo_token") or ""
+    demo_id = str(lead.get("demo_id") or demo_token or "")
+    business_id = str(lead.get("business_id") or "")
+    name = lead.get("name") or "Local business"
+    source = lead.get("source") or ("demo" if demo_token else "landing")
+
     form: dict = {}
     _flatten("line_items", items, form)
     form["mode"] = mode
     form["success_url"] = success_url
     form["cancel_url"] = cancel_url
-    form["client_reference_id"] = str(lead.get("id") or "")
-    form["metadata[lead_id]"] = str(lead.get("id") or "")
+    if lead_id:
+        form["client_reference_id"] = lead_id
+    form["metadata[lead_id]"] = lead_id
     form["metadata[care_plan]"] = care
-    form["metadata[demo_token]"] = lead.get("demo_token") or ""
-    name = lead.get("name") or "Local business"
+    form["metadata[demo_token]"] = demo_token
+    form["metadata[demo_id]"] = demo_id
+    form["metadata[business_id]"] = business_id
     form["metadata[business]"] = name
+    form["metadata[source]"] = source
     form["phone_number_collection[enabled]"] = "true"
     if mode == "payment":
         form["customer_creation"] = "always"
-        form["payment_intent_data[metadata][lead_id]"] = str(lead.get("id") or "")
-        form["payment_intent_data[metadata][demo_token]"] = lead.get("demo_token") or ""
+        form["payment_intent_data[metadata][lead_id]"] = lead_id
+        form["payment_intent_data[metadata][demo_token]"] = demo_token
+        form["payment_intent_data[metadata][demo_id]"] = demo_id
     else:
-        form["subscription_data[metadata][lead_id]"] = str(lead.get("id") or "")
+        form["subscription_data[metadata][lead_id]"] = lead_id
         form["subscription_data[metadata][care_plan]"] = care
-        form["subscription_data[metadata][demo_token]"] = lead.get("demo_token") or ""
+        form["subscription_data[metadata][demo_token]"] = demo_token
+        form["subscription_data[metadata][demo_id]"] = demo_id
 
     body = urllib.parse.urlencode(form).encode()
     req = urllib.request.Request(
@@ -283,15 +331,20 @@ width:min(880px,calc(100% - 2rem));padding:.7rem .9rem}}body{{padding-bottom:6re
     <div class="preview-claim__copy"><strong>This is a preview built for {name}.</strong>
       Make it yours — ${BUILD_PRICE_USD} one-time, optional Care ${CARE_MONTHLY_USD}/mo.</div>
     <div class="preview-claim__actions">
-      <a class="preview-claim__button" href="/claim/start?t={token}&amp;care=none">Claim this site</a>
+      <a class="preview-claim__button" href="/claim/start?t={token}&amp;care=none">Claim this site — ${BUILD_PRICE_USD}</a>
       <a class="preview-claim__button preview-claim__button--care"
-         href="/claim/start?t={token}&amp;care=monthly">Claim with Care</a>
+         href="/claim/start?t={token}&amp;care=monthly">Care ${CARE_MONTHLY_USD}/mo</a>
+      <a class="preview-claim__button preview-claim__button--care"
+         href="/claim/start?t={token}&amp;care=yearly">Care ${CARE_YEARLY_USD}/yr</a>
     </div>
   </div>
   <details><summary>What you get</summary>
     Hosting, mobile layout, Google Maps, click-to-call, edits for 30 days, and a target launch within 48 hours.
   </details>
 </aside>"""
+    if token:
+        html = html.replace("/claim/start?care=", f"/claim/start?t={token}&care=")
+        html = html.replace('name="t" value=""', f'name="t" value="{escape(demo_token)}"')
     marker = "</body>"
     return html.replace(marker, bar + marker, 1) if marker in html else html + bar
 
@@ -340,14 +393,19 @@ def render_success(session_id: str = "", claim_record: dict | None = None) -> by
         if SALES_SMS_NUMBER
         else ""
     )
+    studio = escape(STUDIO_NAME)
+    inbox = escape(STUDIO_EMAIL)
     return _shell("You're in", f"""
       <div class="k">Payment received</div>
-      <h1>Your site is moving toward launch.</h1>
-      <p>Your ${BUILD_PRICE_USD} website build payment was received.</p>
-      <p>Next, confirm your hours, contact details, menu, photos, and domain.
-      We review those details and target going live within 48 hours.</p>
-      <p>If you added Care, hosting, SSL, monitoring, and small updates are
-      included while the plan is active.</p>
+      <h1>You're claimed. Next steps.</h1>
+      <p>Your ${BUILD_PRICE_USD} payment to {studio} was received. We target
+      going live within 48 hours once we have your details.</p>
+      <p><b>Reply to <a href="mailto:{inbox}">{inbox}</a></b> ({studio})
+      with your business name, hours, photos, menu or services, and the
+      domain you want. That email is how we finish the site.</p>
+      <p>If you added Care (${CARE_MONTHLY_USD}/mo or ${CARE_YEARLY_USD}/yr),
+      hosting, SSL, monitoring, and small updates stay included while the
+      plan is active.</p>
       {onboard}
       {sms}
       {extra}
@@ -355,11 +413,12 @@ def render_success(session_id: str = "", claim_record: dict | None = None) -> by
 
 
 def render_cancel(demo_token: str = "") -> bytes:
-    retry = f"/claim/start?t={urllib.parse.quote(demo_token)}" if demo_token else "/"
+    retry = f"/claim/start?t={urllib.parse.quote(demo_token)}" if demo_token else "/api/claim/checkout"
     return _shell("Checkout canceled", f"""
       <div class="k">No charge</div>
       <h1>Checkout canceled</h1>
       <p>Nothing was billed. You can restart the ${BUILD_PRICE_USD} claim
       whenever you're ready.</p>
-      <a class="btn" href="{escape(retry)}">Try again</a>
+      <a class="btn" href="/">Back to Local Web Studio</a>
+      <p class="muted"><a href="{escape(retry)}">Try checkout again</a></p>
     """)

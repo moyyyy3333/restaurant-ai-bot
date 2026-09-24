@@ -712,6 +712,10 @@ tr:last-child th,tr:last-child td{{border-bottom:0}}
 #claim p{{opacity:.86;max-width:52ch;margin-top:1rem}}
 #claim .price{{opacity:1;font-weight:650;margin-top:1.5rem;font-size:var(--step-1)}}
 #claim .hairline{{background:var(--accent)}}
+#claim .claim-actions{{display:flex;flex-wrap:wrap;gap:.7rem;margin-top:1.4rem}}
+#claim .claim-actions .btn{{background:var(--accent);color:var(--ink)}}
+#claim .claim-actions .btn.ghost{{background:transparent;color:var(--surface);
+  border-color:color-mix(in srgb,var(--surface) 35%,transparent)}}
 .note{{font-size:12.5px;color:var(--muted);padding-block:2.2rem 0;max-width:70ch}}
 footer{{border-top:1px solid var(--line);padding-block:1.7rem;margin-top:1.2rem;
   font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;
@@ -970,7 +974,12 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
   <p><strong>${PRICE_USD}</strong> one-time — we finish your menu, hours, and photos.</p>
   <p><strong>Care ${CARE_MONTHLY_USD}/mo</strong> (or <strong>${CARE_YEARLY_USD}/yr</strong>) —
      hosting, SSL, monitoring, and small menu/hours tweaks so it stays live.</p>
-  <p class="price">${PRICE_USD} builds it. Care keeps it live. Reply to claim.</p>
+  <p class="price">${PRICE_USD} builds it. Care keeps it live.</p>
+  <div class="claim-actions">
+    <a class="btn" href="/claim/start?care=none">Claim this site — ${PRICE_USD}</a>
+    <a class="btn ghost" href="/claim/start?care=monthly">Care ${CARE_MONTHLY_USD}/mo</a>
+    <a class="btn ghost" href="/claim/start?care=yearly">Care ${CARE_YEARLY_USD}/yr</a>
+  </div>
   <p>This sample was built for {name_s} at no cost, and nothing is published.
      Reply to the email that brought you here. Every email has a one-click opt-out.</p>
 </div></section>

@@ -183,6 +183,12 @@ class Handler(BaseHTTPRequestHandler):
         if parts[0] == "claim":
             return self.claim_get(parts, u)
 
+        if parts[0] == "api" and len(parts) > 1 and parts[1] == "claim" and (
+                len(parts) > 2 and parts[2] == "checkout"):
+            q = parse_qs(u.query)
+            body = {k: (v[0] if v else "") for k, v in q.items()}
+            return self.start_claim(body, redirect=True)
+
         if parts[0] == "stats":
             payload = {"ok": True, "service": "local-business-ai-bot", **db.db_status()}
             try:
@@ -326,13 +332,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.json_out(200, {"ok": True})
 
         if u.path == "/api/claim/checkout":
-            if not self._board_ok(u):
-                return self.json_out(403, {"error": "locked"})
-            try:
-                body = json.loads(raw or b"{}")
-            except json.JSONDecodeError:
-                return self.json_out(400, {"error": "bad json"})
-            return self.start_claim(body)
+            body, as_form = self._parse_checkout_body(raw)
+            return self.start_claim(body, redirect=as_form)
 
         if u.path == "/webhook/stripe":
             return self.stripe_webhook(raw)
@@ -388,30 +389,63 @@ class Handler(BaseHTTPRequestHandler):
         hdr = (self.headers.get("X-Pipeline-Token") or "").strip()
         return hdr == BOARD_KEY or (bool(PIPELINE_TOKEN) and hdr == PIPELINE_TOKEN)
 
+    def _parse_checkout_body(self, raw: bytes) -> tuple[dict, bool]:
+        """JSON or form body for public checkout. Second value is True for forms."""
+        ctype = (self.headers.get("Content-Type") or "").lower()
+        if "application/json" in ctype:
+            try:
+                data = json.loads(raw or b"{}")
+            except json.JSONDecodeError:
+                data = {}
+            return data if isinstance(data, dict) else {}, False
+        parsed = parse_qs(raw.decode("utf-8", "replace") if raw else "")
+        return {k: (v[0] if v else "") for k, v in parsed.items()}, True
+
+    def _checkout_subject(self, body: dict) -> dict:
+        token = str(
+            body.get("t") or body.get("token") or body.get("demo_token") or ""
+        ).strip()
+        try:
+            lead_id = int(body.get("lead_id") or body.get("id") or 0)
+        except (TypeError, ValueError):
+            lead_id = 0
+        lead = db.get_lead_by_token(token) if token else None
+        if not lead and lead_id:
+            lead = db.get_lead(lead_id)
+        return claim.checkout_subject(
+            dict(lead) if lead else None,
+            demo_token=token,
+            name=str(body.get("business") or body.get("name") or "").strip(),
+            business_id=str(body.get("business_id") or "").strip(),
+            demo_id=str(body.get("demo_id") or "").strip(),
+            source="demo" if (lead or token) else "landing",
+        )
+
+    def _redirect_checkout(self, result: dict):
+        url = result.get("url")
+        if not result.get("ok") or not url:
+            return self.send(502, page(
+                "Checkout unavailable",
+                "<h1>Checkout is temporarily unavailable</h1>"
+                "<p>Please try again in a few minutes. No charge was made.</p>"))
+        self.send_response(302)
+        self.send_header("Location", url)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        return
+
     def claim_get(self, parts, u):
         q = parse_qs(u.query)
         action = parts[1] if len(parts) > 1 else ""
         if action == "start":
-            token = (q.get("t") or [""])[0]
             care = claim.normalize_care((q.get("care") or ["none"])[0])
-            lead = db.get_lead_by_token(token) if token else None
-            if not lead:
-                return self.send(404, page("Claim", "<h1>Lead not found</h1><p>Need a valid demo token.</p>"))
-            result = claim.create_checkout(dict(lead), care)
-            if result.get("session_id"):
+            subject = self._checkout_subject({k: (v[0] if v else "") for k, v in q.items()})
+            result = claim.create_checkout(subject, care)
+            lead_id = subject.get("id")
+            if result.get("session_id") and lead_id:
                 db.record_claim_pending(
-                    lead["id"], care, result["session_id"], result.get("amount_cents") or 0)
-            url = result.get("url")
-            if not result.get("ok") or not url:
-                return self.send(502, page(
-                    "Checkout unavailable",
-                    "<h1>Checkout is temporarily unavailable</h1>"
-                    "<p>Please try again in a few minutes. No charge was made.</p>"))
-            self.send_response(302)
-            self.send_header("Location", url)
-            self.send_header("Content-Length", "0")
-            self.end_headers()
-            return
+                    int(lead_id), care, result["session_id"], result.get("amount_cents") or 0)
+            return self._redirect_checkout(result)
         if action == "stub":
             token = (q.get("t") or [""])[0]
             care = claim.normalize_care((q.get("care") or ["none"])[0])
@@ -429,18 +463,16 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, claim.render_cancel((q.get("t") or [""])[0]), robots=False)
         return self.send(404, page("Not found", "<h1>Not found</h1>"))
 
-    def start_claim(self, body: dict):
-        lead_id = int(body.get("lead_id") or body.get("id") or 0)
+    def start_claim(self, body: dict, redirect: bool = False):
         care = claim.normalize_care(body.get("care"))
-        lead = db.get_lead(lead_id) if lead_id else None
-        if not lead and body.get("t"):
-            lead = db.get_lead_by_token(str(body.get("t")))
-        if not lead:
-            return self.json_out(404, {"error": "lead_not_found", "pricing": claim.pricing()})
-        result = claim.create_checkout(dict(lead), care)
-        if result.get("session_id"):
+        subject = self._checkout_subject(body)
+        result = claim.create_checkout(subject, care)
+        lead_id = subject.get("id")
+        if result.get("session_id") and lead_id:
             db.record_claim_pending(
-                lead["id"], care, result["session_id"], result.get("amount_cents") or 0)
+                int(lead_id), care, result["session_id"], result.get("amount_cents") or 0)
+        if redirect:
+            return self._redirect_checkout(result)
         return self.json_out(200 if result.get("ok") else 502, result)
 
     def stripe_webhook(self, raw: bytes):
@@ -476,32 +508,41 @@ class Handler(BaseHTTPRequestHandler):
                     lead_id = int(obj["client_reference_id"])
                 except (TypeError, ValueError):
                     lead_id = 0
-            if not lead_id or not db.get_lead(lead_id):
-                return self.json_out(422, {"error": "lead_not_found"})
             care = claim.normalize_care(meta.get("care_plan"))
             amount = int(obj.get("amount_total") or claim.amount_cents(care))
             customer = obj.get("customer_details") or {}
             buyer_email = customer.get("email") or obj.get("customer_email") or ""
             buyer_phone = customer.get("phone") or ""
-            claim_row = db.mark_claimed(
-                lead_id, care_plan=care, session_id=obj.get("id") or "",
-                amount_cents=amount, status="paid",
-                subscription_id=object_id(obj.get("subscription")),
-                customer_id=object_id(obj.get("customer")),
-                buyer_email=buyer_email, buyer_phone=buyer_phone)
-            lead = db.get_lead(lead_id)
-            claim_token = claim_row["claim_token"] if claim_row else ""
-            onboarding_url = f"{DEMO_BASE_URL}/onboard/{claim_token}"
-            preview_url = f"{DEMO_BASE_URL}/demo/{lead['demo_token']}"
             from emailer import send_welcome_email
             from notifications import notify_admin
-            notify_admin(
-                f"PAID $99 — {lead['name']}, {lead['city'] or ''}, "
-                f"{buyer_email or 'email not provided'}")
-            send_welcome_email(
-                lead["name"], buyer_email, amount, onboarding_url, preview_url,
-                lead_id=lead_id)
-            applied = True
+            lead = db.get_lead(lead_id) if lead_id else None
+            if not lead:
+                business = meta.get("business") or "inbound claim"
+                notify_admin(
+                    f"PAID $99 — {business} (landing/guest), "
+                    f"{buyer_email or 'email not provided'}")
+                send_welcome_email(
+                    business, buyer_email, amount,
+                    f"{DEMO_BASE_URL}/claim/success?session_id={obj.get('id') or ''}",
+                    DEMO_BASE_URL, lead_id=None)
+                applied = True
+            else:
+                claim_row = db.mark_claimed(
+                    lead_id, care_plan=care, session_id=obj.get("id") or "",
+                    amount_cents=amount, status="paid",
+                    subscription_id=object_id(obj.get("subscription")),
+                    customer_id=object_id(obj.get("customer")),
+                    buyer_email=buyer_email, buyer_phone=buyer_phone)
+                claim_token = claim_row["claim_token"] if claim_row else ""
+                onboarding_url = f"{DEMO_BASE_URL}/onboard/{claim_token}"
+                preview_url = f"{DEMO_BASE_URL}/demo/{lead['demo_token']}"
+                notify_admin(
+                    f"PAID $99 — {lead['name']}, {lead['city'] or ''}, "
+                    f"{buyer_email or 'email not provided'}")
+                send_welcome_email(
+                    lead["name"], buyer_email, amount, onboarding_url, preview_url,
+                    lead_id=lead_id)
+                applied = True
         elif etype == "checkout.session.expired":
             db.mark_checkout_expired(obj.get("id") or "")
             applied = True
