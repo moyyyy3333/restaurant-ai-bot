@@ -140,3 +140,25 @@ not yet run; retry it.** Overpass 504s on large bboxes; retry or shrink `pad`.
 contractors have no street address, so Google returns a *different* business
 and they stay `unknown`. Leads with addresses (576) almost never have emails.
 Phone is the reachable channel: 300+ leads now have numbers.
+
+## 2026-09-24 — grok (Claim for $99 on the landing)
+
+- Buyer-facing production is `https://restaurant-ai-bot-two.vercel.app/` (Vercel
+  Flask project `restaurant-ai-bot`, same Turso as Render). Render
+  `https://restaurant-ai-bot-n844.onrender.com/` is the long-running twin.
+  Both served the landing with only **Get free preview** — no Claim, no
+  Checkout. `/claim/start` 404'd without a demo token, so a landing visitor
+  could not pay.
+- Stripe is already in `claim.py` ($99 + Care $29/mo / $249/yr, inline
+  `price_data` when Price IDs are empty). Vercel already has
+  `STRIPE_SECRET_KEY` / `STRIPE_PUBLISHABLE_KEY`. No `STRIPE_PRICE_*` on
+  Vercel — Checkout will name the $99 line **Local Web Studio — site claim**.
+  `STRIPE_WEBHOOK_SECRET` is not on Vercel; keep the webhook on Render
+  (`/webhook/stripe`) and add the Vercel host if success URLs stay there.
+- Extending, not rewriting: public `POST /api/claim/checkout` (no ops lock),
+  guest `/claim/start`, landing primary CTA **Claim for $99**, Care buttons
+  visible, cancel URL is `/`, success page tells the buyer to reply to
+  dealermatt72@me.com. Demo category CTAs (Order / Book / Quote / Call) were
+  not changed.
+- Do not add `vercel.json` — `tests/test_deployment_config.py` still requires
+  Render as the only committed runtime. Vercel deploys from dashboard/Git.

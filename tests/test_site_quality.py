@@ -143,7 +143,11 @@ def test_claim_shows_build_and_care_split():
     assert "<strong>$99</strong> one-time — we finish your menu, hours, and photos." in HTML
     assert "<strong>Care $29/mo</strong> (or <strong>$249/yr</strong>) —" in HTML
     assert "so it stays live" in HTML
-    assert "$99 builds it. Care keeps it live. Reply to claim." in HTML
+    assert "$99 builds it. Care keeps it live." in HTML
+    assert "Claim this site — $99" in HTML
+    assert 'href="/claim/start?care=none"' in HTML
+    assert 'href="/claim/start?care=monthly"' in HTML
+    assert 'href="/claim/start?care=yearly"' in HTML
     assert "$299" not in HTML and "$79" not in HTML
 
 
