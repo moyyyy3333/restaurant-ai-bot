@@ -84,6 +84,23 @@ other agent can't see your session.
   UAPI once a cPanel API token exists. Until then the domain is unverified
   and sending will fail.
 
+## 2026-09-07 — grok (demo index)
+
+- Public demo URL pattern is `/demo/{token}` on
+  `https://restaurant-ai-bot-two.vercel.app` (`server.py`, `pipeline.py`,
+  `bot.py`, `ops.py`). Confirmed live: Thien An Sandwiches
+  `/demo/EBMKiuowROVS` returns 200.
+- Production `/stats` at that host: **420** `demo_sites` rows, **401** leads
+  with a `demo_token`. No Turso credentials in the cloud-agent env.
+  `demos/*.html` is gitignored, so there is no committed HTML filename list.
+- Recovered **86** real tokens only: 85 from public Daily lead pipeline
+  `/pipeline/run` JSON `sites[]` logs, plus Cream Parlor `QDfZzeoBRE9n`
+  from the Growth pitch-pool / PR 18 live fetch. Do not treat 86 as the
+  full production set.
+- `GET /demo/{token}` rebuilds the page with `fetch_place=True` and can
+  spend Google Places budget. Do not scrape all 401 to discover tokens.
+- Re-run the full index when Turso is available:
+  `TURSO_DATABASE_URL=… TURSO_AUTH_TOKEN=… python3 scripts/export_demos_index.py`
 ## 2026-09-07 (evening) — claude
 
 - `outreach.foundrydesk.vip` DNS is **done** in cPanel (3 records, no dupes,
