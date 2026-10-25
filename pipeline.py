@@ -8,12 +8,35 @@ from datetime import datetime, timedelta
 
 import db
 from config import (
+    CITIES,
     DAILY_SEND_LIMIT,
     DEMO_BASE_URL,
     DEMO_EXPIRE_HOURS,
     PIPELINE_SCAN_BUDGET,
     PIPELINE_WORK_LIMIT,
 )
+
+
+VERIFY_TTL_DAYS = 30
+
+
+def _fresh_verification(lead) -> str:
+    """Return a still-trustworthy stored status, or "" to re-check.
+
+    Only for statuses that are safe to act on. "unknown" is never cached:
+    it means we could not tell, and that must be retried.
+    """
+    status = lead["website_status"]
+    if status not in ("none", "social_only", "has_site"):
+        return ""
+    stamp = lead["website_verified_at"]
+    if not stamp:
+        return ""
+    try:
+        age = datetime.now() - datetime.fromisoformat(stamp)
+    except (TypeError, ValueError):
+        return ""
+    return status if age <= timedelta(days=VERIFY_TTL_DAYS) else ""
 
 
 def run_daily(
@@ -87,8 +110,26 @@ def run_daily(
         if lead["email"] and db.is_suppressed(lead["email"]):
             continue
         try:
-            status, _real_site = check_website(
-                lead["name"], lead["address"] or "")
+            # A bare name matches almost nothing in Google Places; qualifying
+            # with the city lifted the match rate from ~0 to ~75% in testing.
+            # Without this every lead came back "unknown" and nothing sent.
+            # Reuse a recent verification instead of paying Google again.
+            # Bulk verification already classified these; re-checking every
+            # send both wasted the spend and, when the budget ran out,
+            # returned "unknown" and skipped every lead.
+            cached = _fresh_verification(lead)
+            if cached:
+                status, _real_site = cached, ""
+            else:
+                locality = lead["address"] or ""
+                if not locality and lead["city"]:
+                    meta = CITIES.get(lead["city"], {})
+                    locality = ", ".join(
+                        x for x in (meta.get("name"), meta.get("state")) if x)
+                status, _real_site = check_website(lead["name"], locality)
+                db.update_lead(
+                    lead["id"], website_status=status,
+                    website_verified_at=datetime.now().isoformat())
         except Exception as exc:
             errors.append({"stage": "verify", "lead": lead["id"], "error": str(exc)})
             continue

@@ -54,6 +54,8 @@ def test_print_and_reduced_motion():
 def test_no_blocking_webfonts_or_frameworks():
     assert "fonts.googleapis" not in HTML, "blocking web font"
     assert "<script src=" not in HTML, "external script on a static page"
+    assert ' src="https://maps.google.com' not in HTML, "maps embed blocks first paint"
+    assert 'src="about:blank"' in HTML and 'data-src="https://maps.google.com/maps?q=' in HTML
 
 def test_honest_about_being_a_sample():
     low = HTML.lower()
@@ -143,7 +145,11 @@ def test_claim_shows_build_and_care_split():
     assert "<strong>$99</strong> one-time — we finish your menu, hours, and photos." in HTML
     assert "<strong>Care $29/mo</strong> (or <strong>$249/yr</strong>) —" in HTML
     assert "so it stays live" in HTML
-    assert "$99 builds it. Care keeps it live. Reply to claim." in HTML
+    assert "$99 builds it. Care keeps it live." in HTML
+    assert "Claim this site — $99" in HTML
+    assert 'href="/claim/start?care=none"' in HTML
+    assert 'href="/claim/start?care=monthly"' in HTML
+    assert 'href="/claim/start?care=yearly"' in HTML
     assert "$299" not in HTML and "$79" not in HTML
 
 

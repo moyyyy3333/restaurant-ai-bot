@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+.git/
+skills-export.tar.gz
+demos/
+data/
+.hermes/
+*.pyc
+.env

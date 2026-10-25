@@ -17,10 +17,15 @@ jobs:
     steps:
       - name: Trigger /pipeline/run
         run: |
-          curl -f -s -X POST "https://restaurant-ai-bot-n844.onrender.com/pipeline/run" \
+          # -f swallowed the response body, so a 500 gave no reason at all.
+          code=$(curl -s -o /tmp/pipeline.json -w '%{http_code}' \
+            -X POST "https://restaurant-ai-bot-n844.onrender.com/pipeline/run" \
             -H "X-Pipeline-Token: ${{ secrets.PIPELINE_TOKEN }}" \
             -H "X-Pipeline-Dry-Run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}" \
             -H "X-Pipeline-Scan-Budget: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '1' || '' }}" \
             -H "X-Pipeline-Scan-Results: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '1' || '' }}" \
             -H "X-Pipeline-Work-Limit: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '1' || '' }}" \
-            -H "Content-Type: application/json"
+            -H "Content-Type: application/json")
+          echo "HTTP $code"
+          python3 -m json.tool /tmp/pipeline.json || cat /tmp/pipeline.json
+          [ "$code" = "200" ]

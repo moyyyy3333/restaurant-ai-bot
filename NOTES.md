@@ -3,6 +3,28 @@
 Append with a date and your name. Dead ends are as valuable as wins — the
 other agent can't see your session.
 
+## 2026-09-07 — grok (ops Prospect Board CM fold-in)
+
+- PR #11 `/ops` already had the cream/orange shell, Focus, Rhythm, Waves,
+  Claim column, and Turso refresh. The live gaps vs the CM screenshot were
+  header Reload/Pop out, the orange Quick Note box (Copy for Claude/CoS +
+  PIPELINE/RESEARCH/IDEA chips), Auto-prep ON · 9 AM CT, and Focus title
+  using a middle dot (`Vertical • Territory`).
+- Quick Note is an operator scratch pad persisted in `ops_meta.quick_note`.
+  Tag chips prepend into the textarea; they do not write fake business facts.
+- "Re-run today's prep" stamps `last_prep_at` and reloads Turso counts. It
+  does **not** call `/pipeline/run` — that would spend shared LocationIQ /
+  Google Places budget and can send. Keep pipeline runs on `/board` or the
+  GH Action (cron `17 14 * * *` ≈ 9:17 AM CT).
+- Weekly rotation labels are now Restaurant · Cafe · Trades · Salon · Auto ·
+  Other (Foundry Growth buckets). Other is a catch-all card, not a weekday.
+  HVAC/Pool are still not live categories — don't invent scanner types.
+- Demo CTA chip on each row: Order (food) · Book (salon/appointments) ·
+  Quote (trades/auto) · Call (else). Focus one-liner:
+  `{city} none-site locals — Order for food, Book/Quote/Call for trades.`
+- Claim strip copy: `$99 builds it. Care keeps it live.` Stripe checkout
+  path and the Claim column stay.
+
 ## 2026-09-07 — claude
 
 - **All 402 leads have a demo site; none have an email.** The outreach funnel
@@ -79,3 +101,81 @@ other agent can't see your session.
   spend Google Places budget. Do not scrape all 401 to discover tokens.
 - Re-run the full index when Turso is available:
   `TURSO_DATABASE_URL=… TURSO_AUTH_TOKEN=… python3 scripts/export_demos_index.py`
+## 2026-09-07 (evening) — claude
+
+- `outreach.foundrydesk.vip` DNS is **done** in cPanel (3 records, no dupes,
+  builder's `mail.foundrydesk.vip` untouched). Published DKIM matches Resend's
+  expected value byte-for-byte (218 chars). Domain still shows `pending` —
+  that is Resend/SES resolver lag, not a records problem. Re-trigger with:
+  `curl -X POST https://api.resend.com/domains/<id>/verify -H "Authorization: Bearer $RESEND_API_KEY"`
+  Domain id: 7388a870-1a34-408b-bcba-ce84d7133a52
+- **cPanel API tokens are NOT available on this Namecheap plan.** "Manage API
+  Tokens" appears in the sidebar but `security/api_tokens/index.html` 404s and
+  the link does not navigate. So `scripts/dns_add.py` cannot be used against
+  server229 — DNS still needs an SSO'd browser session via
+  ap.www.namecheap.com > Hosting List > GO TO CPANEL. This is the strongest
+  argument for moving DNS to Cloudflare, whose API tokens do work.
+- **Sending chain is proven**: live email sent via Resend from the verified
+  `fitnessprotocol.store` (id 9247330d). Pro plan, key, and delivery all work.
+  `onboarding@resend.dev` only delivers to your own address — never use it for
+  outreach, it fails silently.
+- Free lead insert done: **596 leads total, 267 with phone** (was 402 / 22).
+  194 new Miami businesses from OSM at zero API cost, cross-industry.
+  195 leads still need demo sites generated.
+
+## 2026-09-13 — claude  (THE bug: bot had never sent an email)
+
+**Root cause of zero sends since launch:** `emailer.py` called the Resend API
+without a `User-Agent` header. Resend sits behind Cloudflare, which rejects
+urllib's default agent with **403 error 1010**. `send_proposal()` returned
+`None` on that path *without appending to `errors[]`*, so every pipeline run
+reported `"ok": true, "errors": [], "proposals_sent": 0` — a green check on a
+send that never happened. Fixed; first two emails delivered 16:17 UTC.
+If you add any new Resend call, set a User-Agent (same trap hit `dns_add.py`).
+
+Other fixes today, all pushed, 42 tests green:
+- `db.leads_needing_email` had no ORDER BY, so 267 phone-only leads filled the
+  daily LIMIT and email-bearing leads were never reached. Now email-first.
+- `pipeline.py` passed a bare name to `check_website` when a lead had no
+  street address; Google can't match that. Now qualifies with city (~75%).
+- Verification is cached 30 days (`leads.website_verified_at`). The send gate
+  used to re-call Google per candidate and ignore stored status — which both
+  wasted the bulk-verify spend and skipped everything once the budget ran out.
+  "unknown" is never cached.
+- `pipeline.yml` used `curl -f -s`, hiding the response body; a 500 gave no
+  reason at all. Now prints the JSON.
+
+**Mistake to not repeat:** `verify_leads.py` stored Google's phone only when
+the lead had no address, discarding ~541 numbers from responses already paid
+for (~$18 run). Condition fixed, but those numbers are gone unless re-fetched.
+
+**Free phone backfill** (`scripts/backfill_phones.py`, OSM/Overpass, no cost):
+austin 72/150 matched, houston 19/61. **Miami failed with Overpass HTTP 504 —
+not yet run; retry it.** Overpass 504s on large bboxes; retry or shrink `pad`.
+
+**Standing constraint:** only 25 of 617 leads have an email. The 21 imported
+contractors have no street address, so Google returns a *different* business
+and they stay `unknown`. Leads with addresses (576) almost never have emails.
+Phone is the reachable channel: 300+ leads now have numbers.
+
+## 2026-09-24 — grok (Claim for $99 on the landing)
+
+- Buyer-facing production is `https://restaurant-ai-bot-two.vercel.app/` (Vercel
+  Flask project `restaurant-ai-bot`, same Turso as Render). Render
+  `https://restaurant-ai-bot-n844.onrender.com/` is the long-running twin.
+  Both served the landing with only **Get free preview** — no Claim, no
+  Checkout. `/claim/start` 404'd without a demo token, so a landing visitor
+  could not pay.
+- Stripe is already in `claim.py` ($99 + Care $29/mo / $249/yr, inline
+  `price_data` when Price IDs are empty). Vercel already has
+  `STRIPE_SECRET_KEY` / `STRIPE_PUBLISHABLE_KEY`. No `STRIPE_PRICE_*` on
+  Vercel — Checkout will name the $99 line **Local Web Studio — site claim**.
+  `STRIPE_WEBHOOK_SECRET` is not on Vercel; keep the webhook on Render
+  (`/webhook/stripe`) and add the Vercel host if success URLs stay there.
+- Extending, not rewriting: public `POST /api/claim/checkout` (no ops lock),
+  guest `/claim/start`, landing primary CTA **Claim for $99**, Care buttons
+  visible, cancel URL is `/`, success page tells the buyer to reply to
+  dealermatt72@me.com. Demo category CTAs (Order / Book / Quote / Call) were
+  not changed.
+- Do not add `vercel.json` — `tests/test_deployment_config.py` still requires
+  Render as the only committed runtime. Vercel deploys from dashboard/Git.

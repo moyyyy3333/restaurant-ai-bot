@@ -440,23 +440,31 @@ def _lookup_place(name: str, address: str) -> dict:
     """Real hours/types from Google Places. Empty if unknown — never invent."""
     if not name:
         return {}
+    t0 = datetime.now()
     try:
         from scanner.scanner import google_enrich
-        return google_enrich(name, address or "", timeout=4, check_liveness=False) or {}
+        info = google_enrich(name, address or "", timeout=4, check_liveness=False) or {}
     except Exception:
-        return {}
+        info = {}
+    ms = (datetime.now() - t0).total_seconds() * 1000
+    print(f"  generate place lookup {ms:.0f}ms name={name!r} hours={bool(info.get('hours'))}")
+    return info
 
 
 def _lookup_menu(name: str, address: str, website: str = "", bias: str = "") -> dict | None:
     """Real menu items from a public menu/order page. None if we cannot prove them."""
     if not name:
         return None
+    t0 = datetime.now()
     try:
         from menu_enrich import enrich_menu
-        return enrich_menu(name, address or "", website=website or "",
-                           bias=bias) or None
+        sourced = enrich_menu(name, address or "", website=website or "",
+                              bias=bias) or None
     except Exception:
-        return None
+        sourced = None
+    ms = (datetime.now() - t0).total_seconds() * 1000
+    print(f"  generate menu enrich {ms:.0f}ms name={name!r} items={len((sourced or {}).get('items') or [])}")
+    return sourced
 
 
 def _offer_wrap(family: str, inner: str) -> str:
@@ -712,6 +720,10 @@ tr:last-child th,tr:last-child td{{border-bottom:0}}
 #claim p{{opacity:.86;max-width:52ch;margin-top:1rem}}
 #claim .price{{opacity:1;font-weight:650;margin-top:1.5rem;font-size:var(--step-1)}}
 #claim .hairline{{background:var(--accent)}}
+#claim .claim-actions{{display:flex;flex-wrap:wrap;gap:.7rem;margin-top:1.4rem}}
+#claim .claim-actions .btn{{background:var(--accent);color:var(--ink)}}
+#claim .claim-actions .btn.ghost{{background:transparent;color:var(--surface);
+  border-color:color-mix(in srgb,var(--surface) 35%,transparent)}}
 .note{{font-size:12.5px;color:var(--muted);padding-block:2.2rem 0;max-width:70ch}}
 footer{{border-top:1px solid var(--line);padding-block:1.7rem;margin-top:1.2rem;
   font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;
@@ -821,8 +833,19 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
     map_html = ""
     if address:
         map_q = html.escape(str(address), quote=True)
-        map_html = (f'<iframe class="map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" '
-                    f'src="https://maps.google.com/maps?q={map_q}&output=embed"></iframe>')
+        map_src = f"https://maps.google.com/maps?q={map_q}&output=embed"
+        # Keep the Maps URL in data-src so first paint is not waiting on the
+        # embed. A tiny idle callback fills src after the page is interactive.
+        map_html = (
+            f'<iframe class="map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" '
+            f'title="Map" src="about:blank" data-src="{map_src}"></iframe>'
+            f'<script>'
+            f'(function(){{function go(){{var i=document.querySelector("iframe.map");'
+            f'if(i&&i.dataset.src)i.src=i.dataset.src}}'
+            f'if("requestIdleCallback"in window)requestIdleCallback(go,{{timeout:2500}});'
+            f'else setTimeout(go,1)}})()'
+            f'</script>'
+        )
 
     desc = _esc(hero)[:150]
     sec0 = _esc(meta["sections"][0])
@@ -970,7 +993,12 @@ def generate_site(name, address="", phone="", category="restaurant", rating=None
   <p><strong>${PRICE_USD}</strong> one-time — we finish your menu, hours, and photos.</p>
   <p><strong>Care ${CARE_MONTHLY_USD}/mo</strong> (or <strong>${CARE_YEARLY_USD}/yr</strong>) —
      hosting, SSL, monitoring, and small menu/hours tweaks so it stays live.</p>
-  <p class="price">${PRICE_USD} builds it. Care keeps it live. Reply to claim.</p>
+  <p class="price">${PRICE_USD} builds it. Care keeps it live.</p>
+  <div class="claim-actions">
+    <a class="btn" href="/claim/start?care=none">Claim this site — ${PRICE_USD}</a>
+    <a class="btn ghost" href="/claim/start?care=monthly">Care ${CARE_MONTHLY_USD}/mo</a>
+    <a class="btn ghost" href="/claim/start?care=yearly">Care ${CARE_YEARLY_USD}/yr</a>
+  </div>
   <p>This sample was built for {name_s} at no cost, and nothing is published.
      Reply to the email that brought you here. Every email has a one-click opt-out.</p>
 </div></section>

@@ -140,12 +140,14 @@ def validate_production_urls(environ=None) -> None:
         raise RuntimeError(message)
 
 # Ops board: one vertical per weekday (Mon–Fri). Weekend reuses Friday.
+# Labels are the Foundry Growth buckets (Restaurant · Cafe · Trades · Salon · Auto);
+# Other is appended on the board as a catch-all, not a weekday.
 OPS_WEEKLY_ROTATION = (
-    ("restaurant", "Restaurants"),
-    ("plumber", "Plumbing"),
-    ("roofer", "Roofing"),
-    ("electrician", "Electrical"),
+    ("restaurant", "Restaurant"),
+    ("cafe", "Cafe"),
+    ("plumber", "Trades"),
     ("salon", "Salon"),
+    ("auto", "Auto"),
 )
 
 # ---------------------------------------------------------------- markets

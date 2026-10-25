@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Local Web Studio — Ops Board</title>
+<title>Local Web Studio — Prospect Board</title>
 <style>
 :root {
-  --bg: #f3efe6;
+  --bg: #FDFBF7;
   --ink: #1c1916;
   --mut: #6f6a62;
   --line: #e4ddd0;
@@ -31,6 +31,13 @@ body {
 .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 22px 88px; }
 header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; gap: 16px; }
 .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; letter-spacing: .01em; }
+.hdr-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.hdr-btn {
+  background: #fff; color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 7px 12px; font-size: 13px; font-weight: 600;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+}
+.hdr-btn:hover { border-color: var(--acc); color: var(--acc); }
 .logo {
   width: 36px; height: 36px; background: #111; color: #fff; border-radius: 6px;
   display: grid; place-items: center; font: 700 12px/1 var(--mono); letter-spacing: .04em;
@@ -85,7 +92,7 @@ header { display: flex; justify-content: space-between; align-items: center; mar
 .step b { display: block; }
 .step small { color: var(--mut); display: block; margin-top: 4px; }
 .step .mins { float: right; font: 11px var(--mono); color: var(--mut); }
-.week { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.week { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
 .day {
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -169,6 +176,29 @@ textarea {
 .notice.warn { background: #fff7e8; border: 1px solid #e8d2a0; color: #6d5416; }
 .notice.ok { background: var(--ok-soft); border: 1px solid #b7d8c2; }
 .notice.stub { background: var(--wave-soft); border: 1px solid #b7c9d6; }
+.quick { border: 1.5px solid var(--acc); background: #fff; }
+.quick .hint { color: var(--mut); font-size: 13px; margin: 0 0 12px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; }
+.chip {
+  border: 1px solid var(--line); background: #fff; border-radius: 999px;
+  padding: 5px 12px; font: 700 11px var(--mono); letter-spacing: .08em;
+  cursor: pointer; color: var(--ink);
+}
+.chip:hover, .chip.on { border-color: var(--acc); color: var(--acc); background: var(--acc-soft); }
+.quick-actions { display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+.btn.big { padding: 12px 18px; font-size: 15px; }
+.prep-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.prep-on {
+  display: inline-flex; align-items: center; gap: 8px;
+  font: 12px var(--mono); color: var(--ok);
+  background: var(--ok-soft); padding: 5px 10px; border-radius: 999px;
+}
+.cta-hint {
+  display: inline-block; margin-top: 6px; font: 700 10px var(--mono);
+  letter-spacing: .08em; text-transform: uppercase; color: var(--acc);
+  background: var(--acc-soft); padding: 2px 7px; border-radius: 999px;
+}
+.week-sub { margin: -4px 0 12px; font-size: 13px; }
 footer { text-align: center; color: var(--mut); font-size: 12px; margin-top: 28px; line-height: 1.6; }
 @media (max-width: 760px) {
   .steps, .week { grid-template-columns: 1fr; }
@@ -181,8 +211,12 @@ footer { text-align: center; color: var(--mut); font-size: 12px; margin-top: 28p
 <body>
 <div class="wrap">
   <header>
-    <div class="brand"><div class="logo">LW</div> Local Web Studio — Ops Board</div>
-    <div class="date" id="date"></div>
+    <div class="brand"><div class="logo">LW</div> Local Web Studio — Prospect Board</div>
+    <div class="hdr-right">
+      <div class="date" id="date"></div>
+      <button class="hdr-btn" id="reloadBtn" type="button">↻ Reload</button>
+      <button class="hdr-btn" id="popoutBtn" type="button">↗ Pop out</button>
+    </div>
   </header>
 
   <div class="focus">
@@ -193,20 +227,41 @@ footer { text-align: center; color: var(--mut); font-size: 12px; margin-top: 28p
     </div>
   </div>
 
+  <div class="card quick">
+    <h2>Quick note &amp; suggestion box</h2>
+    <p class="hint">Tag a line with <code>PIPELINE:</code>, <code>RESEARCH:</code>, or <code>IDEA:</code>, then copy it for Claude / Chief of Staff. Chips prepend the tag into this box. Operator scratch pad only — it does not invent business facts.</p>
+    <div class="chips" id="quickTags">
+      <button type="button" class="chip" data-tag="PIPELINE:">PIPELINE:</button>
+      <button type="button" class="chip" data-tag="RESEARCH:">RESEARCH:</button>
+      <button type="button" class="chip" data-tag="IDEA:">IDEA:</button>
+    </div>
+    <textarea id="quickNote" placeholder="PIPELINE: texted three no-website plumbers in Houston&#10;RESEARCH: next — HVAC / pool cluster?&#10;IDEA: SMS-first — most leads have no email"></textarea>
+    <div class="quick-actions">
+      <button class="btn big" id="copyClaude" type="button">Copy for Claude/CoS</button>
+      <button class="btn sec" id="clearQuick" type="button">Clear</button>
+      <span class="muted mono" id="quickOut"></span>
+    </div>
+  </div>
+
   <div class="card" id="sendCard" style="display:none"></div>
   <div class="card" id="stripeCard"></div>
 
   <div class="card">
     <h2>Daily rhythm — your ~45-min block</h2>
-    <div class="steps" id="rhythm"></div>
-    <div class="row" style="margin-top:14px">
-      <button class="btn" id="refreshBtn" type="button">Refresh from database</button>
-      <span class="muted mono" id="refreshed"></span>
+    <div class="prep-bar">
+      <span class="prep-on" id="prepStatus">Auto-prep ON · 9 AM CT</span>
+      <div class="row">
+        <button class="btn" id="prepBtn" type="button">Re-run today's prep</button>
+        <button class="btn sec" id="refreshBtn" type="button">Refresh from database</button>
+        <span class="muted mono" id="refreshed"></span>
+      </div>
     </div>
+    <div class="steps" id="rhythm"></div>
   </div>
 
   <div class="card">
     <h2>Weekly rotation — one industry per day</h2>
+    <p class="muted week-sub">Restaurant · Cafe · Trades · Salon · Auto · Other — not restaurant-only.</p>
     <div class="week" id="week"></div>
   </div>
 
@@ -277,7 +332,7 @@ footer { text-align: center; color: var(--mut); font-size: 12px; margin-top: 28p
 
   <footer>
     Live counts come from Turso (leads, demos, emailed, claimed, sold, by city / category / website_status).<br>
-    This page refreshes every 20 seconds — no Claude paste loop.<br>
+    This page refreshes every 20 seconds. Quick notes copy to the clipboard; lead notes and overall notes save to Turso.<br>
     Claim checkout: $99 one-time build · Care $29/mo or $249/yr. Open with <span class="mono">/ops?k=PIPELINE_TOKEN</span>.
   </footer>
 </div>
@@ -289,7 +344,10 @@ const api = (p, opt) => {
 };
 let D = null;
 let notesReady = false;
+let quickReady = false;
 let saveTimer = null;
+let quickTimer = null;
+const QUICK_TAGS = ["PIPELINE:", "RESEARCH:", "IDEA:"];
 
 function esc(s) {
   return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -306,8 +364,14 @@ function render() {
   document.getElementById("date").textContent =
     (t.weekend ? "Catch-up — " : "Today — ") +
     new Date(t.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric", year: "numeric" });
-  document.getElementById("focus").textContent = `${t.category_label} · ${t.city_label}`;
+  document.getElementById("focus").textContent = `${t.category_label} • ${t.city_label}`;
   document.getElementById("focusSub").textContent = t.blurb;
+
+  const prep = D.prep || {};
+  const lastPrep = (prep.last_at || "").replace("T", " ");
+  document.getElementById("prepStatus").textContent = lastPrep
+    ? `Auto-prep ON · 9 AM CT · last ${lastPrep}`
+    : "Auto-prep ON · 9 AM CT";
 
   const sc = document.getElementById("sendCard");
   if (D.sending && !D.sending.ok) {
@@ -321,8 +385,8 @@ function render() {
   const price = D.claim.pricing;
   const stripe = document.getElementById("stripeCard");
   stripe.innerHTML = D.claim.stub
-    ? `<div class="notice stub"><b>Stripe claim stub.</b> Build <b>$${price.build.amount_usd}</b> · Care <b>$${price.care_monthly.amount_usd}/mo</b> or <b>$${price.care_yearly.amount_usd}/yr</b>. Keys unset — checkout opens a placeholder. Same amounts go live when <span class="mono">STRIPE_SECRET_KEY</span> is set.</div>`
-    : `<div class="notice ok"><b>Stripe live.</b> Checkout will charge $${price.build.amount_usd} and optional Care.</div>`;
+    ? `<div class="notice stub"><b>$99 builds it. Care keeps it live.</b> Stripe claim stub — build <b>$${price.build.amount_usd}</b> · Care <b>$${price.care_monthly.amount_usd}/mo</b> or <b>$${price.care_yearly.amount_usd}/yr</b>. Keys unset — checkout opens a placeholder. Same amounts go live when <span class="mono">STRIPE_SECRET_KEY</span> is set.</div>`
+    : `<div class="notice ok"><b>$99 builds it. Care keeps it live.</b> Stripe live — checkout charges $${price.build.amount_usd} and optional Care.</div>`;
 
   document.getElementById("rhythm").innerHTML = D.rhythm.map(s =>
     `<div class="step"><span class="mins">~${s.mins} min</span><div class="n">${s.n}</div><b>${esc(s.title)}</b><small>${esc(s.detail)} · ${esc(s.hint)}</small></div>`
@@ -370,7 +434,7 @@ function render() {
          </select><a class="btn claimA" data-id="${l.id}" href="${esc(l.claim_url)}" target="_blank" rel="noopener">${l.claimed ? "Re-open" : "Checkout"}</a></div>`
       : `<span class="muted">need demo</span>`;
     return `<tr>
-      <td><b>${esc(l.name)}</b><br><span class="muted mono">#${l.id} · ${esc(l.city)} · ${esc(l.category)}</span></td>
+      <td><b>${esc(l.name)}</b><br><span class="muted mono">#${l.id} · ${esc(l.city)} · ${esc(l.category)}</span>${l.cta ? `<div class="cta-hint">${esc(l.cta)}</div>` : ""}</td>
       <td class="mono">${esc(l.phone || "—")}</td>
       <td class="hide-m mono">${stars}${rc}</td>
       <td><select data-id="${l.id}" class="stSel">${statuses.map(s => `<option value="${s}" ${s === l.status ? "selected" : ""}>${s}</option>`).join("")}</select></td>
@@ -413,6 +477,8 @@ function render() {
 
   const ov = document.getElementById("overall");
   if (!notesReady) { ov.value = D.notes || ""; notesReady = true; }
+  const qn = document.getElementById("quickNote");
+  if (!quickReady) { qn.value = D.quick_note || ""; quickReady = true; markQuickChip(); }
 }
 
 async function load() {
@@ -428,6 +494,79 @@ async function load() {
 document.getElementById("fStatus").onchange = render;
 document.getElementById("fCity").onchange = render;
 document.getElementById("refreshBtn").onclick = load;
+document.getElementById("reloadBtn").onclick = load;
+document.getElementById("popoutBtn").onclick = () => {
+  window.open(location.href, "lws-ops-board", "noopener,noreferrer");
+};
+document.getElementById("prepBtn").onclick = async () => {
+  const b = document.getElementById("prepBtn");
+  b.disabled = true;
+  await api("/api/ops/meta", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ prep: true })
+  });
+  await load();
+  b.disabled = false;
+};
+
+function markQuickChip() {
+  const v = document.getElementById("quickNote").value.trimStart();
+  document.querySelectorAll("#quickTags .chip").forEach(ch => {
+    ch.classList.toggle("on", v.startsWith(ch.dataset.tag));
+  });
+}
+function prependQuickTag(tag) {
+  const ta = document.getElementById("quickNote");
+  let v = ta.value;
+  for (const p of QUICK_TAGS) {
+    if (v.startsWith(p)) {
+      v = v.slice(p.length).replace(/^\s+/, "");
+      break;
+    }
+  }
+  ta.value = tag + (v ? " " + v : " ");
+  ta.focus();
+  markQuickChip();
+  persistQuick();
+}
+function persistQuick() {
+  clearTimeout(quickTimer);
+  quickTimer = setTimeout(async () => {
+    const body = document.getElementById("quickNote").value;
+    const r = await api("/api/ops/meta", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ quick_note: body })
+    });
+    document.getElementById("quickOut").textContent = r.ok
+      ? "saved " + new Date().toLocaleTimeString() : "save failed";
+  }, 700);
+}
+document.querySelectorAll("#quickTags .chip").forEach(ch => {
+  ch.onclick = () => prependQuickTag(ch.dataset.tag);
+});
+document.getElementById("quickNote").addEventListener("input", () => {
+  markQuickChip();
+  persistQuick();
+});
+document.getElementById("copyClaude").onclick = async () => {
+  const t = document.getElementById("quickNote").value.trim();
+  const out = document.getElementById("quickOut");
+  if (!t) { out.textContent = "nothing to copy"; return; }
+  try {
+    await navigator.clipboard.writeText(t);
+    out.textContent = "copied for Claude/CoS";
+  } catch {
+    document.getElementById("quickNote").select();
+    document.execCommand("copy");
+    out.textContent = "copied for Claude/CoS";
+  }
+};
+document.getElementById("clearQuick").onclick = () => {
+  document.getElementById("quickNote").value = "";
+  markQuickChip();
+  persistQuick();
+  document.getElementById("quickOut").textContent = "cleared";
+};
 document.getElementById("saveNote").onclick = async () => {
   const id = +document.getElementById("noteLead").value;
   const t = document.getElementById("noteText").value;

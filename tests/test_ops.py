@@ -15,6 +15,7 @@ from http.server import ThreadingHTTPServer
 
 import db
 import claim
+import ops
 import server
 
 
@@ -114,7 +115,7 @@ class OpsAndClaimTests(unittest.TestCase):
             status, body, headers = self._get(httpd, f"/ops?k={TOKEN}")
             self.assertEqual(status, 200)
             self.assertIn("text/html", headers.get("content-type", ""))
-            self.assertIn(b"Ops Board", body)
+            self.assertIn(b"Prospect Board", body)
             self.assertIn(b"Today's focus", body)
             self.assertIn(b"Daily rhythm", body)
             self.assertIn(b"Weekly rotation", body)
@@ -122,11 +123,30 @@ class OpsAndClaimTests(unittest.TestCase):
             self.assertIn(b"Houston", body)
             self.assertIn(b"Miami", body)
             self.assertIn(b"Austin", body)
+            self.assertIn(b"Restaurant", body)
+            self.assertIn(b"Cafe", body)
+            self.assertIn(b"Trades", body)
+            self.assertIn(b"Salon", body)
+            self.assertIn(b"Auto", body)
+            self.assertIn(b"Other", body)
+            self.assertIn(b"not restaurant-only", body)
+            self.assertIn(b"$99 builds it. Care keeps it live.", body)
+            self.assertIn(b"Reload", body)
+            self.assertIn(b"Pop out", body)
+            self.assertIn(b"Quick note", body)
+            self.assertIn(b"Copy for Claude/CoS", body)
+            self.assertIn(b'data-tag="PIPELINE:"', body)
+            self.assertIn(b'data-tag="RESEARCH:"', body)
+            self.assertIn(b'data-tag="IDEA:"', body)
+            self.assertIn(b"Auto-prep ON", body)
+            self.assertIn(b"9 AM CT", body)
+            self.assertIn(b"Re-run today's prep", body)
+            self.assertIn(b"Refresh from database", body)
+            self.assertIn(b"Claim", body)
             self.assertIn(b"$99", body)
             self.assertIn(b"$29", body)
             self.assertIn(b"$249", body)
             self.assertNotIn(b"$79", body)
-            self.assertNotIn(b"Copy for Claude", body)
 
             status, body, _ = self._get(httpd, f"/api/ops?k={TOKEN}")
             self.assertEqual(status, 200)
@@ -139,12 +159,24 @@ class OpsAndClaimTests(unittest.TestCase):
             self.assertEqual(data["stats"]["by_website_status"].get("social_only"), 1)
             self.assertEqual(len(data["waves"]), 3)
             self.assertEqual({w["city"] for w in data["waves"]}, {"houston", "miami", "austin"})
-            self.assertEqual(len(data["rotation"]), 5)
+            self.assertEqual(len(data["rotation"]), 6)
             names = [l["name"] for l in data["leads"]]
             self.assertIn("Montrose Plumbing", names)
             self.assertEqual(data["claim"]["pricing"]["build"]["amount_usd"], 99)
             self.assertEqual(data["claim"]["pricing"]["care_monthly"]["amount_usd"], 29)
             self.assertTrue(data["claim"]["stub"])
+            self.assertTrue(data["prep"]["auto"])
+            self.assertEqual(data["prep"]["schedule"], "9 AM CT")
+            self.assertIn("cta", data["today"])
+            self.assertIn("none-site locals", data["today"]["blurb"])
+            self.assertIn("Order for food", data["today"]["blurb"])
+            labels = {d["label"] for d in data["rotation"]}
+            self.assertEqual(
+                labels, {"Restaurant", "Cafe", "Trades", "Salon", "Auto", "Other"})
+            plumber = next(l for l in data["leads"] if l["name"] == "Montrose Plumbing")
+            cafe = next(l for l in data["leads"] if l["name"] == "Miami Cafe")
+            self.assertEqual(plumber["cta"], "Quote")
+            self.assertEqual(cafe["cta"], "Order")
         finally:
             httpd.shutdown()
             httpd.server_close()
@@ -154,15 +186,26 @@ class OpsAndClaimTests(unittest.TestCase):
         try:
             status, body = self._post(
                 httpd, f"/api/ops/meta?k={TOKEN}",
-                {"wave": "austin", "notes": "Focus Midtown next week"})
+                {"wave": "austin", "notes": "Focus Midtown next week",
+                 "quick_note": "PIPELINE: text Houston plumbers", "prep": True})
             self.assertEqual(status, 200)
             status, body, _ = self._get(httpd, f"/api/ops?k={TOKEN}")
             data = json.loads(body)
             self.assertEqual(data["today"]["city"], "austin")
             self.assertEqual(data["notes"], "Focus Midtown next week")
+            self.assertEqual(data["quick_note"], "PIPELINE: text Houston plumbers")
+            self.assertTrue(data["prep"]["last_at"])
         finally:
             httpd.shutdown()
             httpd.server_close()
+
+    def test_cta_hint_food_vs_trade(self):
+        self.assertEqual(ops._cta_hint("restaurant"), "Order")
+        self.assertEqual(ops._cta_hint("cafe"), "Order")
+        self.assertEqual(ops._cta_hint("plumber"), "Quote")
+        self.assertEqual(ops._cta_hint("auto"), "Quote")
+        self.assertEqual(ops._cta_hint("salon"), "Book")
+        self.assertEqual(ops._cta_hint("lawyer"), "Call")
 
     def test_claim_stub_without_stripe_keys(self):
         lid = self._seed()
@@ -193,8 +236,23 @@ class OpsAndClaimTests(unittest.TestCase):
             status, body, _ = self._get(httpd, "/claim/success")
             self.assertEqual(status, 200)
             self.assertIn(b"$99", body)
+            self.assertIn(b"dealermatt72@me.com", body)
+            self.assertIn(b"Local Web Studio", body)
             status, body, _ = self._get(httpd, "/claim/cancel")
             self.assertEqual(status, 200)
+            self.assertIn(b'href="/"', body)
+            self.assertIn(b"Back to Local Web Studio", body)
+
+            status, body, headers = self._get(httpd, "/claim/start")
+            self.assertIn(status, (302, 301))
+            self.assertIn("/claim/stub", headers.get("location", ""))
+
+            status, body = self._post(httpd, "/api/claim/checkout", {"care": "none"})
+            self.assertEqual(status, 200)
+            guest = json.loads(body)
+            self.assertTrue(guest["ok"])
+            self.assertIn("/claim/stub", guest["url"])
+            self.assertEqual(guest["pricing"]["build"]["amount_usd"], 99)
         finally:
             httpd.shutdown()
             httpd.server_close()
@@ -209,7 +267,9 @@ class OpsAndClaimTests(unittest.TestCase):
             self.assertEqual(status, 200)
             self.assertIn(b"This is a preview built for Montrose Plumbing", body)
             self.assertIn(b"/claim/start?t=opsdemo1&amp;care=none", body)
-            self.assertIn(b"Claim with Care", body)
+            self.assertIn("Claim this site — $99".encode(), body)
+            self.assertIn(b"Care $29/mo", body)
+            self.assertIn(b"Care $249/yr", body)
             self.assertIn(b"What you get", body)
         finally:
             httpd.shutdown()
@@ -260,6 +320,51 @@ class OpsAndClaimTests(unittest.TestCase):
         self.assertEqual(captured["metadata[lead_id]"], ["44"])
         self.assertEqual(
             captured["subscription_data[metadata][care_plan]"], ["monthly"])
+        self.assertEqual(captured["metadata[demo_id]"], ["demo-44"])
+        self.assertEqual(captured["metadata[business]"], ["Cafe 44"])
+
+    def test_inline_price_data_names_studio_claim(self):
+        captured = {}
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return None
+
+            def read(self):
+                return b'{"id":"cs_guest","url":"https://checkout.stripe.test"}'
+
+        def open_request(request, timeout=0):
+            captured.update(urllib.parse.parse_qs(request.data.decode()))
+            return Response()
+
+        with patch("claim.urllib.request.urlopen", side_effect=open_request), \
+             patch.object(claim, "STRIPE_PRICE_BUILD", ""), \
+             patch.object(claim, "STRIPE_SECRET_KEY", "sk_test_x"):
+            result = claim._create_stripe_session(
+                {"name": "Landing visitor"}, "none",
+                "https://ok/claim/success", "https://ok/")
+        self.assertEqual(result["id"], "cs_guest")
+        self.assertEqual(
+            captured["line_items[0][price_data][product_data][name]"],
+            ["Local Web Studio — site claim"])
+        self.assertEqual(
+            captured["line_items[0][price_data][unit_amount]"], ["9900"])
+        self.assertEqual(captured["metadata[source]"], ["landing"])
+
+    def test_create_checkout_cancel_returns_to_landing(self):
+        with patch.object(claim, "STRIPE_SECRET_KEY", "sk_live_test"), \
+             patch.object(
+                 claim, "_create_stripe_session",
+                 return_value={"id": "cs_1", "url": "https://checkout.stripe.test"}
+             ) as mock_session:
+            result = claim.create_checkout(None, "none")
+        self.assertTrue(result["ok"])
+        _lead, _care, success, cancel = mock_session.call_args[0]
+        self.assertIn("/claim/success", success)
+        self.assertEqual(cancel, f"{claim.DEMO_BASE_URL}/")
 
     def test_configured_stripe_failure_never_falls_back_to_stub(self):
         lead = {"id": 44, "demo_token": "demo-44", "name": "Cafe 44"}
@@ -365,6 +470,31 @@ class OpsAndClaimTests(unittest.TestCase):
             lead = db.get_lead(lead_id)
             self.assertEqual(lead["care_status"], "cancelled")
             self.assertIn("Care subscription cancelled", lead["notes"])
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+
+    def test_guest_checkout_webhook_does_not_require_a_lead(self):
+        event = {
+            "id": "evt_guest_paid_1",
+            "type": "checkout.session.completed",
+            "data": {"object": {
+                "id": "cs_guest_1",
+                "amount_total": 9900,
+                "metadata": {"care_plan": "none", "business": "Landing visitor"},
+                "customer_details": {"email": "buyer@studio.test"},
+            }},
+        }
+        httpd = self._serve()
+        try:
+            with patch.object(claim, "STRIPE_WEBHOOK_SECRET", "whsec_test"), \
+                 patch("notifications.notify_admin", return_value=True) as notify, \
+                 patch("emailer.send_welcome_email", return_value="email_g") as welcome:
+                status, body = self._signed_stripe_post(httpd, event)
+            self.assertEqual(status, 200)
+            self.assertTrue(json.loads(body)["applied"])
+            notify.assert_called_once()
+            welcome.assert_called_once()
         finally:
             httpd.shutdown()
             httpd.server_close()

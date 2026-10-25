@@ -237,6 +237,7 @@ def init_db():
         _ensure_column(c, "leads", "claimed", "INTEGER DEFAULT 0")
         _ensure_column(c, "leads", "claimed_at", "TEXT")
         _ensure_column(c, "leads", "care_plan", "TEXT")
+        _ensure_column(c, "leads", "website_verified_at", "TEXT")
         _ensure_column(c, "leads", "care_status", "TEXT")
         _ensure_column(c, "claims", "stripe_subscription_id", "TEXT")
         _ensure_column(c, "claims", "stripe_customer_id", "TEXT")
@@ -331,6 +332,21 @@ def get_lead_by_token(token: str):
         return c.execute("SELECT * FROM leads WHERE demo_token = ?", (token,)).fetchone()
 
 
+def get_lead_and_demo(token: str):
+    """One Turso connection for /demo/{token}: lead + stored HTML."""
+    with conn() as c:
+        demo = c.execute(
+            "SELECT * FROM demo_sites WHERE token = ?", (token,)).fetchone()
+        if not demo:
+            return None, None
+        lead = c.execute(
+            "SELECT * FROM leads WHERE id = ?", (demo["lead_id"],)).fetchone()
+        if not lead:
+            lead = c.execute(
+                "SELECT * FROM leads WHERE demo_token = ?", (token,)).fetchone()
+        return lead, demo
+
+
 def update_lead(lead_id: int, **fields):
     if not fields:
         return
@@ -351,7 +367,12 @@ def leads_needing_email(limit: int = 25):
         return c.execute(
             "SELECT * FROM leads WHERE emailed = 0 AND demo_token IS NOT NULL "
             "AND ((email IS NOT NULL AND email != '') "
-            "OR (phone IS NOT NULL AND phone != '')) LIMIT ?", (limit,)).fetchall()
+            "OR (phone IS NOT NULL AND phone != '')) "
+            # Email-reachable leads first: a phone-only lead cannot be
+            # emailed, so letting 267 of them fill the daily LIMIT meant
+            # leads WITH addresses were never reached and nothing sent.
+            "ORDER BY (email IS NOT NULL AND email != '') DESC, id "
+            "LIMIT ?", (limit,)).fetchall()
 
 
 def leads_missing_email(limit: int = 25):
@@ -400,6 +421,15 @@ def get_demo(token: str):
 def bump_demo_views(token: str):
     with conn() as c:
         c.execute("UPDATE demo_sites SET views = views + 1 WHERE token = ?", (token,))
+
+
+def record_demo_open(token: str, lead_id: int, expires_at: str):
+    """Views + expiry in one connection, after the HTML has been sent."""
+    with conn() as c:
+        c.execute("UPDATE demo_sites SET views = views + 1 WHERE token = ?", (token,))
+        if lead_id and expires_at:
+            c.execute("UPDATE leads SET demo_expires_at = ? WHERE id = ?",
+                      (expires_at, lead_id))
 
 
 # ----------------------------------------------------------------- suppression

@@ -8,7 +8,14 @@ has room. How-it-works beats stay verbatim.
 import html
 from urllib.parse import quote
 
-from config import FROM_EMAIL, REPLY_TO
+import claim
+from config import (
+    BUILD_PRICE_USD,
+    CARE_MONTHLY_USD,
+    CARE_YEARLY_USD,
+    FROM_EMAIL,
+    REPLY_TO,
+)
 
 # Resend's sandbox default is not a real inbox — never use it as a CTA.
 _PLACEHOLDER_FROM = "onboarding@resend.dev"
@@ -21,6 +28,10 @@ SUB = (
 )
 CTA_SHORT = "Get free preview"
 CTA_LONG = "Get my free site preview"
+CTA_CLAIM = f"Claim for ${BUILD_PRICE_USD}"
+CTA_CLAIM_LONG = f"Claim this site — ${BUILD_PRICE_USD}"
+CTA_CARE_MONTHLY = f"Care ${CARE_MONTHLY_USD}/mo"
+CTA_CARE_YEARLY = f"Care ${CARE_YEARLY_USD}/yr"
 CTA_SECONDARY = "How it works"
 ONE_LINER = "We build websites for local businesses that don’t have one yet."
 PRICE_ONE_LINER = "$99 gets the site. Care keeps it live."
@@ -64,7 +75,11 @@ def render_home(contact_email: str = "", sites=None) -> bytes:
     href = "#preview"
     cta_label = html.escape(CTA_SHORT)
     cta_aria = html.escape(CTA_SHORT, quote=True)
+    claim_label = html.escape(CTA_CLAIM)
     email_safe = html.escape(email)
+    claim_build = claim.claim_form("none", CTA_CLAIM, button_class="btn primary")
+    claim_monthly = claim.claim_form("monthly", CTA_CARE_MONTHLY, button_class="btn ghost")
+    claim_yearly = claim.claim_form("yearly", CTA_CARE_YEARLY, button_class="btn ghost")
     empty = sites == 0
     empty_block = (
         f'<p class="empty" role="status">{html.escape(EMPTY_SITES)}</p>'
@@ -196,6 +211,35 @@ h1 {{
 .btn.ghost {{
   border: 1px solid var(--ink); background: transparent;
 }}
+form.claim-go {{
+  display: inline-flex; margin: 0;
+}}
+form.claim-go button {{
+  cursor: pointer;
+}}
+.care-row {{
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  margin-top: 14px;
+}}
+.care-row .care-label {{
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 14px; color: var(--muted);
+}}
+.pricing {{
+  padding: 8px 0 40px;
+}}
+.pricing-card {{
+  background: #fffdf8; border: 1px solid var(--line);
+  border-radius: 20px; padding: 28px 24px; box-shadow: var(--shadow);
+}}
+.pricing-card h2 {{ margin: 0 0 8px; font-size: 1.7rem; font-weight: 500; }}
+.pricing-card .lede {{
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  color: var(--muted); margin: 0 0 18px; max-width: 46ch;
+}}
+.pricing-card .claim-go .btn.primary {{
+  background: var(--ink); color: #f6e7c4; border: 0;
+}}
 .btn:focus-visible, input:focus-visible, textarea:focus-visible {{
   outline: 3px solid var(--gold); outline-offset: 2px;
 }}
@@ -281,12 +325,34 @@ footer {{
     <h1>No website? We’ll build <span class="extra">you </span>one.</h1>
     <p class="sub">{html.escape(SUB)}</p>
     <div class="ctas">
-      <a class="btn primary" href="{href}" aria-label="{cta_aria}">{cta_label}</a>
-      <a class="btn ghost" href="#how-it-works">{html.escape(CTA_SECONDARY)}</a>
+      {claim_build}
+      <a class="btn ghost" href="{href}" aria-label="{cta_aria}">{cta_label}</a>
+    </div>
+    <div class="care-row" id="care">
+      <span class="care-label">Optional Care — hosting, SSL, small updates:</span>
+      {claim_monthly}
+      {claim_yearly}
     </div>
     <p class="price-line">{html.escape(PRICE_ONE_LINER)}</p>
     <p class="price-line price-full">{html.escape(PRICE_LINE)}</p>
     {empty_block}
+  </section>
+  <section class="pricing wrap" id="claim">
+    <div class="pricing-card">
+      <h2>{claim_label}</h2>
+      <p class="lede">One-time site claim. Stripe Checkout opens on this same origin.
+      Cancel returns here. After payment, reply to {html.escape(claim.STUDIO_EMAIL)}
+      ({html.escape(claim.STUDIO_NAME)}) with hours, photos, and your domain.</p>
+      <div class="ctas">
+        {claim.claim_form("none", CTA_CLAIM_LONG, button_class="btn primary")}
+        <a class="btn ghost" href="#how-it-works">{html.escape(CTA_SECONDARY)}</a>
+      </div>
+      <div class="care-row">
+        <span class="care-label">Add Care when you claim:</span>
+        {claim.claim_form("monthly", CTA_CARE_MONTHLY, button_class="btn ghost")}
+        {claim.claim_form("yearly", CTA_CARE_YEARLY, button_class="btn ghost")}
+      </div>
+    </div>
   </section>
   <section class="how wrap" id="how-it-works">
     <h2>How it works</h2>
@@ -321,5 +387,26 @@ footer {{
   <p>{html.escape(ONE_LINER)}</p>
   <p class="demo-note">If we already built you a preview, it lives at a private <code>/demo/&lt;token&gt;</code> link we sent you — we don’t list those here.</p>
 </footer>
+<script>
+(function () {{
+  document.querySelectorAll("form.claim-go").forEach(function (form) {{
+    form.addEventListener("submit", function (event) {{
+      event.preventDefault();
+      var payload = {{}};
+      new FormData(form).forEach(function (value, key) {{ payload[key] = value; }});
+      var fallback = "/claim/start?care=" + encodeURIComponent(payload.care || "none");
+      fetch("/api/claim/checkout", {{
+        method: "POST",
+        headers: {{ "Content-Type": "application/json", "Accept": "application/json" }},
+        body: JSON.stringify(payload)
+      }}).then(function (res) {{ return res.json(); }}).then(function (data) {{
+        window.location = (data && data.url) ? data.url : fallback;
+      }}).catch(function () {{
+        window.location = fallback;
+      }});
+    }});
+  }});
+}})();
+</script>
 </body>
 </html>""".encode()

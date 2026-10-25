@@ -218,7 +218,12 @@ def send_proposal(business_name: str, demo_url: str, owner_email: str,
 
     req = urllib.request.Request(
         RESEND_URL, json.dumps(payload).encode(),
-        {"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"})
+        {"Authorization": f"Bearer {RESEND_API_KEY}",
+         "Content-Type": "application/json",
+         # Resend sits behind Cloudflare, which 403s (error 1010)
+         # on urllib's default agent. Without this every send
+         # failed silently and nothing was ever delivered.
+         "User-Agent": "local-web-studio/1.0"})
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
             data = json.load(r)
@@ -294,7 +299,12 @@ padding:12px 18px;border-radius:8px;text-decoration:none">Start onboarding</a></
         payload["reply_to"] = REPLY_TO
     req = urllib.request.Request(
         RESEND_URL, json.dumps(payload).encode(),
-        {"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"})
+        {"Authorization": f"Bearer {RESEND_API_KEY}",
+         "Content-Type": "application/json",
+         # Resend sits behind Cloudflare, which 403s (error 1010)
+         # on urllib's default agent. Without this every send
+         # failed silently and nothing was ever delivered.
+         "User-Agent": "local-web-studio/1.0"})
     try:
         with urllib.request.urlopen(req, timeout=20) as response:
             provider_id = json.load(response).get("id")
